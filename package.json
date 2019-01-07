@@ -15,7 +15,7 @@
     "test:unit:debug": "node --inspect-brk node_modules/.bin/jest --runInBand --verbose",
     "test:format": "prettier -l \"src/**/*.js\" \"!src/**/*.spec.js\"",
     "format": "prettier --write  \"src/**/*.js\" \"!src/**/*.spec.js\"",
-    "pub": "npm run test && npm run build && np"
+    "pub": "npm run test && np"
   },
   "dependencies": {
     "camelcase": "^5.0.0"
@@ -27,7 +27,8 @@
   },
   "jest": {
     "coverageDirectory": "./coverage/",
-    "collectCoverage": true
+    "collectCoverage": true,
+    "testEnvironment": "node"
   },
   "prettier": {
     "printWidth": 80,
