@@ -1,0 +1,5 @@
+# Each line is a file pattern followed by one or more owners.
+# Order is important. The last matching pattern has the most precedence.
+
+# These owners will be the default owners for everything in the repo.
+*       @craigmichaelmartin

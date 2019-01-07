@@ -1,0 +1,38 @@
+{
+  "name": "sql-toolkit",
+  "author": "Craig Martin",
+  "license": "MIT",
+  "version": "0.0.1",
+  "description": "A SQL Toolkit based on pure business objects passed to and from stateful data access objects",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=6"
+  },
+  "scripts": {
+    "test": "npm run test:unit && npm run test:format",
+    "test:unit": "jest",
+    "test:unit:watch": "jest --watch",
+    "test:unit:debug": "node --inspect-brk node_modules/.bin/jest --runInBand --verbose",
+    "test:format": "prettier -l \"src/**/*.js\" \"!src/**/*.spec.js\"",
+    "format": "prettier --write  \"src/**/*.js\" \"!src/**/*.spec.js\"",
+    "pub": "npm run test && npm run build && np"
+  },
+  "dependencies": {
+    "camelcase": "^5.0.0"
+  },
+  "devDependencies": {
+    "jest": "^22.0.3",
+    "np": "^2.18.3",
+    "prettier": "^1.9.2"
+  },
+  "jest": {
+    "coverageDirectory": "./coverage/",
+    "collectCoverage": true
+  },
+  "prettier": {
+    "printWidth": 80,
+    "tabWidth": 2,
+    "singleQuote": true,
+    "trailingComma": "none"
+  }
+}
