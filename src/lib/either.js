@@ -22,7 +22,7 @@ const Left = x => ({
   inspect: () => `Left(${x})`
 });
 
-const fold = (f, g) => (lor) => f && g ? lor.fold(f, g) : lor.fold(() => {}, f);
+const fold = (f, g) => lor => (f && g ? lor.fold(f, g) : lor.fold(() => {}, f));
 
 module.exports = {
   Right,
