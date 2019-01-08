@@ -1,15 +1,17 @@
 const camelCase = require('camelcase');
 
-module.exports = ({ tableData }) =>
-  class Base {
+module.exports = ({ tableMap, collectionsMap, singleToCollection }) => {
+  const names = Object.keys(tableMap);
+  const collectionsNames = Object.keys(collectionsMap);
+  return class Base {
     constructor(props) {
       Object.assign(this, props);
       const relationships = Object.keys(props).reduce((obj, prop) => {
-        if (tableData.names.indexOf(prop) > -1) {
-          if (tableData.singleToCollection[prop]) {
+        if (names.indexOf(prop) > -1) {
+          if (singleToCollection[prop]) {
             // I *think* the above line is safe, since this is for relationships and not own
             // if (props[prop] && Array.isArray(props[prop].id)) {
-            const BoConstructor = tableData.singleToCollection[prop];
+            const BoConstructor = singleToCollection[prop];
             const items = Array.isArray(props[prop].id)
               ? props[prop].id.map((_, index) => {
                   return Object.keys(props[prop]).reduce((o, p) => {
@@ -22,15 +24,15 @@ module.exports = ({ tableData }) =>
               BoConstructor.parseFromObjects(items)
             );
           } else {
-            const BoConstructor = tableData.map[prop];
+            const BoConstructor = tableMap[prop];
             const propCamel =
               BoConstructor.displayName ||
               prop.charAt(0).toLowerCase() + prop.slice(1);
             const params = BoConstructor.parseSqlColumns(props[prop]);
             obj[propCamel] = new BoConstructor(params);
           }
-        } else if (tableData.collectionsNames.indexOf(prop) > -1) {
-          const BoConstructor = tableData.collectionsMap[prop];
+        } else if (collectionsNames.indexOf(prop) > -1) {
+          const BoConstructor = collectionsMap[prop];
           obj[prop] = new BoConstructor(
             BoConstructor.parseFromObjects(props[prop])
           );
@@ -86,14 +88,38 @@ module.exports = ({ tableData }) =>
       }, {});
     }
 
+    static flattenResult(array) {
+      return Array.isArray(array)
+        ? array.reduce((obj, item) => {
+            Object.keys(item).forEach(key => {
+              if (obj[key] == null) {
+                obj[key] = item[key];
+              } else if (
+                Array.isArray(obj[key]) &&
+                obj[key]
+                  .map(x => JSON.stringify(x))
+                  .indexOf(JSON.stringify(item[key])) === -1
+              ) {
+                obj[key] = [...obj[key], item[key]];
+              } else if (
+                JSON.stringify(obj[key]) !== JSON.stringify(item[key])
+              ) {
+                obj[key] = [obj[key], item[key]];
+              }
+            });
+            return obj;
+          }, {})
+        : array;
+    }
+
     static parseFromDatabase(result) {
-      // const tableData = require('../table-names'); // Needs to be here re: circular dep
-      const processed = this.processFromDatabase(result);
+      const flattenedResult = this.flattenResult(result);
+      const processed = this.processFromDatabase(flattenedResult);
       const own = this.parseSqlColumns(processed[this.tableName]);
       const relationshipObjects = Object.keys(processed).reduce(
         (obj, tableName) => {
           if (tableName !== this.tableName) {
-            // obj[tableName] = tableData.map[tableName].parseSqlColumns(processed[tableName]);
+            // obj[tableName] = map[tableName].parseSqlColumns(processed[tableName]);
             obj[tableName] = processed[tableName];
           }
           return obj;
@@ -159,3 +185,4 @@ module.exports = ({ tableData }) =>
       return this[this.c.columns[this.c.sqlColumns.indexOf(sqlColumn)]];
     }
   };
+};
