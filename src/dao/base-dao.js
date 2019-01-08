@@ -1,13 +1,19 @@
 const { Left, Right } = require('../lib/either');
-const { getColumnsValuesFromInsertError } = require('../util/helpers');
+const {
+  getColumnsValuesFromInsertError,
+  errorHandler
+} = require('../util/helpers');
 
 /*
  * A wrapper function returning the base data access abstraction.
  */
-module.exports = ({ logError, singleToCollection }) =>
+module.exports = ({ getTableData, db: closureDB, logError: closureLogError }) =>
   class BaseDAO {
-    constructor({ db } = {}) {
-      this.db = db;
+    constructor({ db, singleToCollection, logError } = {}) {
+      this.db = db || closureDB;
+      this.singleToCollection =
+        singleToCollection || getTableData().singleToCollection;
+      this.logError = logError || closureLogError;
       this.ensureExists = this.getOrCreate; // alias
     }
 
@@ -24,12 +30,7 @@ module.exports = ({ logError, singleToCollection }) =>
         .then(row => {
           return Right(new bo.c(bo.c.parseFromDatabase(row))); // eslint-disable-line
         })
-        .catch(function(err) {
-          if (!err.name === 'QueryResultError') {
-            logError(err);
-          }
-          return Left(err);
-        });
+        .catch(errorHandler(this.logError));
     }
 
     // Standard update
@@ -46,12 +47,7 @@ module.exports = ({ logError, singleToCollection }) =>
         .then(row => {
           return Right(new bo.c(bo.c.parseFromDatabase(row))); // eslint-disable-line
         })
-        .catch(function(err) {
-          if (!err.name === 'QueryResultError') {
-            logError(err);
-          }
-          return Left(err);
-        });
+        .catch(errorHandler(this.logError));
     }
 
     // Standard delete
@@ -64,12 +60,7 @@ module.exports = ({ logError, singleToCollection }) =>
       return this.db
         .none(query)
         .then(data => Right(data))
-        .catch(function(err) {
-          if (!err.name === 'QueryResultError') {
-            logError(err);
-          }
-          return Left(err);
-        });
+        .catch(errorHandler(this.logError));
     }
 
     getMatching(bo) {
@@ -84,12 +75,7 @@ module.exports = ({ logError, singleToCollection }) =>
         .then(function(result) {
           return Right(new bo.c(bo.c.parseFromDatabase(result))); // eslint-disable-line
         })
-        .catch(function(err) {
-          if (!err.name === 'QueryResultError') {
-            logError(err);
-          }
-          return Left(err);
-        });
+        .catch(errorHandler(this.logError));
     }
 
     getAllMatching(bo) {
@@ -101,16 +87,11 @@ module.exports = ({ logError, singleToCollection }) =>
     `;
       return this.db
         .many(query, values)
-        .then(function(rows) {
-          const Con = singleToCollection[bo.c.displayName];
+        .then(rows => {
+          const Con = this.singleToCollection[bo.c.displayName];
           return Right(new Con(Con.parseFromDatabase(rows))); // eslint-disable-line
         })
-        .catch(function(err) {
-          if (!err.name === 'QueryResultError') {
-            logError(err);
-          }
-          return Left(err);
-        });
+        .catch(errorHandler(this.logError));
     }
 
     getOrCreate(bo) {

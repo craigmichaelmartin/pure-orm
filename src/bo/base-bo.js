@@ -1,17 +1,20 @@
 const camelCase = require('camelcase');
 
-module.exports = ({ tableMap, collectionsMap, singleToCollection }) => {
-  const names = Object.keys(tableMap);
-  const collectionsNames = Object.keys(collectionsMap);
-  return class Base {
-    constructor(props) {
+module.exports = ({ getTableData }) =>
+  class Base {
+    constructor(props, { tableMap, collectionsMap, singleToCollection } = {}) {
+      const closureData = getTableData();
+      this.tableMap = tableMap || closureData.tableMap;
+      this.collectionsMap = collectionsMap || closureData.collectionsMap;
+      this.singleToCollection =
+        singleToCollection || closureData.singleToCollection;
       Object.assign(this, props);
       const relationships = Object.keys(props).reduce((obj, prop) => {
-        if (names.indexOf(prop) > -1) {
-          if (singleToCollection[prop]) {
+        if (Object.keys(this.tableMap).indexOf(prop) > -1) {
+          if (this.singleToCollection[prop]) {
             // I *think* the above line is safe, since this is for relationships and not own
             // if (props[prop] && Array.isArray(props[prop].id)) {
-            const BoConstructor = singleToCollection[prop];
+            const BoConstructor = this.singleToCollection[prop];
             const items = Array.isArray(props[prop].id)
               ? props[prop].id.map((_, index) => {
                   return Object.keys(props[prop]).reduce((o, p) => {
@@ -24,15 +27,15 @@ module.exports = ({ tableMap, collectionsMap, singleToCollection }) => {
               BoConstructor.parseFromObjects(items)
             );
           } else {
-            const BoConstructor = tableMap[prop];
+            const BoConstructor = this.tableMap[prop];
             const propCamel =
               BoConstructor.displayName ||
               prop.charAt(0).toLowerCase() + prop.slice(1);
             const params = BoConstructor.parseSqlColumns(props[prop]);
             obj[propCamel] = new BoConstructor(params);
           }
-        } else if (collectionsNames.indexOf(prop) > -1) {
-          const BoConstructor = collectionsMap[prop];
+        } else if (Object.keys(this.collectionsMap).indexOf(prop) > -1) {
+          const BoConstructor = this.collectionsMap[prop];
           obj[prop] = new BoConstructor(
             BoConstructor.parseFromObjects(props[prop])
           );
@@ -185,4 +188,3 @@ module.exports = ({ tableMap, collectionsMap, singleToCollection }) => {
       return this[this.c.columns[this.c.sqlColumns.indexOf(sqlColumn)]];
     }
   };
-};

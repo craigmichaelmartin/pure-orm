@@ -1,3 +1,5 @@
+const { Left } = require('../lib/either');
+
 // Previously keys and values were parsed from the error string, but the
 // presence of commas in the values section messed it up.  So now, it
 // returns just gets the keys from the error message and gets the values
@@ -25,4 +27,12 @@ const getColumnsValuesFromInsertError = (error = '', bo) => {
   return [keys, values];
 };
 
+const errorHandler = logError => err => {
+  if (!err.name === 'QueryResultError') {
+    logError(err);
+  }
+  return Left(err);
+};
+
 module.exports.getColumnsValuesFromInsertError = getColumnsValuesFromInsertError;
+module.exports.errorHandler = errorHandler;

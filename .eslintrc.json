@@ -26,7 +26,7 @@
     "no-empty-character-class": 2,
     "no-ex-assign": 2,
     "no-extra-boolean-cast": 2,
-    "no-extra-parens": [1, "all"],
+    "no-extra-parens": [0, "all"],
     "no-extra-semi": 2,
     "no-func-assign": 2,
     "no-inner-declarations": 2,
