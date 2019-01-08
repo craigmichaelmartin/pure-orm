@@ -2,7 +2,7 @@
   "name": "sql-toolkit",
   "author": "Craig Martin",
   "license": "MIT",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "A SQL Toolkit based on pure business objects passed to and from stateful data access objects",
   "main": "src/index.js",
   "engines": {
