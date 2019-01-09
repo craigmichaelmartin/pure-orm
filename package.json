@@ -1,6 +1,6 @@
 {
   "name": "sql-toolkit",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "main": "src/index.js",
   "engines": {
     "node": ">=6"
