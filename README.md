@@ -10,8 +10,8 @@
 npm install --save sql-toolkit
 ```
 
-
 ## What is SQL Toolkit?
+
 SQL Toolkit is a node library built for `pr-promise` to make working with a postgres database seamless.
 
 #### Philosophy
@@ -21,6 +21,7 @@ SQL Toolkit is intentionally not an ORM. There are not hundreds of methods mappi
 Instead, the value of the toolkit is that you get to write native SQL (not ORM-abstracted SQL-ish) while receiving back pure javascript objects.
 
 #### Design Goals
+
 - Have **pure** "business" objects which can represent the data of a table and be the subject of the app's business logic.
   - These objects are pure javascript objects: decoupled from the database, and agnostic to how interfacing is done.
   - They will be full of business logic methods, and their purity make them easy to test/use.
@@ -36,10 +37,9 @@ A **Data Access Object** (DAO) is a database-aware abstraction layer where SQL i
 
 DAO methods return pure BOs. Likewise, BOs may be passed to DAO methods to get or update records.
 
-
 ## Example Usage of already made BOs and DAOs
-```javascript
 
+```javascript
 let raw = new Person({
   email: 'foobar@gmail.com',
   firstName: 'craig',
@@ -58,16 +58,18 @@ person = await personDAO.update(person);
 
 // Gets or creates a person business object
 same = await personDAO.getOrCreate(raw);
-same.id === person.id // true
+same.id === person.id; // true
 
 // Returns the person business object which matches this data
-same = await personDAO.getMatching(new Person({email: 'craigmartin11@gmail.com'}));
-same.id === person.id // true
+same = await personDAO.getMatching(
+  new Person({ email: 'craigmartin11@gmail.com' })
+);
+same.id === person.id; // true
 
 // Deletes the person data form the database
 await personDAO.delete(person);
 
-// Returns the person business object returned by whatever DAO methods your write 
+// Returns the person business object returned by whatever DAO methods your write
 person = await personDAO.getFromCustomMadeMethod();
 ```
 
@@ -82,6 +84,7 @@ See examples below for what the DAO side of this looks like.
 An abstract class which is the base class your BO classes to extend.
 
 **Abstract Methods** to be implemented
+
 - `get c(): BO` - Returns the business object class constructor.
 - `static get tableName(): string` - Returns the string table name which the business object associates with from the database.
 - `static get displayName(): string` - Returns the string display name of the business object.
@@ -89,16 +92,17 @@ An abstract class which is the base class your BO classes to extend.
 - `static get columns(): Array<string>` - Returns an array of the columns names to be used as javascript properties.
 
 **Public Methods**
+
 - `constructor(props: object)`
 - static getSQLSelectClause()
 - static parseFromDatabase(result)
-
 
 #### `BaseDAO`
 
 The base class your DAO classes extend.
 
 **Public Methods**
+
 - `constructor({ db }})
 - `getMatching(bo: BaseBO)`
 - `getAllMatching(bo: BaseBO)`
@@ -159,7 +163,7 @@ getRandom() {
 // OUTPUT: Person {id, firstName, lastName, createdDate, employerId}
 ```
 
-More important than saving the tedium, though, is how 
+More important than saving the tedium, though, is how
 **`BaseBo.getSQLSelectClause()`** namespaces each select expression name
 under the hood, and which **`BaseBo.parseFromDatabase`** knows how to handle.
 This means that when joining, not only is the select expression easy,
@@ -186,7 +190,6 @@ getRandom() {
 Rather than being flat, with the employer id and createdDate colliding with
 person's id and createDate, the result is a nice Person BO with a nested
 Employer BO.
-
 
 Lets move to a different example to show off another aspect of
 **`BaseBo.parseFromDatabase`**: how it handles flattening data. Lets say
@@ -256,6 +259,7 @@ getBloggerPayout(id, startDate, endDate) {
 #### `createBaseBO({ getTableData }): BaseBo`
 
 **Parameters**
+
 - `getTableData: () => { tableMap, collectionsMap, singleToCollection }` - A function which returns table information. These values (`tableMap`, `collectionsMap`, `singleToCollection`) may be omitted here if they are passed to the BaseBo constructor. Passing these every time is tedious (hence the ability to do it just once in this `createBaseBo` factory), but is nice mocking in tests.
   - `tableMap: object`
     - An object with the tablename as property name and the business object class constructor as key.
@@ -264,12 +268,13 @@ getBloggerPayout(id, startDate, endDate) {
   - `singleToCollection: object`
 
 **Return Value**
-- The BaseBo class to extend for your business objects.
 
+- The BaseBo class to extend for your business objects.
 
 #### `createBaseDAO({ getTableData, db, logError }): BaseDAO`
 
 **Parameters**
+
 - `getTableData: () => { tableMap, collectionsMap, singleToCollection }` - A function which returns table information. These values (`tableMap`, `collectionsMap`, `singleToCollection`) may be omitted here if they are passed to the BaseBo constructor. Passing these every time is tedious (hence the ability to do it just once in this `createBaseBo` factory), but is nice mocking in tests.
   - `tableMap: object`
     - An object with the tablename as property name and the business object class constructor as key.
@@ -280,4 +285,5 @@ getBloggerPayout(id, startDate, endDate) {
 - `db: pg-promise database`
 
 **Return Value**
+
 - The BaseDAO class to extend for your business objects.

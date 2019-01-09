@@ -1,9 +1,6 @@
 {
   "name": "sql-toolkit",
-  "author": "Craig Martin",
-  "license": "MIT",
   "version": "0.0.7",
-  "description": "A SQL Toolkit based on pure business objects passed to and from stateful data access objects",
   "main": "src/index.js",
   "engines": {
     "node": ">=6"
@@ -13,8 +10,8 @@
     "test:unit": "jest",
     "test:unit:watch": "jest --watch",
     "test:unit:debug": "node --inspect-brk node_modules/.bin/jest --runInBand --verbose",
-    "test:format": "prettier -l \"src/**/*.js\" \"!src/**/*.spec.js\"",
-    "format": "prettier --write  \"src/**/*.js\" \"!src/**/*.spec.js\"",
+    "test:format": "prettier -l \"**/*.{js,json,md}\" \"!src/**/*.spec.js\"",
+    "format": "prettier --write  \"**/*.{js,json,md}\" \"!src/**/*.spec.js\"",
     "pub": "npm run test && np"
   },
   "dependencies": {
@@ -35,5 +32,19 @@
     "tabWidth": 2,
     "singleQuote": true,
     "trailingComma": "none"
-  }
+  },
+  "author": "Craig Martin",
+  "description": "A SQL Toolkit based on pure business objects passed to and from stateful data access objects",
+  "license": "MIT",
+  "keywords": [
+    "nodejs",
+    "sql",
+    "postgres",
+    "postgresql",
+    "orm",
+    "object-relational mapping",
+    "toolkit",
+    "business objects",
+    "data access objects"
+  ]
 }
