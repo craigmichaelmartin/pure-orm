@@ -254,6 +254,8 @@ getBloggerPayout(id, startDate, endDate) {
 }
 ```
 
+To see everything in action, check out [the examples directory](https://github.com/craigmichaelmartin/sql-toolkit/tree/master/examples).
+
 ### Methods
 
 #### `createBaseBO({ getTableData }): BaseBo`
