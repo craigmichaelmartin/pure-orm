@@ -11,23 +11,33 @@ npm install --save sql-toolkit
 ```
 
 
-## What is SQL Toolkit? What problem is it solving?
-SQL Toolkit is a node library to make accessing data from a database seamless.
-
-#### Concepts
-
-Business Objects (BO) are a pure javascript object abstraction layer corresponding to tables.
-
-Data Access Objects (DAO) are the abstraction layer for working with the database.
-
-DAO methods return pure Business Objects. Likewise, Business Objects may be passed to DAO methods to get or update records.
+## What is SQL Toolkit?
+SQL Toolkit is a node library built for `pr-promise` to make working with a postgres database seamless.
 
 #### Philosophy
 
-SQL Toolkit is intentionally not an ORM. There are not hundreds of methods mapping the complexit of SQL to class objects. Instead, you define DAO methods with actual SQL, and receive your Business Objects back.
+SQL Toolkit is intentionally not an ORM. There are not hundreds of methods mapping the complexit of SQL to class objects.
+
+Instead, the value of the toolkit is that you get to write native SQL (not ORM-abstracted SQL-ish) while receiving back pure javascript objects.
+
+#### Design Goals
+- Have **pure** "business" objects which can represent the data of a table and be the subject of the app's business logic.
+  - These objects are pure javascript objects: decoupled from the database, and agnostic to how interfacing is done.
+  - They will be full of business logic methods, and their purity make them easy to test/use.
+- Allow the unobstructed writing of normal SQL.
+  - I want to write SQL. I don't want to re-create the nuances of SQL in an API. I woulnd't want to learn that API even if it existed. I want to write SQL exactly as I would if in psql. Not SQL-ish. Not chunked up with special APIs. Not using wierd json_build_object functions. Just normal SQL.
+- Have the SQL (Data Access) understand pure business objects as inputs, and return them as outputs.
+
+#### Concepts
+
+A **Business Object** (BO) is a pure javascript object corresponding to a table.
+
+A **Data Access Object** (DAO) is a database-aware abstraction layer where SQL is written.
+
+DAO methods return pure BOs. Likewise, BOs may be passed to DAO methods to get or update records.
 
 
-## Basic Example
+## Example Usage of already made BOs and DAOs
 ```javascript
 
 let raw = new Person({
@@ -61,6 +71,8 @@ await personDAO.delete(person);
 person = await personDAO.getFromCustomMadeMethod();
 ```
 
+See examples below for what the DAO side of this looks like.
+
 ## API
 
 ### Classes
@@ -69,7 +81,7 @@ person = await personDAO.getFromCustomMadeMethod();
 
 An abstract class which is the base class your BO classes to extend.
 
-**Abstract Methods**
+**Abstract Methods** to be implemented
 - `get c(): BO` - Returns the business object class constructor.
 - `static get tableName(): string` - Returns the string table name which the business object associates with from the database.
 - `static get displayName(): string` - Returns the string display name of the business object.
@@ -81,20 +93,10 @@ An abstract class which is the base class your BO classes to extend.
 - static getSQLSelectClause()
 - static parseFromDatabase(result)
 
-**Private Methods**
-- static getPrefixedColumnNames()
-- static parseSqlColumns(cols)
-- static processFromDatabase(result)
-- getSqlInsertParts()
-- getSqlUpdateParts()
-- getMatchingParts()
-- getNewWith(sqlColumns, values)
-- getValueBySqlColumn(sqlColumn)
-
 
 #### `BaseDAO`
 
-The base class your DAO classes to extend.
+The base class your DAO classes extend.
 
 **Public Methods**
 - `constructor({ db }})
@@ -249,27 +251,33 @@ getBloggerPayout(id, startDate, endDate) {
 }
 ```
 
-
 ### Methods
 
-#### `createBaseBO({ tableMap, collectionsMap, singleToCollection }): BaseBo`
+#### `createBaseBO({ getTableData }): BaseBo`
 
 **Parameters**
-- `tableMap: object`
-  - An object with the tablename as property name and the business object class constructor as key.
-  - Used to construct joined row data in the business object. If supplied, the business object is returned; else, a raw js obj.
-- `collectionsMap: object`
-- `singleToCollection: object`
+- `getTableData: () => { tableMap, collectionsMap, singleToCollection }` - A function which returns table information. These values (`tableMap`, `collectionsMap`, `singleToCollection`) may be omitted here if they are passed to the BaseBo constructor. Passing these every time is tedious (hence the ability to do it just once in this `createBaseBo` factory), but is nice mocking in tests.
+  - `tableMap: object`
+    - An object with the tablename as property name and the business object class constructor as key.
+    - Used to construct joined row data in the business object. If supplied, the business object is returned; else, a raw js obj.
+  - `collectionsMap: object`
+  - `singleToCollection: object`
 
 **Return Value**
 - The BaseBo class to extend for your business objects.
 
 
-#### `createBaseDAO({ singleToCollection, logError }): BaseDAO`
+#### `createBaseDAO({ getTableData, db, logError }): BaseDAO`
 
 **Parameters**
-- `singleToCollection: object`
+- `getTableData: () => { tableMap, collectionsMap, singleToCollection }` - A function which returns table information. These values (`tableMap`, `collectionsMap`, `singleToCollection`) may be omitted here if they are passed to the BaseBo constructor. Passing these every time is tedious (hence the ability to do it just once in this `createBaseBo` factory), but is nice mocking in tests.
+  - `tableMap: object`
+    - An object with the tablename as property name and the business object class constructor as key.
+    - Used to construct joined row data in the business object. If supplied, the business object is returned; else, a raw js obj.
+  - `collectionsMap: object`
+  - `singleToCollection: object`
 - `logError: function`
+- `db: pg-promise database`
 
 **Return Value**
 - The BaseDAO class to extend for your business objects.
