@@ -13,6 +13,8 @@ module.exports = ({ getTableData, db: closureDB, logError: closureLogError }) =>
       this.logError = logError || closureLogError;
       this.ensureExists = this.getOrCreate; // alias
       this.errorHandler.bind(this);
+      this.createBo.bind(this);
+      this.createBoCollection.bind(this);
     }
 
     /* Nice abstractions over this.db ---------------------------------------*/
