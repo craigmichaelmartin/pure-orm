@@ -1,11 +1,14 @@
 const BaseDAO = require('./base');
 const Person = require('../bo/person');
-const { errorHandler, Right } = require('sql-toolkit');
 
 /*
  * The person data abstraction for the persistence mechinism.
  */
 module.exports = class PersonDAO extends BaseDAO {
+  get Bo() {
+    return Person;
+  }
+
   getRandom() {
     const query = `
       SELECT ${Person.getSQLSelectClause()}
@@ -13,9 +16,6 @@ module.exports = class PersonDAO extends BaseDAO {
       ORDER BY random()
       LIMIT 1;
     `;
-    return this.db
-      .one(query)
-      .then(result => Right(new Person(Person.parseFromDatabase(result))))
-      .catch(errorHandler(this.logError));
+    return this.one(query);
   }
 };

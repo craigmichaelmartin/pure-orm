@@ -1,8 +1,5 @@
 const { Left, Right } = require('../lib/either');
-const {
-  getColumnsValuesFromInsertError,
-  errorHandler
-} = require('../util/helpers');
+const { getColumnsValuesFromInsertError } = require('../util/helpers');
 
 /*
  * A wrapper function returning the base data access abstraction.
@@ -15,83 +12,116 @@ module.exports = ({ getTableData, db: closureDB, logError: closureLogError }) =>
         singleToCollection || getTableData().singleToCollection;
       this.logError = logError || closureLogError;
       this.ensureExists = this.getOrCreate; // alias
+      this.errorHandler.bind(this);
     }
+
+    /* Nice abstractions over this.db ---------------------------------------*/
+    /* ----------------------------------------------------------------------*/
+
+    one(query, values) {
+      return this.db
+        .one(query, values)
+        .then(this.createBo)
+        .catch(this.errorHandler);
+    }
+
+    many(query, values) {
+      return this.db
+        .many(query, values)
+        .then(this.createBoCollection)
+        .catch(this.errorHandler);
+    }
+
+    any(query, values) {
+      return this.db
+        .any(query, values)
+        .then(this.createBoCollection)
+        .catch(this.errorHandler);
+    }
+
+    /* Piecemeal endings if using this.db directly --------------------------*/
+    /* ----------------------------------------------------------------------*/
+
+    errorHandler(err) {
+      if (!err.name === 'QueryResultError') {
+        this.logError(err);
+      }
+      return Left(err);
+    }
+
+    createBo(row) {
+      return Right(new this.Bo(this.Bo.parseFromDatabase(row)));
+    }
+
+    createBoCollection(rows) {
+      return Right(
+        new this.BoCollection(this.BoCollection.parseFromDatabase(rows))
+      );
+    }
+
+    /* Built-in basic DAO methods -------------------------------------------*/
+    /* ----------------------------------------------------------------------*/
 
     // Standard create
     create(bo) {
       const { columns, values, valuesVar } = bo.getSqlInsertParts();
       const query = `
-      INSERT INTO "${bo.c.tableName}" ( ${columns} )
-      VALUES ( ${valuesVar} )
-      RETURNING ${bo.c.getSQLSelectClause()};
-    `;
-      return this.db
-        .one(query, values)
-        .then(row => {
-          return Right(new bo.c(bo.c.parseFromDatabase(row))); // eslint-disable-line
-        })
-        .catch(errorHandler(this.logError));
+        INSERT INTO "${bo.c.tableName}" ( ${columns} )
+        VALUES ( ${valuesVar} )
+        RETURNING ${bo.c.getSQLSelectClause()};
+      `;
+      return this.one(query, values);
     }
 
     // Standard update
     update(bo) {
       const { clause, idVar, values } = bo.getSqlUpdateParts();
       const query = `
-      UPDATE "${bo.c.tableName}"
-      SET ${clause}
-      WHERE "${bo.c.tableName}".id = ${idVar}
-      RETURNING ${bo.c.getSQLSelectClause()};
-    `;
-      return this.db
-        .one(query, values)
-        .then(row => {
-          return Right(new bo.c(bo.c.parseFromDatabase(row))); // eslint-disable-line
-        })
-        .catch(errorHandler(this.logError));
+        UPDATE "${bo.c.tableName}"
+        SET ${clause}
+        WHERE "${bo.c.tableName}".id = ${idVar}
+        RETURNING ${bo.c.getSQLSelectClause()};
+      `;
+      return this.one(query, values);
     }
 
     // Standard delete
     delete(bo) {
       const id = bo.id;
       const query = `
-      DELETE FROM "${bo.c.tableName}"
-      WHERE "${bo.c.tableName}".id = ${id}
-    `;
+        DELETE FROM "${bo.c.tableName}"
+        WHERE "${bo.c.tableName}".id = ${id}
+      `;
       return this.db
         .none(query)
         .then(data => Right(data))
-        .catch(errorHandler(this.logError));
+        .catch(this.errorHandler);
     }
 
     getMatching(bo) {
       const { whereClause, values } = bo.getMatchingParts();
       const query = `
-      SELECT ${bo.c.getSQLSelectClause()}
-      FROM "${bo.c.tableName}"
-      WHERE ${whereClause};
-    `;
-      return this.db
-        .one(query, values)
-        .then(function(result) {
-          return Right(new bo.c(bo.c.parseFromDatabase(result))); // eslint-disable-line
-        })
-        .catch(errorHandler(this.logError));
+        SELECT ${bo.c.getSQLSelectClause()}
+        FROM "${bo.c.tableName}"
+        WHERE ${whereClause};
+      `;
+      return this.one(query, values);
     }
 
     getAllMatching(bo) {
       const { whereClause, values } = bo.getMatchingParts();
       const query = `
-      SELECT ${bo.c.getSQLSelectClause()}
-      FROM "${bo.c.tableName}"
-      WHERE ${whereClause};
-    `;
+        SELECT ${bo.c.getSQLSelectClause()}
+        FROM "${bo.c.tableName}"
+        WHERE ${whereClause};
+      `;
       return this.db
         .many(query, values)
         .then(rows => {
           const Con = this.singleToCollection[bo.c.displayName];
           return Right(new Con(Con.parseFromDatabase(rows))); // eslint-disable-line
         })
-        .catch(errorHandler(this.logError));
+        .catch(this.errorHandler);
     }
 
     getOrCreate(bo) {

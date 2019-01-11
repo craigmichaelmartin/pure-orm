@@ -101,17 +101,27 @@ An abstract class which is the base class your BO classes to extend.
 
 The base class your DAO classes extend.
 
+**Abstract Methods** to be implemented
+
+- `get Bo(): BO` - Returns the business object class constructor.
+- `get BoCollection(): BO` - Returns the collection business object class constructor.
+
 **Public Methods**
 
-- `constructor({ db }})
-- `getMatching(bo: BaseBO)`
-- `getAllMatching(bo: BaseBO)`
-- `getOrCreate(bo: BaseBO)`
-- `create(bo: BaseBO)`
-- `update(bo: BaseBO)`
-- `delete(bo: BaseBO)`
+- `constructor({ db }})`
+- `one(query: string, params: object)` - executes a query and returns BOs
+- `many(query: string, params: object)` - executes a query and returns BOs
+- `errorHandler(err)` - helper function if using pg-promise `db` directly
+- `createBo(row)` - helper function if using pg-promise `db` directly
+- `createBoCollection(rows)` - helper function if using pg-promise `db` directly
+- `getMatching(bo: BaseBO)` - builtin function
+- `getAllMatching(bo: BaseBO)` - builtin function
+- `getOrCreate(bo: BaseBO)` - builtin function
+- `create(bo: BaseBO)` - builtin function
+- `update(bo: BaseBO)` - builtin function
+- `delete(bo: BaseBO)` - builtin function
 
-While BaseDAO provides these basic methods, the philosophy of this toolkit is not to have a huge API surface area which mirrors the intricacies of the SQL DSL. Rather, you write DAO methods using SQL and pass back business objects.
+While BaseDAO provides some a few builtin methods, the philosophy of this toolkit is not to have a huge API surface area which mirrors the intricacies of the SQL DSL. Rather, you write DAO methods using SQL and pass back business objects.
 
 Lets take a few examples to show this.
 
@@ -138,12 +148,42 @@ getRandom() {
   return this.db
     .one(query)
     .then(result => Right(new Person(Person.parseFromDatabase(result))))
-    .catch(Left);
+    .catch(err => {
+      if (!err.name === 'QueryResultError') {
+        logError(err);
+      }
+      return Left(err);
+    });
 }
 // OUTPUT: Person {id, firstName, lastName, createdDate, employerId}
 ```
 
-Specifying all the columns is tedious; lets use
+Creating our business object and catching the error is tedious. Instead,
+lets use `BaseDAO.one`.
+
+```javascript
+getRandom() {
+  const query = `
+    SELECT person.id, person.first_name, person.last_name, person.created_date, person.employer_id
+    FROM person
+    ORDER BY random()
+    LIMIT 1;
+  `;
++  return this.one(query);
+-  return this.db
+-    .one(query)
+-    .then(result => Right(new Person(Person.parseFromDatabase(result))))
+-    .catch(err => {
+-      if (!err.name === 'QueryResultError') {
+-        logError(err);
+-      }
+-      return Left(err);
+-    });
+}
+// OUTPUT: Person {id, firstName, lastName, createdDate, employerId}
+```
+
+Also, specifying all the columns is tedious; lets use
 **`BaseBo.getSQLSelectClause()`** to get them for free.
 
 ```diff
@@ -155,10 +195,7 @@ getRandom() {
     ORDER BY random()
     LIMIT 1;
   `;
-  return this.db
-    .one(query)
-    .then(result => Right(new Person(Person.parseFromDatabase(result))))
-    .catch(Left);
+  return this.one(query);
 }
 // OUTPUT: Person {id, firstName, lastName, createdDate, employerId}
 ```
@@ -179,10 +216,7 @@ getRandom() {
     ORDER BY random()
     LIMIT 1;
   `;
-  return this.db
-    .one(query)
-    .then(result => Right(new Person(Person.parseFromDatabase(result))))
-    .catch(Left);
+  return this.one(query);
 }
 // OUTPUT: Person {id, firstName, lastName, createdDate, employer: Employer}
 ```
@@ -213,10 +247,7 @@ getBySlug(slug) {
         ON article_tags.tag_id = tag.id
     WHERE article.slug = $(slug);
   `;
-  return this.db
-    .many(query, { slug })
-    .then(result => Right(new Article(Article.parseFromDatabase(result))));
-    .catch(Left);
+  return this.many(query, { slug });
 }
 // OUTPUT: Person {id, firstName, lastName, createdDate, tags: [Tag, Tag, Tag]}
 ```
@@ -247,10 +278,7 @@ getBloggerPayout(id, startDate, endDate) {
       person.pay_frequency
     ORDER BY meta_amount DESC NULLS LAST;
   `;
-  return this.db
-    .one(query, {id, startDate, endDate})
-    .then(result => Right(new Person(Person.parseFromDatabase(result))))
-    .catch(Left);
+  return this.one(query, {id, startDate, endDate });
 }
 ```
 
