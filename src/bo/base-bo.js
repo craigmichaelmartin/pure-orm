@@ -172,6 +172,28 @@ module.exports = ({ getTableData }) =>
       return { whereClause, values };
     }
 
+    // This one returns an object, which allows it to be more versatile.
+    // Todo: make this one even better and use it instead of the one above.
+    getMatchingPartsObject() {
+      const whereClause = this.c.columns
+        .map((col, index) =>
+          this[col] != null
+            ? `"${this.c.tableName}".${this.c.sqlColumns[index]}`
+            : null
+        )
+        .filter(x => x != null)
+        .map((x, i) => `${x} = $(${i + 1})`)
+        .join(' AND ');
+      const values = this.c.columns
+        .map(col => (this[col] != null ? this[col] : null))
+        .filter(x => x != null)
+        .reduce(
+          (accum, val, index) => Object.assign({}, accum, { [index + 1]: val }),
+          {}
+        );
+      return { whereClause, values };
+    }
+
     getNewWith(sqlColumns, values) {
       const Constructor = this.c;
       const boKeys = sqlColumns.map(

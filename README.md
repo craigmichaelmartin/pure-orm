@@ -109,8 +109,9 @@ The base class your DAO classes extend.
 **Public Methods**
 
 - `constructor({ db }})`
-- `one(query: string, params: object)` - executes a query and returns BOs
-- `many(query: string, params: object)` - executes a query and returns BOs
+- `one(query: string, params: object)` - executes a query and returns a Bo
+- `oneFromMany(query: string, params: object)` - executes a query and returns a Bo
+- `many(query: string, params: object)` - executes a query and returns a BoCollection
 - `errorHandler(err)` - helper function if using pg-promise `db` directly
 - `createBo(row)` - helper function if using pg-promise `db` directly
 - `createBoCollection(rows)` - helper function if using pg-promise `db` directly

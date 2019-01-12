@@ -12,9 +12,9 @@ module.exports = ({ getTableData, db: closureDB, logError: closureLogError }) =>
         singleToCollection || getTableData().singleToCollection;
       this.logError = logError || closureLogError;
       this.ensureExists = this.getOrCreate; // alias
-      this.errorHandler.bind(this);
-      this.createBo.bind(this);
-      this.createBoCollection.bind(this);
+      this.errorHandler = this.errorHandler.bind(this);
+      this.createBo = this.createBo.bind(this);
+      this.createBoCollection = this.createBoCollection.bind(this);
     }
 
     /* Nice abstractions over this.db ---------------------------------------*/
@@ -23,6 +23,13 @@ module.exports = ({ getTableData, db: closureDB, logError: closureLogError }) =>
     one(query, values) {
       return this.db
         .one(query, values)
+        .then(this.createBo)
+        .catch(this.errorHandler);
+    }
+
+    oneFromMany(query, values) {
+      return this.db
+        .many(query, values)
         .then(this.createBo)
         .catch(this.errorHandler);
     }
@@ -38,6 +45,22 @@ module.exports = ({ getTableData, db: closureDB, logError: closureLogError }) =>
       return this.db
         .any(query, values)
         .then(this.createBoCollection)
+        .catch(this.errorHandler);
+    }
+
+    // "raw" (non BO) row result
+    row(query, values) {
+      return this.db
+        .one(query, values)
+        .then(Right)
+        .catch(this.errorHandler);
+    }
+
+    // "raw" (no BO) rows result
+    rows(query, values) {
+      return this.db
+        .any(query, values)
+        .then(Right)
         .catch(this.errorHandler);
     }
 
