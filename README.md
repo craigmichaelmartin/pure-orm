@@ -85,16 +85,16 @@ An abstract class which is the base class your BO classes to extend.
 
 **Abstract Methods** to be implemented
 
-- `get Bo(): BO` - Returns the business object class constructor. (todo: change code everywhere to `Bo` instead of `c`)
+- `get Bo(): BO` - Returns the business object class constructor.
 - `get BoCollection(): BoCollection` - Returns the business object collection class constructor.
 - `static get tableName(): string` - Returns the string table name which the business object associates with from the database.
 - `static get sqlColumnsData(): Array<string|ColumnData>` - Returns an array of the database column data. The type is either:
   - `ColumnData {column, property?, references?, primaryKey?, transform?}`
-      - `column: string` - The sql column name
-      - `propery: string` - The javascript property name for this column (defaults to camelCase of `column`)
-      - `references: Bo` - The relationship to another Bo (defaults to null)
-      - `primaryKey: boolean` - Is this column (part of) the primary key (defaults to false)
-      - `transform: fn` - When this data is pulled, a transform that runs on it; eg, creating a momentjs object for dates (defaults to `() => {}`)
+    - `column: string` - The sql column name
+    - `propery: string` - The javascript property name for this column (defaults to camelCase of `column`)
+    - `references: Bo` - The relationship to another Bo (defaults to null)
+    - `primaryKey: boolean` - Is this column (part of) the primary key (defaults to false)
+    - `transform: fn` - When this data is pulled, a transform that runs on it; eg, creating a momentjs object for dates (defaults to `() => {}`)
   - `string` - If a string, it is applied as the `column` value, with all others defaulted.
   - (Note: if there is no primary key, `id` is defaulted)
 
@@ -105,8 +105,25 @@ Optional
 **Public Methods**
 
 - `constructor(props: object)`
-- static getSQLSelectClause()
-- static parseFromDatabase(result)
+- `static primaryKey()`
+- `static get columns()`
+- `static get sqlColumns()`
+- `static get references()`
+- `static get displayName()`
+- `static getPrefixedColumnNames()`
+- `static getSQLSelectClause()`
+- `static objectifyDatabaseResult(result)`
+- `static mapToBos(objectified)`
+- `static clumpIntoGroups(processed)`
+- `static nestClump(clump)`
+- `static createFromDatabase(result)`
+- `static createOneFromDatabase(result)`
+- `getSqlInsertParts()`
+- `getSqlUpdateParts()`
+- `getMatchingParts()`
+- `getMatchingPartsObject()`
+- `getNewWith(sqlColumns, values)`
+- `getValueBySqlColumn(sqlColumn)`
 
 #### `BaseBoCollection`
 
@@ -123,7 +140,7 @@ Optional
 **Public Methods**
 
 - `constructor(props: object)`
-- static parseFromDatabase(result)
+- `static get displayName()`
 
 #### `BaseDAO`
 
@@ -347,17 +364,9 @@ To see everything in action, check out [the examples directory](https://github.c
 
 - The BaseDAO class to extend for your business objects.
 
-
-
-#### Todo
-- make sure \.c\. is gone from all code
-- make displayName optional (computed from tableName)
-- make columns optional (computed from sql_columns)
-
 #### Current Limitations
-- all tables use ids
-  - todo: define a unique_by / identity / primary_key property to use (which defaults to id)
+
 - the dao you are writing your sql in will always be in the "select" and will be the one you want as your root(s) return objects
   - the query can start from some other table, and join a bunch of times to get there
 - there is a clear path in the "select" to your leaf joined-to-entities (eg, (Good): Article, ArticleTag, Tag, TagModerator, Moderator; not (Bad): Article, Moderator).
-- the result of the select will always be a tree, and not circular (eg, (Bad): Article, Person, Circle, CircleArticle, Article)
+- the result of _the select_ will always be a tree, and not circular (eg, (Bad): Article, Person, Group, GroupArticle, Article)

@@ -36,13 +36,12 @@ class Order extends BaseBo {
       'total_tax',
       'total_weight',
       'order_status_url',
-      {column: 'utm_source_id', references: UtmSource},
+      { column: 'utm_source_id', references: UtmSource },
       'utm_campaign',
       'utm_content',
-      'utm_term',
+      'utm_term'
     ];
   }
-
 }
 
 module.exports = Order;

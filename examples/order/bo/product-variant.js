@@ -18,7 +18,7 @@ class ProductVariant extends Base {
   static get sqlColumnsData() {
     return [
       'id',
-      {column: 'product_id', references: Product},
+      { column: 'product_id', references: Product },
       'actual_product_variant_id',
       'color_id',
       'gender_id',

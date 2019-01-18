@@ -1,7 +1,7 @@
 const BaseBo = require('./base');
 
 class Person extends BaseBo {
-  get c() {
+  get Bo() {
     return Person;
   }
 
@@ -9,11 +9,7 @@ class Person extends BaseBo {
     return 'person';
   }
 
-  static get columns() {
-    return ['id', 'firstName', 'lastName', 'email'];
-  }
-
-  static get sqlColumns() {
+  static get sqlColumnsData() {
     return ['id', 'first_name', 'last_name', 'email'];
   }
 }

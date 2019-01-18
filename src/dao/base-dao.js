@@ -91,9 +91,9 @@ module.exports = ({ getTableData, db: closureDB, logError: closureLogError }) =>
     create(bo) {
       const { columns, values, valuesVar } = bo.getSqlInsertParts();
       const query = `
-        INSERT INTO "${bo.c.tableName}" ( ${columns} )
+        INSERT INTO "${bo.Bo.tableName}" ( ${columns} )
         VALUES ( ${valuesVar} )
-        RETURNING ${bo.c.getSQLSelectClause()};
+        RETURNING ${bo.Bo.getSQLSelectClause()};
       `;
       return this.one(query, values);
     }
@@ -102,10 +102,10 @@ module.exports = ({ getTableData, db: closureDB, logError: closureLogError }) =>
     update(bo) {
       const { clause, idVar, values } = bo.getSqlUpdateParts();
       const query = `
-        UPDATE "${bo.c.tableName}"
+        UPDATE "${bo.Bo.tableName}"
         SET ${clause}
-        WHERE "${bo.c.tableName}".id = ${idVar}
-        RETURNING ${bo.c.getSQLSelectClause()};
+        WHERE "${bo.Bo.tableName}".id = ${idVar}
+        RETURNING ${bo.Bo.getSQLSelectClause()};
       `;
       return this.one(query, values);
     }
@@ -114,8 +114,8 @@ module.exports = ({ getTableData, db: closureDB, logError: closureLogError }) =>
     delete(bo) {
       const id = bo.id;
       const query = `
-        DELETE FROM "${bo.c.tableName}"
-        WHERE "${bo.c.tableName}".id = ${id}
+        DELETE FROM "${bo.Bo.tableName}"
+        WHERE "${bo.Bo.tableName}".id = ${id}
       `;
       return this.db
         .none(query)
@@ -126,8 +126,8 @@ module.exports = ({ getTableData, db: closureDB, logError: closureLogError }) =>
     getMatching(bo) {
       const { whereClause, values } = bo.getMatchingParts();
       const query = `
-        SELECT ${bo.c.getSQLSelectClause()}
-        FROM "${bo.c.tableName}"
+        SELECT ${bo.Bo.getSQLSelectClause()}
+        FROM "${bo.Bo.tableName}"
         WHERE ${whereClause};
       `;
       return this.one(query, values);
@@ -136,14 +136,14 @@ module.exports = ({ getTableData, db: closureDB, logError: closureLogError }) =>
     getAllMatching(bo) {
       const { whereClause, values } = bo.getMatchingParts();
       const query = `
-        SELECT ${bo.c.getSQLSelectClause()}
-        FROM "${bo.c.tableName}"
+        SELECT ${bo.Bo.getSQLSelectClause()}
+        FROM "${bo.Bo.tableName}"
         WHERE ${whereClause};
       `;
       return this.db
         .many(query, values)
         .then(rows => {
-          const Con = this.singleToCollection[bo.c.displayName];
+          const Con = this.singleToCollection[bo.Bo.displayName];
           return Right(new Con(Con.parseFromDatabase(rows))); // eslint-disable-line
         })
         .catch(this.errorHandler);

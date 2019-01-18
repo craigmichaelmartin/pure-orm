@@ -19,8 +19,8 @@ class LineItem extends Base {
   static get sqlColumnsData() {
     return [
       'id',
-      {column: 'product_variant_id', references: ProductVariant},
-      {column: 'order_id', references: Order},
+      { column: 'product_variant_id', references: ProductVariant },
+      { column: 'order_id', references: Order },
       'fulfillable_quantity',
       'fulfillment_service',
       'grams',
@@ -31,7 +31,6 @@ class LineItem extends Base {
       'total_discount'
     ];
   }
-
 }
 
 module.exports = LineItem;
