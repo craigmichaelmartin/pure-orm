@@ -9,6 +9,7 @@ module.exports = ({ getTableData }) =>
       this.singleToCollection =
         singleToCollection || closureData.singleToCollection;
       Object.assign(this, props);
+      /*
       const relationships = Object.keys(props).reduce((obj, prop) => {
         if (Object.keys(this.tableMap).indexOf(prop) > -1) {
           if (this.singleToCollection[prop]) {
@@ -43,6 +44,33 @@ module.exports = ({ getTableData }) =>
         return obj;
       }, {});
       Object.assign(this, relationships);
+      */
+    }
+
+    static primaryKey() {
+      const primaryKey = this.sqlColumnsData.filter(x => x.primaryKey);
+      return primaryKey.length > 0 ? primaryKey : ['id'];
+    }
+
+    static get columns() {
+      return this.sqlColumnsData.map(x => x.property || camelCase(x.column || x));
+    }
+
+    static get sqlColumns() {
+      return this.sqlColumnsData.map(x => x.column || x);
+    }
+
+    static get references() {
+      return this.sqlColumnsData
+        .filter(x => x.references)
+        .reduce(
+          (accum, item) => Object.assign({}, accum, {[item.column]: item.references}),
+          {}
+        );
+    }
+
+    static get displayName() {
+      return camelCase(this.tableName);
     }
 
     static getPrefixedColumnNames() {
@@ -80,7 +108,7 @@ module.exports = ({ getTableData }) =>
     }
 
     static processFromDatabase(result) {
-      return Object.keys(result).reduce((obj, column) => {
+      const rtnval = Object.keys(result).reduce((obj, column) => {
         const tableName =
           column.indexOf('#') > -1 ? column.split('#')[0] : this.tableName;
         const propertyName =
@@ -89,6 +117,35 @@ module.exports = ({ getTableData }) =>
         obj[tableName][propertyName] = result[column];
         return obj;
       }, {});
+      return rtnval;
+    }
+
+    /*
+     * Make objects (based on special table#column names) from flat database
+     * return value.
+     */
+    static objectifyDatabaseResult(result) {
+      return Object.keys(result).reduce((obj, text) => {
+        const tableName = text.indexOf('#') > -1 ? text.split('#')[0] : this.tableName;
+        const column = text.indexOf('#') > -1 ? text.split('#')[1] : text;
+        obj[tableName] = obj[tableName] || {};
+        obj[tableName][column] = result[text];
+        return obj;
+      }, {});
+    }
+
+    static mapToBos(objectified) {
+      return Object.keys(objectified).map(tableName => {
+        const Bo = getTableData().tableMap[tableName];
+        const propified = Object.keys(objectified[tableName]).reduce(
+          (obj, column) => {
+            obj[Bo.columns[Bo.sqlColumns.indexOf(column)]] = objectified[tableName][column];
+            return obj;
+          },
+          {}
+        );
+        return new Bo(propified);
+      });
     }
 
     static flattenResult(array) {
@@ -115,6 +172,124 @@ module.exports = ({ getTableData }) =>
         : array;
     }
 
+    /*
+     * Clump array of flat objects into groups based on id of root
+     * In:
+     *  [
+     *    [Article {id: 32}, ArticleTag {id: 54}]
+     *    [Article {id: 32}, ArticleTag {id: 55}]
+     *    [Article {id: 33}, ArticleTag {id: 56}]
+     *  ]
+     * Out:
+     *  [
+     *    [
+     *      [Article {id: 32}, ArticleTag {id: 54}]
+     *      [Article {id: 32}, ArticleTag {id: 55}]
+     *    ]
+     *    [
+     *      [Article {id: 33}, ArticleTag {id: 56}]
+     *    ]
+     *  ]
+     */
+    static clumpIntoGroups(processed) {
+      const clumps = processed.reduce((accum, item) => {
+        const id = this.primaryKey().map(key => item.find(x => x.Bo === this)[key]).join('@');
+        accum[id] = accum[id] ? [...accum[id], item] : [item];
+        return accum;
+      }, {});
+      return Object.values(clumps);
+    }
+
+    /*
+     * Start at root and pull in any object where _id matches the object id
+     * Look at _id of remaining id and patch them into the object tree.
+     * When doing all this, use array once more than one
+     * In:
+     *  [
+     *    [
+     *      [Article {id: 32}, ArticleTag {id: 54}]
+     *      [Article {id: 32}, ArticleTag {id: 55}]
+     *    ]
+     *    [
+     *      [Article {id: 33}, ArticleTag {id: 56}]
+     *    ]
+     *  ]
+     * Out:
+     *  [
+     *    Article {id: 32, ArticleTags articleTags: [ArticleTag {id: 54}, ArticleTag {id: 55}]
+     *    Article {id: 33, ArticleTag {id: 56}]
+     *  ]
+     */
+    static nestClumps(clumps) {
+      return clumps.map(this.nestClump.bind(this));
+    }
+
+    /*
+     * In:
+     *  [
+     *    [Article {id: 32}, ArticleTag {id: 54}]
+     *    [Article {id: 32}, ArticleTag {id: 55}]
+     *  ]
+     * Out:
+     *  Article {id: 32, ArticleTags articleTags: [ArticleTag {id: 54}, ArticleTag {id: 55}]
+     */
+    static nestClump(clump) {
+      clump = clump.map(x => Object.values(x)); // clump wasn't actually what I have documented
+      const root = clump[0][0];
+      clump = clump.map(row => row.filter((item, index) => index !== 0));
+      const built = {[root.Bo.displayName]: root};
+
+      let nodes = [root];
+      debugger;
+
+      // Wowzer is this both CPU and Memory inefficient
+      clump.forEach(array => {
+        array.forEach(bo => {
+          const nodePointingToIt = nodes.find(x =>
+            Object.values(x.Bo.references).indexOf(bo.Bo) > -1
+            && x[`${bo.Bo.displayName}Id`] === bo.id // Assumptions are being made here about property name and id ending
+          );
+          const nodeItPointsTo = nodes.find(x =>
+            Object.values(bo.Bo.references).indexOf(x.Bo) > -1
+            && bo[`${x.Bo.displayName}Id`] === x.id // Assumptions are being made here about property name and id ending
+          );
+          if (!(nodePointingToIt || nodeItPointsTo)) {
+            throw Error(`Could not find how this BO fits: ${JSON.stringify(bo)}`);
+          }
+          if (nodePointingToIt) {
+            nodePointingToIt[bo.Bo.displayName] = bo;
+          } else {
+            let collection = nodeItPointsTo[bo.BoCollection.displayName];
+            if (collection) {
+              collection.models.push(bo);
+            } else {
+              nodeItPointsTo[bo.BoCollection.displayName] = new bo.BoCollection({models: [bo]});
+            }
+          }
+          nodes = [bo, ...nodes];
+        });
+      });
+
+      return built;
+    }
+
+    static createFromDatabase(_result) {
+      const result = Array.isArray(_result) ? _result : [_result];
+      const objectified = result.map(this.objectifyDatabaseResult.bind(this));
+      const boified = objectified.map(this.mapToBos.bind(this));
+      const clumps = this.clumpIntoGroups(boified);
+      const nested = this.nestClumps(clumps);
+      return nested;
+    }
+
+    static createOneFromDatabase(_result) {
+      const array = this.createFromDatabase(_result);
+      if (array.length > 1) {
+        throw Error('Got more than one.');
+      }
+      return Object.values(array[0])[0];
+    }
+
     static parseFromDatabase(result) {
       const flattenedResult = this.flattenResult(result);
       const processed = this.processFromDatabase(flattenedResult);
@@ -133,10 +308,10 @@ module.exports = ({ getTableData }) =>
     }
 
     getSqlInsertParts() {
-      const columns = this.c.sqlColumns
-        .filter((column, index) => this[this.c.columns[index]] != null)
+      const columns = this.Bo.sqlColumns
+        .filter((column, index) => this[this.Bo.columns[index]] != null)
         .join(', ');
-      const values = this.c.columns
+      const values = this.Bo.columns
         .map(column => this[column])
         .filter(value => value != null);
       const valuesVar = values.map((value, index) => `$${index + 1}`);
@@ -144,12 +319,12 @@ module.exports = ({ getTableData }) =>
     }
 
     getSqlUpdateParts() {
-      const clauseArray = this.c.sqlColumns
-        .filter((sqlColumn, index) => this[this.c.columns[index]] != null)
+      const clauseArray = this.Bo.sqlColumns
+        .filter((sqlColumn, index) => this[this.Bo.columns[index]] != null)
         .map((sqlColumn, index) => `${sqlColumn} = $${index + 1}`);
       const clause = clauseArray.join(', ');
       const idVar = `$${clauseArray.length + 1}`;
-      const _values = this.c.columns
+      const _values = this.Bo.columns
         .map(column => this[column])
         .filter(value => value != null);
       const values = [..._values, this.id];
@@ -157,16 +332,16 @@ module.exports = ({ getTableData }) =>
     }
 
     getMatchingParts() {
-      const whereClause = this.c.columns
+      const whereClause = this.Bo.columns
         .map((col, index) =>
           this[col] != null
-            ? `"${this.c.tableName}".${this.c.sqlColumns[index]}`
+            ? `"${this.Bo.tableName}".${this.Bo.sqlColumns[index]}`
             : null
         )
         .filter(x => x != null)
         .map((x, i) => `${x} = $${i + 1}`)
         .join(' AND ');
-      const values = this.c.columns
+      const values = this.Bo.columns
         .map(col => (this[col] != null ? this[col] : null))
         .filter(x => x != null);
       return { whereClause, values };
@@ -175,16 +350,16 @@ module.exports = ({ getTableData }) =>
     // This one returns an object, which allows it to be more versatile.
     // Todo: make this one even better and use it instead of the one above.
     getMatchingPartsObject() {
-      const whereClause = this.c.columns
+      const whereClause = this.Bo.columns
         .map((col, index) =>
           this[col] != null
-            ? `"${this.c.tableName}".${this.c.sqlColumns[index]}`
+            ? `"${this.Bo.tableName}".${this.Bo.sqlColumns[index]}`
             : null
         )
         .filter(x => x != null)
         .map((x, i) => `${x} = $(${i + 1})`)
         .join(' AND ');
-      const values = this.c.columns
+      const values = this.Bo.columns
         .map(col => (this[col] != null ? this[col] : null))
         .filter(x => x != null)
         .reduce(
@@ -207,6 +382,6 @@ module.exports = ({ getTableData }) =>
     }
 
     getValueBySqlColumn(sqlColumn) {
-      return this[this.c.columns[this.c.sqlColumns.indexOf(sqlColumn)]];
+      return this[this.Bo.columns[this.Bo.sqlColumns.indexOf(sqlColumn)]];
     }
   };
