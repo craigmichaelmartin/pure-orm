@@ -31,7 +31,9 @@ module.exports = ({ getTableData }) =>
         .filter(x => x.references)
         .reduce(
           (accum, item) =>
-            Object.assign({}, accum, { [item.column]: item.references }),
+            Object.assign({}, accum, {
+              [item.property || camelCase(item.column || item)]: item.references
+            }),
           {}
         );
     }
@@ -133,16 +135,22 @@ module.exports = ({ getTableData }) =>
       // Wowzer is this both CPU and Memory inefficient
       clump.forEach(array => {
         array.forEach(bo => {
-          const nodePointingToIt = nodes.find(
-            x =>
-              Object.values(x.Bo.references).indexOf(bo.Bo) > -1 &&
-              x[`${bo.Bo.displayName}Id`] === bo.id // Assumptions are being made here about property name and id ending
-          );
-          const nodeItPointsTo = nodes.find(
-            x =>
-              Object.values(bo.Bo.references).indexOf(x.Bo) > -1 &&
-              bo[`${x.Bo.displayName}Id`] === x.id // Assumptions are being made here about property name and id ending
-          );
+          const nodePointingToIt = nodes.find(x => {
+            const index = Object.values(x.Bo.references).indexOf(bo.Bo);
+            if (index === -1) {
+              return false;
+            }
+            const property = Object.keys(x.Bo.references)[index];
+            return x[property] === bo.id;
+          });
+          const nodeItPointsTo = nodes.find(x => {
+            const index = Object.values(bo.Bo.references).indexOf(x.Bo);
+            if (index === -1) {
+              return false;
+            }
+            const property = Object.keys(bo.Bo.references)[index];
+            return bo[property] === x.id;
+          });
           if (!(nodePointingToIt || nodeItPointsTo)) {
             throw Error(
               `Could not find how this BO fits: ${JSON.stringify(bo)}`
@@ -173,15 +181,17 @@ module.exports = ({ getTableData }) =>
       const boified = objectified.map(this.mapToBos.bind(this));
       const clumps = this.clumpIntoGroups(boified);
       const nested = clumps.map(this.nestClump.bind(this));
-      return nested;
+      const models = nested.map(n => Object.values(n)[0]);
+      const BoCollection = models[0].BoCollection;
+      return new BoCollection({ models });
     }
 
     static createOneFromDatabase(_result) {
-      const array = this.createFromDatabase(_result);
-      if (array.length > 1) {
+      const collection = this.createFromDatabase(_result);
+      if (collection.models.length > 1) {
         throw Error('Got more than one.');
       }
-      return Object.values(array[0])[0];
+      return collection.models[0];
     }
 
     getSqlInsertParts() {

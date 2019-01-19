@@ -180,7 +180,7 @@ class Person extends BaseDAO {
 ```
 
 Lets start with a basic example which just uses the
-**`BaseBO.parseFromDatabase`** method to map the column names to our desired
+**`BaseBO.createOneFromDatabase`** method to map the column names to our desired
 javascript properties.
 
 ```javascript
@@ -193,7 +193,7 @@ getRandom() {
   `;
   return this.db
     .one(query)
-    .then(result => Right(new Person(Person.parseFromDatabase(result))))
+    .then(result => Right(Person.createOneFromDatabase(result)))
     .catch(err => {
       if (!err.name === 'QueryResultError') {
         logError(err);
@@ -218,7 +218,7 @@ getRandom() {
 +  return this.one(query);
 -  return this.db
 -    .one(query)
--    .then(result => Right(new Person(Person.parseFromDatabase(result))))
+-    .then(result => Right(Person.createOneFromDatabase(result)))
 -    .catch(err => {
 -      if (!err.name === 'QueryResultError') {
 -        logError(err);
@@ -248,7 +248,7 @@ getRandom() {
 
 More important than saving the tedium, though, is how
 **`BaseBo.getSQLSelectClause()`** namespaces each select expression name
-under the hood, and which **`BaseBo.parseFromDatabase`** knows how to handle.
+under the hood, and which **`BaseBo.createOneFromDatabase`** knows how to handle.
 This means that when joining, not only is the select expression easy,
 select expression names won't collide:
 
@@ -272,7 +272,7 @@ person's id and createDate, the result is a nice Person BO with a nested
 Employer BO.
 
 Lets move to a different example to show off another aspect of
-**`BaseBo.parseFromDatabase`**: how it handles flattening data. Lets say
+**`BaseBo.createOneFromDatabase`**: how it handles flattening data. Lets say
 there are three tags for article being retrieved, rather than the data
 being an array of 3 results with article repeated, the result is
 a nice Article BO with the tags nested in it.
@@ -283,6 +283,7 @@ getBySlug(slug) {
     SELECT
       ${Article.getSQLSelectClause()},
       ${Person.getSQLSelectClause()},
+      ${ArticleTag.getSQLSelectClause()},
       ${Tag.getSQLSelectClause()}
     FROM article
     JOIN person
@@ -295,10 +296,43 @@ getBySlug(slug) {
   `;
   return this.many(query, { slug });
 }
-// OUTPUT: Person {id, firstName, lastName, createdDate, tags: [Tag, Tag, Tag]}
+// OUTPUT: Article {person: Person, tags: Tags[Tag, Tag, Tag]}
 ```
 
-Lastly, for now, lets see how meta data can be intertwined:
+Lets say we want to get more than one article. We can make slug an array, and
+**`BaseBo.createFromDatabase`** handles it seemlessly, giving us an Articles
+collections
+
+```diff
+-getBySlug(slug) {
++getBySlugs(slugs) {
+  const query = `
+    SELECT
+      ${Article.getSQLSelectClause()},
+      ${Person.getSQLSelectClause()},
+      ${ArticleTag.getSQLSelectClause()},
+      ${Tag.getSQLSelectClause()}
+    FROM article
+    JOIN person
+        ON article.author_id = person.id
+    LEFT JOIN article_tags
+        ON article.id = article_tags.article_id
+    LEFT JOIN tag
+        ON article_tags.tag_id = tag.id
+-   WHERE article.slug = $(slug);
++   WHERE article.slug in ($(slugs:csv));
+  `;
+- return this.many(query, { slugs });
++ return this.many(query, { slugs });
+}
+-// OUTPUT: Article {person: Person, tags: Tags[Tag, Tag, Tag]}
++// OUTPUT: Articles[
++//  Article {person: Person, tags: Tags[Tag, Tag, Tag]}
++//  Article {person: Person, tags: Tags[Tag, Tag]}
++// ]
+```
+
+Lastly, lets switch gears one more time to see how meta data can be intertwined:
 
 ```javascript
 getBloggerPayout(id, startDate, endDate) {
@@ -328,7 +362,7 @@ getBloggerPayout(id, startDate, endDate) {
 }
 ```
 
-To see everything in action, check out [the examples directory](https://github.com/craigmichaelmartin/sql-toolkit/tree/master/examples).
+To see everything in action, check out [the examples directory](https://github.com/craigmichaelmartin/sql-toolkit/tree/master/examples) and the [tests](https://github.com/craigmichaelmartin/sql-toolkit/blob/master/src/bo/base-bo.spec.js).
 
 ### Methods
 
