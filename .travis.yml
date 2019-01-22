@@ -1,0 +1,18 @@
+language: node_js
+node_js:
+- '8'
+notifications:
+  email: false
+before_install:
+- npm install -g greenkeeper-lockfile@1
+before_script:
+- greenkeeper-lockfile-update
+script:
+- npm run ci
+after_script:
+- greenkeeper-lockfile-upload
+after_success:
+- npx codecov
+env:
+  global:
+    secure: DZeELKsNLSpqJ9RNhifYkHYfa5zUS/AT+e0UnkPTBY9mm0DHOIbh59DuORBU/MLyon2bOGXK3bJRnBlmxNwB1Tkg/U74zSKT0plI5k0VdBYpKZzoqE8omSAVZNdvDjS82X4pv9n9R92mYpBz+iB81Ru6CMK2lZQkhi3ArCoLCHtwAXzRT5MIo6VLr1umebizeBVyadEVlH7wcAX4bbWpTnTGNJvQc0K2teTXO/hZ99SiEGnzakLbLeokaodtWhrRiEy6xL86FbY7MIrtvNXD/cVYM6vXTQxPfXr+b5hidxjJhSvEEtvcHVKTQUOxdILTbRBkTECPQyfrEjWc0uI+XOJ2mKsvFuonCyngyG2bo/mp3jav5r+SqkojuyHmFdP3WDBA+DJSRXC9zlViVTCxJ3rOCHSMw1678VfVTS5Gc1tglAWbYXqYqLAnrXz2kPc2FixxRAuwgY8gVsC7M9W9mypgiyUlQ6YT6Z3ae4YUMDZTcSofzbH8CM1r/+40ncGzlIMLMkAeUqZWYJFiozEIdQvBHr3Id/eXSec1ivVAa0OZ5F1SR/0trcc3CTr4P7Zg3FirtQ5MgCgDsDGbCGFN+eED8CaeRb0R2vijq+pIKPksrPD/WCPVHgn7Qy8j/TSXDMp6AbvK5DQ+TOpp9umT9szOfEF3Hf9RBbVY7EU+/Zc=
