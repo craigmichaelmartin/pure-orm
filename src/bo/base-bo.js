@@ -2,12 +2,9 @@ const camelCase = require('camelcase');
 
 module.exports = ({ getTableData }) =>
   class Base {
-    constructor(props, { tableMap, collectionsMap, singleToCollection } = {}) {
+    constructor(props, { tableMap } = {}) {
       const closureData = getTableData();
       this.tableMap = tableMap || closureData.tableMap;
-      this.collectionsMap = collectionsMap || closureData.collectionsMap;
-      this.singleToCollection =
-        singleToCollection || closureData.singleToCollection;
       Object.assign(this, props);
     }
 
@@ -190,8 +187,26 @@ module.exports = ({ getTableData }) =>
       const collection = this.createFromDatabase(_result);
       if (collection.models.length > 1) {
         throw Error('Got more than one.');
+      } else if (collection.models.length === 0) {
+        throw Error('Did not get one.');
       }
       return collection.models[0];
+    }
+
+    static createOneOrNoneFromDatabase(_result) {
+      const collection = this.createFromDatabase(_result);
+      if (collection.models.length > 1) {
+        throw Error('Got more than one.');
+      }
+      return collection.models[0];
+    }
+
+    static createManyFromDatabase(_result) {
+      const collection = this.createFromDatabase(_result);
+      if (collection.models.length === 0) {
+        throw Error('Did not get at least one.');
+      }
+      return collection;
     }
 
     getSqlInsertParts() {

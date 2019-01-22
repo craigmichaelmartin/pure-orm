@@ -6,10 +6,8 @@ const { getColumnsValuesFromInsertError } = require('../util/helpers');
  */
 module.exports = ({ getTableData, db: closureDB, logError: closureLogError }) =>
   class BaseDAO {
-    constructor({ db, singleToCollection, logError } = {}) {
+    constructor({ db, logError } = {}) {
       this.db = db || closureDB;
-      this.singleToCollection =
-        singleToCollection || getTableData().singleToCollection;
       this.logError = logError || closureLogError;
       this.ensureExists = this.getOrCreate; // alias
       this.errorHandler = this.errorHandler.bind(this);
@@ -22,45 +20,29 @@ module.exports = ({ getTableData, db: closureDB, logError: closureLogError }) =>
 
     one(query, values) {
       return this.db
-        .one(query, values)
-        .then(this.createBo)
+        .many(query, values)
+        .then(rows => Right(this.Bo.createOneFromDatabase(rows)))
         .catch(this.errorHandler);
     }
 
-    oneFromMany(query, values) {
+    oneOrNone(query, values) {
       return this.db
         .many(query, values)
-        .then(this.createBo)
+        .then(rows => Right(this.Bo.createOneOrNoneFromDatabase(rows)))
         .catch(this.errorHandler);
     }
 
     many(query, values) {
       return this.db
-        .many(query, values)
-        .then(this.createBoCollection)
+        .any(query, values)
+        .then(rows => Right(this.Bo.createManyFromDatabase(rows)))
         .catch(this.errorHandler);
     }
 
     any(query, values) {
       return this.db
         .any(query, values)
-        .then(this.createBoCollection)
-        .catch(this.errorHandler);
-    }
-
-    // "raw" (non BO) row result
-    row(query, values) {
-      return this.db
-        .one(query, values)
-        .then(Right)
-        .catch(this.errorHandler);
-    }
-
-    // "raw" (no BO) rows result
-    rows(query, values) {
-      return this.db
-        .any(query, values)
-        .then(Right)
+        .then(rows => Right(this.Bo.createFromDatabase(rows)))
         .catch(this.errorHandler);
     }
 
@@ -72,16 +54,6 @@ module.exports = ({ getTableData, db: closureDB, logError: closureLogError }) =>
         this.logError(err);
       }
       return Left(err);
-    }
-
-    createBo(row) {
-      return Right(new this.Bo(this.Bo.parseFromDatabase(row)));
-    }
-
-    createBoCollection(rows) {
-      return Right(
-        new this.BoCollection(this.BoCollection.parseFromDatabase(rows))
-      );
     }
 
     /* Built-in basic DAO methods -------------------------------------------*/
@@ -140,13 +112,7 @@ module.exports = ({ getTableData, db: closureDB, logError: closureLogError }) =>
         FROM "${bo.Bo.tableName}"
         WHERE ${whereClause};
       `;
-      return this.db
-        .many(query, values)
-        .then(rows => {
-          const Con = this.singleToCollection[bo.Bo.displayName];
-          return Right(new Con(Con.parseFromDatabase(rows))); // eslint-disable-line
-        })
-        .catch(this.errorHandler);
+      return this.db.many(query, values);
     }
 
     getOrCreate(bo) {

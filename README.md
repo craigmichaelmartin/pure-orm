@@ -16,7 +16,7 @@ SQL Toolkit is a node library built for `pg-promise` which allows you to write r
 
 #### Philosophy
 
-SQL Toolkit is intentionally not an ORM. There are not hundreds of methods mapping the complexit of SQL to class objects.
+SQL Toolkit is intentionally not an ORM. There are not hundreds of methods mapping the complexity and nuance of SQL to class objects. It is not intended to have a huge API surface area.
 
 Instead, the value of the toolkit is that you get to write native SQL (not ORM-abstracted SQL-ish) while receiving back pure javascript objects.
 
@@ -24,10 +24,10 @@ Instead, the value of the toolkit is that you get to write native SQL (not ORM-a
 
 - Have **pure** "business" objects which can represent the data of a table and be the subject of the app's business logic.
   - These objects are pure javascript objects: decoupled from the database, and agnostic to how interfacing is done.
-  - They will be full of business logic methods, and their purity make them easy to test/use.
+  - They will be full of business logic methods, and their purity will allow them to be easy to test/use.
 - Allow the unobstructed writing of normal SQL.
-  - I want to write SQL. I don't want to re-create the nuances of SQL in an API. I woulnd't want to learn that API even if it existed. I want to write SQL exactly as I would if in psql. Not SQL-ish. Not chunked up with special APIs. Not using wierd json_build_object functions. Just normal SQL.
-- Have the SQL (Data Access) understand pure business objects as inputs, and return them as outputs.
+  - I want to write SQL. I don't want to re-create the expressive of SQL as method APIs. I woulnd't want to learn that API even if it existed. I want to write SQL exactly as I would if in psql. Not SQL-ish. Not chunked up with special APIs. Not using wierd json_build_object functions. Just normal SQL.
+- Have the Data Access layer where this SQL is written understand pure business objects as inputs, and return them as outputs. If I join on a many to many table, I want business objects that are appropriately nested/structured, not flat lists.
 
 #### Concepts
 
@@ -37,141 +37,11 @@ A **Data Access Object** (DAO) is a database-aware abstraction layer where SQL i
 
 DAO methods return pure BOs. Likewise, BOs may be passed to DAO methods to get or update records.
 
-## Example Usage of already made BOs and DAOs
+## Examples
 
-```javascript
-let raw = new Person({
-  email: 'foobar@gmail.com',
-  firstName: 'craig',
-  lastName: 'martin'
-});
+### Data Access Object
 
-const personDAO = new PersonDAO({ db });
-
-// Returns a person business object with the persisted data
-let person = await personDAO.create(raw);
-
-person.email = 'craigmartin@gmail.com';
-
-// Returns a person business object with the updated persisted data
-person = await personDAO.update(person);
-
-// Gets or creates a person business object
-same = await personDAO.getOrCreate(raw);
-same.id === person.id; // true
-
-// Returns the person business object which matches this data
-same = await personDAO.getMatching(
-  new Person({ email: 'craigmartin11@gmail.com' })
-);
-same.id === person.id; // true
-
-// Deletes the person data form the database
-await personDAO.delete(person);
-
-// Returns the person business object returned by whatever DAO methods your write
-person = await personDAO.getFromCustomMadeMethod();
-```
-
-See examples below for what the DAO side of this looks like.
-
-## API
-
-### Classes
-
-#### `BaseBo`
-
-An abstract class which is the base class your BO classes to extend.
-
-**Abstract Methods** to be implemented
-
-- `get Bo(): BO` - Returns the business object class constructor.
-- `get BoCollection(): BoCollection` - Returns the business object collection class constructor.
-- `static get tableName(): string` - Returns the string table name which the business object associates with from the database.
-- `static get sqlColumnsData(): Array<string|ColumnData>` - Returns an array of the database column data. The type is either:
-  - `ColumnData {column, property?, references?, primaryKey?, transform?}`
-    - `column: string` - The sql column name
-    - `propery: string` - The javascript property name for this column (defaults to camelCase of `column`)
-    - `references: Bo` - The relationship to another Bo (defaults to null)
-    - `primaryKey: boolean` - Is this column (part of) the primary key (defaults to false)
-    - `transform: fn` - When this data is pulled, a transform that runs on it; eg, creating a momentjs object for dates (defaults to `() => {}`)
-  - `string` - If a string, it is applied as the `column` value, with all others defaulted.
-  - (Note: if there is no primary key, `id` is defaulted)
-
-Optional
-
-- `static get displayName(): string` - Returns the string display name of the business object (defaults to camelcase of tableName)
-
-**Public Methods**
-
-- `constructor(props: object)`
-- `static primaryKey()`
-- `static get columns()`
-- `static get sqlColumns()`
-- `static get references()`
-- `static get displayName()`
-- `static getPrefixedColumnNames()`
-- `static getSQLSelectClause()`
-- `static objectifyDatabaseResult(result)`
-- `static mapToBos(objectified)`
-- `static clumpIntoGroups(processed)`
-- `static nestClump(clump)`
-- `static createFromDatabase(result)`
-- `static createOneFromDatabase(result)`
-- `getSqlInsertParts()`
-- `getSqlUpdateParts()`
-- `getMatchingParts()`
-- `getMatchingPartsObject()`
-- `getNewWith(sqlColumns, values)`
-- `getValueBySqlColumn(sqlColumn)`
-
-#### `BaseBoCollection`
-
-An abstract class which is the base class your Bo Collection classes extend.
-
-**Abstract Methods** to be implemented
-
-- `static get Bo(): BO` - Returns the individual (singular) business object class constructor.
-
-Optional
-
-- `get displayName(): BO` - Returns the string display name of the business object collection (defaults to bo displayName with an "s")
-
-**Public Methods**
-
-- `constructor(props: object)`
-- `static get displayName()`
-
-#### `BaseDAO`
-
-The base class your DAO classes extend.
-
-**Abstract Methods** to be implemented
-
-- `get Bo(): BO` - Returns the business object class constructor.
-- `get BoCollection(): BO` - Returns the collection business object class constructor.
-
-**Public Methods**
-
-- `constructor({ db }})`
-- `one(query: string, params: object)` - executes a query and returns a Bo
-- `oneFromMany(query: string, params: object)` - executes a query and returns a Bo
-- `many(query: string, params: object)` - executes a query and returns a BoCollection
-- `errorHandler(err)` - helper function if using pg-promise `db` directly
-- `createBo(row)` - helper function if using pg-promise `db` directly
-- `createBoCollection(rows)` - helper function if using pg-promise `db` directly
-- `getMatching(bo: BaseBO)` - builtin function
-- `getAllMatching(bo: BaseBO)` - builtin function
-- `getOrCreate(bo: BaseBO)` - builtin function
-- `create(bo: BaseBO)` - builtin function
-- `update(bo: BaseBO)` - builtin function
-- `delete(bo: BaseBO)` - builtin function
-
-While BaseDAO provides some a few builtin methods, the philosophy of this toolkit is not to have a huge API surface area which mirrors the intricacies of the SQL DSL. Rather, you write DAO methods using SQL and pass back business objects.
-
-Lets take a few examples to show this.
-
-#### Examples
+Our data access layer where SQL is written.
 
 ```javascript
 class Person extends BaseDAO {
@@ -294,10 +164,12 @@ getBySlug(slug) {
         ON article_tags.tag_id = tag.id
     WHERE article.slug = $(slug);
   `;
-  return this.many(query, { slug });
+  return this.one(query, { slug });
 }
 // OUTPUT: Article {person: Person, tags: Tags[Tag, Tag, Tag]}
 ```
+
+Notice that we're using `this.one`, which is what we want. The DAO methods for `one`, `oneOrNone`, `many`, `any` ensure their count against the number of generated top level business objects - not the number of rows the sql expression returns!
 
 Lets say we want to get more than one article. We can make slug an array, and
 **`BaseBo.createFromDatabase`** handles it seemlessly, giving us an Articles
@@ -362,7 +234,149 @@ getBloggerPayout(id, startDate, endDate) {
 }
 ```
 
+### Business Object Usage
+
+Now lets look at our business logic layer where we use the DAO to get/persist pure data.
+
+```javascript
+let raw = new Person({
+  email: 'foobar@gmail.com',
+  firstName: 'craig',
+  lastName: 'martin'
+});
+
+const personDAO = new PersonDAO({ db });
+
+// Returns a person business object with the persisted data
+let person = await personDAO.create(raw);
+
+person.email = 'craigmartin@gmail.com';
+
+// Returns a person business object with the updated persisted data
+person = await personDAO.update(person);
+
+// Gets or creates a person business object
+same = await personDAO.getOrCreate(raw);
+same.id === person.id; // true
+
+// Returns the person business object which matches this data
+same = await personDAO.getMatching(
+  new Person({ email: 'craigmartin11@gmail.com' })
+);
+same.id === person.id; // true
+
+// Deletes the person data form the database
+await personDAO.delete(person);
+
+// Returns the person business object returned by whatever DAO methods your write
+person = await personDAO.getFromCustomMadeMethod();
+```
+
 To see everything in action, check out [the examples directory](https://github.com/craigmichaelmartin/sql-toolkit/tree/master/examples) and the [tests](https://github.com/craigmichaelmartin/sql-toolkit/blob/master/src/bo/base-bo.spec.js).
+
+## API
+
+### Classes
+
+#### `BaseBo`
+
+An abstract class which is the base class your BO classes to extend.
+
+**Abstract Methods** to be implemented
+
+- `get Bo(): BO` - Returns the business object class constructor.
+- `get BoCollection(): BoCollection` - Returns the business object collection class constructor.
+- `static get tableName(): string` - Returns the string table name which the business object associates with from the database.
+- `static get sqlColumnsData(): Array<string|ColumnData>` - Returns an array of the database column data. The type is either:
+  - `ColumnData {column, property?, references?, primaryKey?, transform?}`
+    - `column: string` - The sql column name
+    - `propery: string` - The javascript property name for this column (defaults to camelCase of `column`)
+    - `references: Bo` - The relationship to another Bo (defaults to null)
+    - `primaryKey: boolean` - Is this column (part of) the primary key (defaults to false)
+    - `transform: fn` - When this data is pulled, a transform that runs on it; eg, creating a momentjs object for dates (defaults to `() => {}`)
+  - `string` - If a string, it is applied as the `column` value, with all others defaulted.
+  - (Note: if there is no primary key, `id` is defaulted)
+
+Optional
+
+- `static get displayName(): string` - Returns the string display name of the business object (defaults to camelcase of tableName)
+
+**Public Methods**
+
+- `constructor(props: object)`
+- `static primaryKey()`
+- `static get columns()`
+- `static get sqlColumns()`
+- `static get references()`
+- `static get displayName()`
+- `static getPrefixedColumnNames()`
+- `static getSQLSelectClause()`
+- `static objectifyDatabaseResult(result)`
+- `static mapToBos(objectified)`
+- `static clumpIntoGroups(processed)`
+- `static nestClump(clump)`
+- `static createFromDatabase(result)`
+- `static createOneFromDatabase(result)`
+- `getSqlInsertParts()`
+- `getSqlUpdateParts()`
+- `getMatchingParts()`
+- `getMatchingPartsObject()`
+- `getNewWith(sqlColumns, values)`
+- `getValueBySqlColumn(sqlColumn)`
+
+#### `BaseBoCollection`
+
+An abstract class which is the base class your Bo Collection classes extend.
+
+**Abstract Methods** to be implemented
+
+- `static get Bo(): BO` - Returns the individual (singular) business object class constructor.
+
+Optional
+
+- `get displayName(): BO` - Returns the string display name of the business object collection (defaults to bo displayName with an "s")
+
+**Public Methods**
+
+- `constructor(props: object)`
+- `static get displayName()`
+
+#### `BaseDAO`
+
+The base class your DAO classes extend.
+
+**Abstract Methods** to be implemented
+
+- `get Bo(): BO` - Returns the business object class constructor.
+- `get BoCollection(): BO` - Returns the collection business object class constructor.
+
+**Public Methods**
+
+- `constructor({ db }})`
+
+Abstractions over `pg-promise`'s query methods:
+
+- `one(query: string, params: object)` - executes a query and returns a Bo, or throws.
+- `oneOrNone(query: string, params: object)` - executes a query and returns a Bo or undefined, or throws.
+- `many(query: string, params: object)` - executes a query and returns a BoCollection with at least one model, or throws.
+- `any(query: string, params: object)` - executes a query and returns a BoCollection.
+
+(Note, these methods assert the correct number on the created BO's - not the raw postgres sql result. Thus, for example, `one` understands that there may be multiple result rows (which pg-promise's `one` would throw at) but which could correctly nest into one BO.)
+
+Helper functions if usint `pr-promise`'s query methods directly:
+
+- `errorHandler(err)` - helper function if using pg-promise `db` directly
+
+Built-in "basic" / generic functions which your extending DAO class instance gets for free
+
+- `getMatching(bo: BaseBO)`
+- `getAllMatching(bo: BaseBO)`
+- `getOrCreate(bo: BaseBO)`
+- `create(bo: BaseBO)`
+- `update(bo: BaseBO)`
+- `delete(bo: BaseBO)`
+
+Lets take a few examples to show this.
 
 ### Methods
 
@@ -370,12 +384,10 @@ To see everything in action, check out [the examples directory](https://github.c
 
 **Parameters**
 
-- `getTableData: () => { tableMap, collectionsMap, singleToCollection }` - A function which returns table information. These values (`tableMap`, `collectionsMap`, `singleToCollection`) may be omitted here if they are passed to the BaseBo constructor. Passing these every time is tedious (hence the ability to do it just once in this `createBaseBo` factory), but is nice mocking in tests.
+- `getTableData: () => { tableMap }` - A function which returns a table information object.
   - `tableMap: object`
     - An object with the tablename as property name and the business object class constructor as key.
-    - Used to construct joined row data in the business object. If supplied, the business object is returned; else, a raw js obj.
-  - `collectionsMap: object`
-  - `singleToCollection: object`
+    - Used to construct joined row data in the business object.
 
 **Return Value**
 
@@ -385,12 +397,10 @@ To see everything in action, check out [the examples directory](https://github.c
 
 **Parameters**
 
-- `getTableData: () => { tableMap, collectionsMap, singleToCollection }` - A function which returns table information. These values (`tableMap`, `collectionsMap`, `singleToCollection`) may be omitted here if they are passed to the BaseBo constructor. Passing these every time is tedious (hence the ability to do it just once in this `createBaseBo` factory), but is nice mocking in tests.
+- `getTableData: () => { tableMap }` - A function which returns a table information object.
   - `tableMap: object`
     - An object with the tablename as property name and the business object class constructor as key.
-    - Used to construct joined row data in the business object. If supplied, the business object is returned; else, a raw js obj.
-  - `collectionsMap: object`
-  - `singleToCollection: object`
+    - Used to construct joined row data in the business object.
 - `logError: function`
 - `db: pg-promise database`
 
@@ -398,9 +408,10 @@ To see everything in action, check out [the examples directory](https://github.c
 
 - The BaseDAO class to extend for your business objects.
 
-#### Current Limitations
+## Current Limitations
 
 - the dao you are writing your sql in will always be in the "select" and will be the one you want as your root(s) return objects
   - the query can start from some other table, and join a bunch of times to get there
 - there is a clear path in the "select" to your leaf joined-to-entities (eg, (Good): Article, ArticleTag, Tag, TagModerator, Moderator; not (Bad): Article, Moderator).
 - the result of _the select_ will always be a tree, and not circular (eg, (Bad): Article, Person, Group, GroupArticle, Article)
+- probably performance. While the API has been somewhat thought through and iterated on to this point, the implementation details have been secondary, knowing that they can be perfected in time.

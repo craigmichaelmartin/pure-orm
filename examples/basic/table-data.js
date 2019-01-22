@@ -4,7 +4,6 @@ const getTableData = () => {
   var Article = require('./bo/article');
   var Person = require('./bo/person');
   var Tag = require('./bo/tag');
-  var Tags = require('./bo/tags');
 
   const tableMap = {
     article: Article,
@@ -12,18 +11,8 @@ const getTableData = () => {
     tag: Tag
   };
 
-  const collectionsMap = {
-    tags: Tags
-  };
-
-  const singleToCollection = {
-    tag: Tags
-  };
-
   return {
-    tableMap,
-    collectionsMap,
-    singleToCollection
+    tableMap
   };
 };
 
