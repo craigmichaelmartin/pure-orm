@@ -77,7 +77,7 @@ getRandom() {
 Creating our business object and catching the error is tedious. Instead,
 lets use `BaseDAO.one`.
 
-```javascript
+```diff
 getRandom() {
   const query = `
     SELECT person.id, person.first_name, person.last_name, person.created_date, person.employer_id
@@ -105,8 +105,8 @@ Also, specifying all the columns is tedious; lets use
 ```diff
 getRandom() {
   const query = `
--    SELECT person.id, person.first_name, person.last_name, person.created_date, person.employer_id
-+    SELECT ${Person.getSQLSelectClause()}
+-   SELECT person.id, person.first_name, person.last_name, person.created_date, person.employer_id
++   SELECT ${Person.getSQLSelectClause()}
     FROM person
     ORDER BY random()
     LIMIT 1;
@@ -125,10 +125,10 @@ select expression names won't collide:
 ```diff
 getRandom() {
   const query = `
--    SELECT ${Person.getSQLSelectClause()}
-+    SELECT ${Person.getSQLSelectClause()}, ${Employer.getSQLSelectClause()}
+-   SELECT ${Person.getSQLSelectClause()}
++   SELECT ${Person.getSQLSelectClause()}, ${Employer.getSQLSelectClause()}
     FROM person
-+    JOIN employer on person.employer_id = employer.id
++   JOIN employer on person.employer_id = employer.id
     ORDER BY random()
     LIMIT 1;
   `;
