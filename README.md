@@ -85,16 +85,16 @@ getRandom() {
     ORDER BY random()
     LIMIT 1;
   `;
-+  return this.one(query);
--  return this.db
--    .one(query)
--    .then(result => Right(Person.createOneFromDatabase(result)))
--    .catch(err => {
--      if (!err.name === 'QueryResultError') {
--        logError(err);
--      }
--      return Left(err);
--    });
++ return this.one(query);
+- return this.db
+-   .one(query)
+-   .then(result => Right(Person.createOneFromDatabase(result)))
+-   .catch(err => {
+-     if (!err.name === 'QueryResultError') {
+-       logError(err);
+-     }
+-     return Left(err);
+-   });
 }
 // OUTPUT: Person {id, firstName, lastName, createdDate, employerId}
 ```
