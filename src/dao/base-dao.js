@@ -4,46 +4,45 @@ const { getColumnsValuesFromInsertError } = require('../util/helpers');
 /*
  * A wrapper function returning the base data access abstraction.
  */
-module.exports = ({ getTableData, db: closureDB, logError: closureLogError }) =>
+module.exports = ({ db: closureDB, logError: closureLogError }) =>
   class BaseDAO {
     constructor({ db, logError } = {}) {
       this.db = db || closureDB;
       this.logError = logError || closureLogError;
       this.ensureExists = this.getOrCreate; // alias
+      this.manyOrNone = this.any; // alias
       this.errorHandler = this.errorHandler.bind(this);
-      this.createBo = this.createBo.bind(this);
-      this.createBoCollection = this.createBoCollection.bind(this);
     }
 
     /* Nice abstractions over this.db ---------------------------------------*/
     /* ----------------------------------------------------------------------*/
 
-    one(query, values) {
+    one(query, values, errorHandler = this.errorHandler) {
       return this.db
         .many(query, values)
         .then(rows => Right(this.Bo.createOneFromDatabase(rows)))
-        .catch(this.errorHandler);
+        .catch(errorHandler);
     }
 
-    oneOrNone(query, values) {
+    oneOrNone(query, values, errorHandler = this.errorHandler) {
       return this.db
         .many(query, values)
         .then(rows => Right(this.Bo.createOneOrNoneFromDatabase(rows)))
-        .catch(this.errorHandler);
+        .catch(errorHandler);
     }
 
-    many(query, values) {
+    many(query, values, errorHandler = this.errorHandler) {
       return this.db
         .any(query, values)
         .then(rows => Right(this.Bo.createManyFromDatabase(rows)))
-        .catch(this.errorHandler);
+        .catch(errorHandler);
     }
 
-    any(query, values) {
+    any(query, values, errorHandler = this.errorHandler) {
       return this.db
         .any(query, values)
         .then(rows => Right(this.Bo.createFromDatabase(rows)))
-        .catch(this.errorHandler);
+        .catch(errorHandler);
     }
 
     /* Piecemeal endings if using this.db directly --------------------------*/
