@@ -70,6 +70,9 @@ module.exports = ({ getTableData }) =>
     static mapToBos(objectified) {
       return Object.keys(objectified).map(tableName => {
         const Bo = getTableData().tableMap[tableName];
+        if (!Bo) {
+          throw Error(`No property in tableMap for "${tableName}"`);
+        }
         const propified = Object.keys(objectified[tableName]).reduce(
           (obj, column) => {
             obj[Bo.columns[Bo.sqlColumns.indexOf(column)]] =
