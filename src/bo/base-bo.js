@@ -186,8 +186,7 @@ module.exports = ({ getTableData }) =>
       const clumps = this.clumpIntoGroups(boified);
       const nested = clumps.map(this.nestClump.bind(this));
       const models = nested.map(n => Object.values(n)[0]);
-      const BoCollection = models[0].BoCollection;
-      return new BoCollection({ models });
+      return new (new this()).BoCollection({ models });
     }
 
     static createOneFromDatabase(_result) {
