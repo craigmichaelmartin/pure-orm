@@ -110,7 +110,7 @@ module.exports = ({ getTableData }) =>
           .map(key => item.find(x => x.Bo === this)[key])
           .join('@');
         if (accum.has(id)) {
-          accum.set(id, [...(accum.get(id)), item]);
+          accum.set(id, [...accum.get(id), item]);
         } else {
           accum.set(id, [item]);
         }
@@ -186,7 +186,7 @@ module.exports = ({ getTableData }) =>
       const clumps = this.clumpIntoGroups(boified);
       const nested = clumps.map(this.nestClump.bind(this));
       const models = nested.map(n => Object.values(n)[0]);
-      return new (new this()).BoCollection({ models });
+      return new new this().BoCollection({ models });
     }
 
     static createOneFromDatabase(_result) {
