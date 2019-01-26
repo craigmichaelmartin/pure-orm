@@ -109,10 +109,14 @@ module.exports = ({ getTableData }) =>
         const id = this.primaryKey()
           .map(key => item.find(x => x.Bo === this)[key])
           .join('@');
-        accum[id] = accum[id] ? [...accum[id], item] : [item];
+        if (accum.has(id)) {
+          accum.set(id, [...(accum.get(id)), item]);
+        } else {
+          accum.set(id, [item]);
+        }
         return accum;
-      }, {});
-      return Object.values(clumps);
+      }, new Map());
+      return [...clumps.values()];
     }
 
     /*

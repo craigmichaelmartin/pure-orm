@@ -1163,7 +1163,7 @@ test('Bo#parseFromDatabase where multiple rows reduce to many rows with nested o
   expect(articles instanceof Articles).toBe(true);
   expect(articles.models.length).toEqual(2);
 
-  const first = articles.models.find(a => a.id === 14);
+  const first = articles.models[0];
   expect(first.person.id).toEqual(8);
   expect(first.articleTags.models.length).toEqual(10);
 
@@ -1188,7 +1188,7 @@ test('Bo#parseFromDatabase where multiple rows reduce to many rows with nested o
   expect(first.articleTags.models[9].id).toEqual(45);
   expect(first.articleTags.models[9].tag.id).toEqual(16);
 
-  const second = articles.models.find(a => a.id === 12);
+  const second = articles.models[1];
   expect(second.id).toEqual(12);
   expect(second.person.id).toEqual(17);
   expect(second.articleTags.models.length).toEqual(3);
