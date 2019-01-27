@@ -415,3 +415,9 @@ Lets take a few examples to show this.
 - there is a clear path in the "select" to your leaf joined-to-entities (eg, (Good): Article, ArticleTag, Tag, TagModerator, Moderator; not (Bad): Article, Moderator).
 - the result of _the select_ will always be a tree, and not circular (eg, (Bad): Article, Person, Group, GroupArticle, Article)
 - probably performance. While the API has been somewhat thought through and iterated on to this point, the implementation details have been secondary, knowing that they can be perfected in time.
+
+## Todo:
+
+- add more tests
+- update `getTableData` to return a list of business objects, and from their table name I can construct the object
+- use native `constructor` property for own constructor references (instead of the Bo function)

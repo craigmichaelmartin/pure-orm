@@ -8,7 +8,7 @@ class BaseBoCollection {
   }
 
   filter(predicate) {
-    return new this.Bo({ models: this.models.filter(predicate) });
+    return new this.constructor({ models: this.models.filter(predicate) });
   }
 }
 
