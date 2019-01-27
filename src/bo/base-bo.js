@@ -156,6 +156,10 @@ module.exports = ({ getTableData }) =>
             return bo[property] === x.id;
           });
           if (!(nodePointingToIt || nodeItPointsTo)) {
+            if (!bo.getId()) {
+              // If the join is fruitless; todo: add a test for this path
+              return;
+            }
             throw Error(
               `Could not find how this BO fits: ${JSON.stringify(bo)}`
             );
@@ -291,5 +295,12 @@ module.exports = ({ getTableData }) =>
 
     getValueBySqlColumn(sqlColumn) {
       return this[this.Bo.columns[this.Bo.sqlColumns.indexOf(sqlColumn)]];
+    }
+
+    // Returns unique identifier of bo (the values of the primary keys)
+    getId() {
+      return this.Bo.primaryKey()
+        .map(key => this[key])
+        .join('');
     }
   };
