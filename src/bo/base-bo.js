@@ -75,8 +75,19 @@ module.exports = ({ getTableData }) =>
         }
         const propified = Object.keys(objectified[tableName]).reduce(
           (obj, column) => {
-            obj[Bo.columns[Bo.sqlColumns.indexOf(column)]] =
-              objectified[tableName][column];
+            let propertyName = Bo.columns[Bo.sqlColumns.indexOf(column)];
+            if (!propertyName) {
+              if (column.startsWith('meta_')) {
+                propertyName = camelCase(column);
+              } else {
+                throw Error(
+                  `No property name for "${column}" in business object "${
+                    Bo.displayName
+                  }". Non-spec'd columns must begin with "meta_".`
+                );
+              }
+            }
+            obj[propertyName] = objectified[tableName][column];
             return obj;
           },
           {}
