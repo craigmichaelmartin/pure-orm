@@ -293,7 +293,7 @@ module.exports = ({ getTableData }) =>
     }
 
     getNewWith(sqlColumns, values) {
-      const Constructor = this.c;
+      const Constructor = this.Bo;
       const boKeys = sqlColumns.map(
         key => Constructor.columns[Constructor.sqlColumns.indexOf(key)]
       );
