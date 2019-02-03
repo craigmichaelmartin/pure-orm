@@ -37,6 +37,7 @@ class Order extends BaseBo {
       'total_weight',
       'order_status_url',
       { column: 'utm_source_id', references: UtmSource },
+      'utm_medium_id',
       'utm_campaign',
       'utm_content',
       'utm_term'

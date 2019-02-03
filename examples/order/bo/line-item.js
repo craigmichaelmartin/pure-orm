@@ -21,6 +21,7 @@ class LineItem extends Base {
       'id',
       { column: 'product_variant_id', references: ProductVariant },
       { column: 'order_id', references: Order },
+      'fulfillment_status_id',
       'fulfillable_quantity',
       'fulfillment_service',
       'grams',
