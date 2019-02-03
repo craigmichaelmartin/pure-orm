@@ -421,3 +421,5 @@ Lets take a few examples to show this.
 - add more tests
 - update `getTableData` to return a list of business objects, and from their table name I can construct the object
 - use native `constructor` property for own constructor references (instead of the Bo function)
+- Bug: if a table references the same table twice, the first one is found as the nodePointingToIt and so ends up throwing.
+  - ideally the fix to this will change the behavior of when a table points to another table by another name (author_id -> person)
