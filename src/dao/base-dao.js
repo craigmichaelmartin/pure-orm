@@ -45,6 +45,10 @@ module.exports = ({ db: closureDB, logError: closureLogError }) =>
         .catch(errorHandler);
     }
 
+    none(query, values, errorHandler = this.errorHandler) {
+      return this.db.none(query, values).catch(errorHandler);
+    }
+
     /* Piecemeal endings if using this.db directly --------------------------*/
     /* ----------------------------------------------------------------------*/
 
