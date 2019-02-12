@@ -16,18 +16,12 @@ SQL Toolkit is a node library built for `pg-promise` which allows you to write r
 
 #### Philosophy
 
-SQL Toolkit is intentionally not an ORM. There are not hundreds of methods mapping the complexity and nuance of SQL to class objects. It is not intended to have a huge API surface area.
-
-Instead, the value of the toolkit is that you get to write native SQL (not ORM-abstracted SQL-ish) while receiving back pure javascript objects.
-
-#### Design Goals
-
-- Have **pure** "business" objects which can represent the data of a table and be the subject of the app's business logic.
-  - These objects are pure javascript objects: decoupled from the database, and agnostic to how interfacing is done.
-  - They will be full of business logic methods, and their purity will allow them to be easy to test/use.
-- Allow the unobstructed writing of normal SQL.
-  - I want to write SQL. I don't want to re-create the expressive of SQL as method APIs. I woulnd't want to learn that API even if it existed. I want to write SQL exactly as I would if in psql. Not SQL-ish. Not chunked up with special APIs. Not using wierd json_build_object functions. Just normal SQL.
-- Have the Data Access layer where this SQL is written understand pure business objects as inputs, and return them as outputs. If I join on a many to many table, I want business objects that are appropriately nested/structured, not flat lists.
+- Have _pure_ "business objects" which can represent the data of a table and be the subject of the app's business logic.
+  - These objects are pure javascript objects which describe the shape of data for table, but are not connected to the database.
+  - They will be full of userland business logic methods, and their purity will allow them to be easy to test/use.
+- Have _database-connected_ "data access objects" which allow the unobstructed writing of normal SQL.
+  - This is not an ORM. There are not hundreds of methods mapping the complexity, expressiveness, and nuance of SQL to class objects.
+  - Rather, a data access layer in which native SQL (not ORM-abstracted SQL-ish) is written, and which understands pure business objects as inputs, and returns them property nested and structured as output.
 
 #### Concepts
 
@@ -407,6 +401,11 @@ Lets take a few examples to show this.
 **Return Value**
 
 - The BaseDAO class to extend for your business objects.
+
+## Alternatives (and sql-toolkit is different)
+
+- ORMs like [knex](https://github.com/tgriesser/knex), [bookshelf](https://github.com/bookshelf/bookshelf), and [typeorm](https://github.com/typeorm/typeorm). (`sql-toolkit` is not an ORM: it allows the writing of SQL, not ORM-abstracted SQL-ish with the mental mapping of SQL's expressiveness to a huge API.)
+- Using `json_build_object` or splitting up the query [like this](https://stackoverflow.com/questions/39805736/get-join-table-as-array-of-results-with-postgresql-nodejs). (`sql-toolkit` allows for the writing of SQL exactly as you expect, without restructuring or refactoring).
 
 ## Current Limitations
 
