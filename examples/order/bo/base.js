@@ -1,5 +1,5 @@
-const { createBaseBO } = require('../../../src/index');
-const getTableData = require('../table-data');
+const { createBaseBO } = require('sql-toolkit');
+const getBusinessObjects = require('../business-objects');
 
-const constructor = createBaseBO({ getTableData });
+const constructor = createBaseBO({ getBusinessObjects });
 module.exports = constructor;

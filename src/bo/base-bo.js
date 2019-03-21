@@ -1,10 +1,8 @@
 const camelCase = require('camelcase');
 
-module.exports = ({ getTableData }) =>
+module.exports = ({ getBusinessObjects }) =>
   class Base {
-    constructor(props, { tableMap } = {}) {
-      const closureData = getTableData();
-      this.tableMap = tableMap || closureData.tableMap;
+    constructor(props) {
       Object.assign(this, props);
     }
 
@@ -69,9 +67,9 @@ module.exports = ({ getTableData }) =>
 
     static mapToBos(objectified) {
       return Object.keys(objectified).map(tableName => {
-        const Bo = getTableData().tableMap[tableName];
+        const Bo = getBusinessObjects().find(bo => bo.tableName === tableName);
         if (!Bo) {
-          throw Error(`No property in tableMap for "${tableName}"`);
+          throw Error(`No business object with table name "${tableName}"`);
         }
         const propified = Object.keys(objectified[tableName]).reduce(
           (obj, column) => {

@@ -374,27 +374,20 @@ Lets take a few examples to show this.
 
 ### Methods
 
-#### `createBaseBO({ getTableData }): BaseBo`
+#### `createBaseBO({ getBusinessObjects }): BaseBo`
 
 **Parameters**
 
-- `getTableData: () => { tableMap }` - A function which returns a table information object.
-  - `tableMap: object`
-    - An object with the tablename as property name and the business object class constructor as key.
-    - Used to construct joined row data in the business object.
+- `getBusinessObjects: () => Array<BusinessObject>` - A function which returns an array of all the business objects, used to construct joined row data in the business object.
 
 **Return Value**
 
 - The BaseBo class to extend for your business objects.
 
-#### `createBaseDAO({ getTableData, db, logError }): BaseDAO`
+#### `createBaseDAO({ db, logError }): BaseDAO`
 
 **Parameters**
 
-- `getTableData: () => { tableMap }` - A function which returns a table information object.
-  - `tableMap: object`
-    - An object with the tablename as property name and the business object class constructor as key.
-    - Used to construct joined row data in the business object.
 - `logError: function`
 - `db: pg-promise database`
 
@@ -418,7 +411,6 @@ Lets take a few examples to show this.
 ## Todo:
 
 - add more tests
-- update `getTableData` to return a list of business objects, and from their table name I can construct the object
 - use native `constructor` property for own constructor references (instead of the Bo function)
 - Bug: if a table references the same table twice, the first one is found as the nodePointingToIt and so ends up throwing.
   - ideally the fix to this will change the behavior of when a table points to another table by another name (author_id -> person)
