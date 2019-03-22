@@ -278,7 +278,6 @@ An abstract class which is the base class your BO classes to extend.
 
 **Abstract Methods** to be implemented
 
-- `get Bo(): BO` - Returns the business object class constructor.
 - `get BoCollection(): BoCollection` - Returns the business object collection class constructor.
 - `static get tableName(): string` - Returns the string table name which the business object associates with from the database.
 - `static get sqlColumnsData(): Array<string|ColumnData>` - Returns an array of the database column data. The type is either:
@@ -411,7 +410,6 @@ Lets take a few examples to show this.
 ## Todo:
 
 - add more tests
-- use native `constructor` property for own constructor references (instead of the Bo function)
 - Bug: if a table references the same table twice, the first one is found as the nodePointingToIt and so ends up throwing.
   - ideally the fix to this will change the behavior of when a table points to another table by another name (author_id -> person)
 - think about how to handle the none case of oneOrNone, any, and none

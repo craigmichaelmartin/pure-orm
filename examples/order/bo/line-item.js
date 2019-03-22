@@ -4,10 +4,6 @@ const ProductVariant = require('./product-variant');
 const Order = require('./order');
 
 class LineItem extends Base {
-  get Bo() {
-    return LineItem;
-  }
-
   get BoCollection() {
     return LineItems;
   }

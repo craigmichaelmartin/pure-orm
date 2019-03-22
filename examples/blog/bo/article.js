@@ -3,10 +3,6 @@ const Articles = require('./articles');
 const Person = require('./person');
 
 class Article extends Base {
-  get Bo() {
-    return Article;
-  }
-
   get BoCollection() {
     return Articles;
   }

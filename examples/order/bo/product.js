@@ -2,10 +2,6 @@ const Base = require('./base');
 const Products = require('./products');
 
 class Product extends Base {
-  get Bo() {
-    return Product;
-  }
-
   get BoCollection() {
     return Products;
   }

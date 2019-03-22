@@ -4,10 +4,6 @@ const Article = require('./article');
 const Tag = require('./tag');
 
 class ArticleTag extends Base {
-  get Bo() {
-    return ArticleTag;
-  }
-
   get BoCollection() {
     return ArticleTags;
   }

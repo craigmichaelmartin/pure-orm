@@ -1,10 +1,6 @@
 const Base = require('./base');
 
 class UtmSource extends Base {
-  get Bo() {
-    return UtmSource;
-  }
-
   static get tableName() {
     return 'utm_source';
   }

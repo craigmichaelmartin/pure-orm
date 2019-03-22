@@ -3,10 +3,6 @@ const ProductVariants = require('./product-variants');
 const Product = require('./product');
 
 class ProductVariant extends Base {
-  get Bo() {
-    return ProductVariant;
-  }
-
   get BoCollection() {
     return ProductVariants;
   }

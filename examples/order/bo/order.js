@@ -3,10 +3,6 @@ const Orders = require('./orders');
 const UtmSource = require('./utm-source');
 
 class Order extends BaseBo {
-  get Bo() {
-    return Order;
-  }
-
   get BoCollection() {
     return Orders;
   }

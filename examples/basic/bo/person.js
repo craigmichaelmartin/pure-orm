@@ -1,10 +1,6 @@
 const BaseBo = require('./base');
 
 class Person extends BaseBo {
-  get Bo() {
-    return Person;
-  }
-
   static get tableName() {
     return 'person';
   }

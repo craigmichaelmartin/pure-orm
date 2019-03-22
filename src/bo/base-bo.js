@@ -116,7 +116,7 @@ module.exports = ({ getBusinessObjects }) =>
     static clumpIntoGroups(processed) {
       const clumps = processed.reduce((accum, item) => {
         const id = this.primaryKey()
-          .map(key => item.find(x => x.Bo === this)[key])
+          .map(key => item.find(x => x.constructor === this)[key])
           .join('@');
         if (accum.has(id)) {
           accum.set(id, [...accum.get(id), item]);
@@ -141,7 +141,7 @@ module.exports = ({ getBusinessObjects }) =>
       clump = clump.map(x => Object.values(x)); // clump wasn't actually what I have documented
       const root = clump[0][0];
       clump = clump.map(row => row.filter((item, index) => index !== 0));
-      const built = { [root.Bo.displayName]: root };
+      const built = { [root.constructor.displayName]: root };
 
       let nodes = [root];
 
@@ -149,19 +149,23 @@ module.exports = ({ getBusinessObjects }) =>
       clump.forEach(array => {
         array.forEach(bo => {
           const nodePointingToIt = nodes.find(x => {
-            const index = Object.values(x.Bo.references).indexOf(bo.Bo);
+            const index = Object.values(x.constructor.references).indexOf(
+              bo.constructor
+            );
             if (index === -1) {
               return false;
             }
-            const property = Object.keys(x.Bo.references)[index];
+            const property = Object.keys(x.constructor.references)[index];
             return x[property] === bo.id;
           });
           const nodeItPointsTo = nodes.find(x => {
-            const index = Object.values(bo.Bo.references).indexOf(x.Bo);
+            const index = Object.values(bo.constructor.references).indexOf(
+              x.constructor
+            );
             if (index === -1) {
               return false;
             }
-            const property = Object.keys(bo.Bo.references)[index];
+            const property = Object.keys(bo.constructor.references)[index];
             return bo[property] === x.id;
           });
           if (!(nodePointingToIt || nodeItPointsTo)) {
@@ -174,7 +178,7 @@ module.exports = ({ getBusinessObjects }) =>
             );
           }
           if (nodePointingToIt) {
-            nodePointingToIt[bo.Bo.displayName] = bo;
+            nodePointingToIt[bo.constructor.displayName] = bo;
           } else {
             let collection = nodeItPointsTo[bo.BoCollection.displayName];
             if (collection) {
@@ -229,10 +233,12 @@ module.exports = ({ getBusinessObjects }) =>
     }
 
     getSqlInsertParts() {
-      const columns = this.Bo.sqlColumns
-        .filter((column, index) => this[this.Bo.columns[index]] != null)
+      const columns = this.constructor.sqlColumns
+        .filter(
+          (column, index) => this[this.constructor.columns[index]] != null
+        )
         .join(', ');
-      const values = this.Bo.columns
+      const values = this.constructor.columns
         .map(column => this[column])
         .filter(value => value != null);
       const valuesVar = values.map((value, index) => `$${index + 1}`);
@@ -240,12 +246,14 @@ module.exports = ({ getBusinessObjects }) =>
     }
 
     getSqlUpdateParts() {
-      const clauseArray = this.Bo.sqlColumns
-        .filter((sqlColumn, index) => this[this.Bo.columns[index]] != null)
+      const clauseArray = this.constructor.sqlColumns
+        .filter(
+          (sqlColumn, index) => this[this.constructor.columns[index]] != null
+        )
         .map((sqlColumn, index) => `${sqlColumn} = $${index + 1}`);
       const clause = clauseArray.join(', ');
       const idVar = `$${clauseArray.length + 1}`;
-      const _values = this.Bo.columns
+      const _values = this.constructor.columns
         .map(column => this[column])
         .filter(value => value != null);
       const values = [..._values, this.id];
@@ -253,16 +261,18 @@ module.exports = ({ getBusinessObjects }) =>
     }
 
     getMatchingParts() {
-      const whereClause = this.Bo.columns
+      const whereClause = this.constructor.columns
         .map((col, index) =>
           this[col] != null
-            ? `"${this.Bo.tableName}".${this.Bo.sqlColumns[index]}`
+            ? `"${this.constructor.tableName}".${
+                this.constructor.sqlColumns[index]
+              }`
             : null
         )
         .filter(x => x != null)
         .map((x, i) => `${x} = $${i + 1}`)
         .join(' AND ');
-      const values = this.Bo.columns
+      const values = this.constructor.columns
         .map(col => (this[col] != null ? this[col] : null))
         .filter(x => x != null);
       return { whereClause, values };
@@ -271,16 +281,18 @@ module.exports = ({ getBusinessObjects }) =>
     // This one returns an object, which allows it to be more versatile.
     // Todo: make this one even better and use it instead of the one above.
     getMatchingPartsObject() {
-      const whereClause = this.Bo.columns
+      const whereClause = this.constructor.columns
         .map((col, index) =>
           this[col] != null
-            ? `"${this.Bo.tableName}".${this.Bo.sqlColumns[index]}`
+            ? `"${this.constructor.tableName}".${
+                this.constructor.sqlColumns[index]
+              }`
             : null
         )
         .filter(x => x != null)
         .map((x, i) => `${x} = $(${i + 1})`)
         .join(' AND ');
-      const values = this.Bo.columns
+      const values = this.constructor.columns
         .map(col => (this[col] != null ? this[col] : null))
         .filter(x => x != null)
         .reduce(
@@ -291,7 +303,7 @@ module.exports = ({ getBusinessObjects }) =>
     }
 
     getNewWith(sqlColumns, values) {
-      const Constructor = this.Bo;
+      const Constructor = this.constructor;
       const boKeys = sqlColumns.map(
         key => Constructor.columns[Constructor.sqlColumns.indexOf(key)]
       );
@@ -303,12 +315,15 @@ module.exports = ({ getBusinessObjects }) =>
     }
 
     getValueBySqlColumn(sqlColumn) {
-      return this[this.Bo.columns[this.Bo.sqlColumns.indexOf(sqlColumn)]];
+      return this[
+        this.constructor.columns[this.constructor.sqlColumns.indexOf(sqlColumn)]
+      ];
     }
 
     // Returns unique identifier of bo (the values of the primary keys)
     getId() {
-      return this.Bo.primaryKey()
+      return this.constructor
+        .primaryKey()
         .map(key => this[key])
         .join('');
     }
