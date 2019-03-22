@@ -23,6 +23,10 @@ SQL Toolkit is a node library built for `pg-promise` which allows you to write r
   - This is not an ORM. There are not hundreds of methods mapping the complexity, expressiveness, and nuance of SQL to class objects.
   - Rather, a data access layer in which native SQL (not ORM-abstracted SQL-ish) is written, and which understands pure business objects as inputs, and returns them property nested and structured as output.
 
+#### Is it production ready?
+
+It is in production at [www.kujo.com](www.kujo.com) - powering the marketing pages and blog, as well as the customer, affiliate, and admin platforms (behind login). When considering for your case, see the Current Limitations and TODOs sections at the bottom.
+
 #### Concepts
 
 A **Business Object** (BO) is a pure javascript object corresponding to a table.
@@ -401,15 +405,15 @@ Lets take a few examples to show this.
 
 ## Current Limitations
 
-- the dao you are writing your sql in will always be in the "select" and will be the one you want as your root(s) return objects
-  - the query can start from some other table, and join a bunch of times to get there
-- there is a clear path in the "select" to your leaf joined-to-entities (eg, (Good): Article, ArticleTag, Tag, TagModerator, Moderator; not (Bad): Article, Moderator).
-- the result of _the select_ will always be a tree, and not circular (eg, (Bad): Article, Person, Group, GroupArticle, Article)
-- probably performance. While the API has been somewhat thought through and iterated on to this point, the implementation details have been secondary, knowing that they can be perfected in time.
+- the dao you are writing your sql in must always be in the "select" and must be the one you want as your root(s) return objects
+  - the query can start from some other table, and join a bunch of times to get there, though
+- there must be a clear path in the "select" to your leaf joined-to-entities (eg, (Good): Article, ArticleTag, Tag, TagModerator, Moderator; not (Bad): Article, Moderator).
+- the result of _the select_ must always be a non-circular tree (eg, (Bad): Article, Person, Group, GroupArticle, Article)
 
 ## Todo:
 
-- add more tests
-- Bug: if a table references the same table twice, the first one is found as the nodePointingToIt and so ends up throwing.
+- Performance. While the API has been somewhat thought through and iterated on to this point, the implementation details have been secondary, knowing that they can be perfected in time. Probably about time now.
+- Add more tests
+- Known Bug: if a table references the same table twice, the first one is found as the nodePointingToIt and so ends up throwing.
   - ideally the fix to this will change the behavior of when a table points to another table by another name (author_id -> person)
-- think about how to handle the none case of oneOrNone, any, and none
+- Think about how to handle the none case of oneOrNone, any, and none
