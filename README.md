@@ -23,10 +23,6 @@ SQL Toolkit is a node library built for `pg-promise` which allows you to write r
   - This is not an ORM. There are not hundreds of methods mapping the complexity, expressiveness, and nuance of SQL to class objects.
   - Rather, a data access layer in which native SQL (not ORM-abstracted SQL-ish) is written, and which understands pure business objects as inputs, and returns them property nested and structured as output.
 
-#### Is it production ready?
-
-It is in production at [www.kujo.com](www.kujo.com) - powering the marketing pages and blog, as well as the customer, affiliate, and admin platforms (behind login). When considering for your case, see the Current Limitations and TODOs sections at the bottom.
-
 #### Concepts
 
 A **Business Object** (BO) is a pure javascript object corresponding to a table.
@@ -398,22 +394,38 @@ Lets take a few examples to show this.
 
 - The BaseDAO class to extend for your business objects.
 
-## Alternatives (and sql-toolkit is different)
+## Comparisons
 
-- ORMs like [knex](https://github.com/tgriesser/knex), [bookshelf](https://github.com/bookshelf/bookshelf), and [typeorm](https://github.com/typeorm/typeorm). (`sql-toolkit` is not an ORM: it allows the writing of SQL, not ORM-abstracted SQL-ish with the mental mapping of SQL's expressiveness to a huge API.)
-- Using `json_build_object` or splitting up the query [like this](https://stackoverflow.com/questions/39805736/get-join-table-as-array-of-results-with-postgresql-nodejs). (`sql-toolkit` allows for the writing of SQL exactly as you expect, without restructuring or refactoring).
+Low Level Abstractions
 
-## Current Limitations
+- Database Drivers (eg [node-postgres](https://github.com/brianc/node-postgres), [mysql](https://github.com/mysqljs/mysql), [node-sqlite3](https://github.com/mapbox/node-sqlite3)) - These are powerful low level libraries that handle connecting to a database, executing raw SQL, and returning raw rows. All the higher level abstractions are built on these. While they can be used directly, `sql-toolkit` aims at providing structure fo the returned raw rows by creating pure, nested business objects for the result rows.
+
+Middle Level Abstractions
+
+- Query Builders (eg [knex](https://github.com/tgriesser/knex)) - query builder libraries (built on database drivers) aim at the _writing of raw SQL_: seeking to solve the problem of composing sql queries in a dialetic-generic api. `sql-toolkit` takes the approach that the tradeoff of developers having to learn the huge surface area of dialetic-generic api, and having to map the complexity and nuance of SQL to it, are simply not worth the cost, and so does not use a query building library. With `sql-toolkit` you just write SQL. The tradeoff on `sql-toolkits` side that is indeed being tied to a sql dialect and in the inability to compose sql expressions (strings don't compose nicely). Yet all this considered, `sql-toolkit` sees writing straight SQL heaviliy as a feature, not a defect needing solved.
+- Query Resolvers (eg `sql-toolkit`) - query resolvers librarys (built on database drivers) aim at the _receiving of raw rows_: seeking to provided pure, properly nested business objects (with custom methods and dynamic properties) in place of raw, flat result rows. To my knowledge, `sql-toolkit` is the only player in this space.
+
+High Level Abstractions
+
+- ORMs (eg [sequelize](https://github.com/sequelize/sequelize), [waterline](https://github.com/balderdashy/waterline), [bookshelf](https://github.com/bookshelf/bookshelf), [typeorm](https://github.com/typeorm/typeorm) - orms (built on database drivers as well as sometimes standalone query builders, and with some query resolving baked in) aim at providing it all. `sql-toolkit` is more than just the preference against query builders - it also resolves the result rows to _pure_ business objects, not stateful, db-connected objects. This purity in business objects fosters a clean layer of the business layer from the data access layer.
+
+## Current Status
+
+#### Current Limitations (PRs welcome!)
 
 - the dao you are writing your sql in must always be in the "select" and must be the one you want as your root(s) return objects
   - the query can start from some other table, and join a bunch of times to get there, though
 - there must be a clear path in the "select" to your leaf joined-to-entities (eg, (Good): Article, ArticleTag, Tag, TagModerator, Moderator; not (Bad): Article, Moderator).
 - the result of _the select_ must always be a non-circular tree (eg, (Bad): Article, Person, Group, GroupArticle, Article)
 
-## Todo:
+#### Current Todos (PRs welcome!):
 
 - Performance. While the API has been somewhat thought through and iterated on to this point, the implementation details have been secondary, knowing that they can be perfected in time. Probably about time now.
 - Add more tests
 - Known Bug: if a table references the same table twice, the first one is found as the nodePointingToIt and so ends up throwing.
   - ideally the fix to this will change the behavior of when a table points to another table by another name (author_id -> person)
 - Think about how to handle the none case of oneOrNone, any, and none
+
+#### Is it production ready?
+
+It is in production at [www.kujo.com](www.kujo.com) - powering the marketing pages and blog, as well as the customer, affiliate, and admin platforms (behind login). When considering for your case, note the Current Limitations and TODOs sections above.
