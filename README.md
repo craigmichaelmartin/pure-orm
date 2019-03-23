@@ -31,6 +31,8 @@ A **Data Access Object** (DAO) is a database-aware abstraction layer where SQL i
 
 DAO methods return pure BOs. Likewise, BOs may be passed to DAO methods to get or update records.
 
+---
+
 ## Examples
 
 ### Data Access Object
@@ -268,6 +270,25 @@ person = await personDAO.getFromCustomMadeMethod();
 
 To see everything in action, check out [the examples directory](https://github.com/craigmichaelmartin/sql-toolkit/tree/master/examples) and the [tests](https://github.com/craigmichaelmartin/sql-toolkit/blob/master/src/bo/base-bo.spec.js).
 
+---
+
+## Comparisons
+
+Low Level Abstractions
+
+- **Database Drivers** (eg [node-postgres](https://github.com/brianc/node-postgres), [mysql](https://github.com/mysqljs/mysql), [node-sqlite3](https://github.com/mapbox/node-sqlite3)) - These are powerful low level libraries that handle connecting to a database, executing raw SQL, and returning raw rows. All the higher level abstractions are built on these. While they can be used directly, `sql-toolkit` aims at providing structure fo the returned raw rows by creating pure, nested business objects for the result rows.
+
+Middle Level Abstractions
+
+- **Query Builders** (eg [knex](https://github.com/tgriesser/knex)) - query builder libraries (built on database drivers) aim at the _writing of raw SQL_: seeking to solve the problem of composing sql queries in a dialetic-generic api. `sql-toolkit` takes the approach that the tradeoff of developers having to learn the huge surface area of dialetic-generic api, and having to map the complexity and nuance of SQL to it, are simply not worth the cost, and so does not use a query building library. With `sql-toolkit` you just write SQL. The tradeoff on `sql-toolkits` side that is indeed being tied to a sql dialect and in the inability to compose sql expressions (strings don't compose nicely). Yet all this considered, `sql-toolkit` sees writing straight SQL heaviliy as a feature, not a defect needing solved.
+- **Result Resolvers** (eg `sql-toolkit`) - result resolvers librarys (built on database drivers) aim at the _receiving of raw result rows_: seeking to provided pure, properly nested business objects (with custom methods and dynamic properties) in place of raw, flat result rows. To my knowledge, `sql-toolkit` is the only player in this space.
+
+High Level Abstractions
+
+- **ORMs** (eg [sequelize](https://github.com/sequelize/sequelize), [waterline](https://github.com/balderdashy/waterline), [bookshelf](https://github.com/bookshelf/bookshelf), [typeorm](https://github.com/typeorm/typeorm)) - orms (built on database drivers as well as sometimes standalone query builders, and with some result resolving baked in) aim at providing it all. `sql-toolkit` is more than just the preference against the query builder portion of ORMs - it also resolves the result rows to _pure_ business objects, not stateful, db-connected objects. This purity in business objects fosters a clean layer of the business layer from the data access layer.
+
+---
+
 ## API
 
 ### Classes
@@ -394,25 +415,13 @@ Lets take a few examples to show this.
 
 - The BaseDAO class to extend for your business objects.
 
-## Comparisons
-
-Low Level Abstractions
-
-- Database Drivers (eg [node-postgres](https://github.com/brianc/node-postgres), [mysql](https://github.com/mysqljs/mysql), [node-sqlite3](https://github.com/mapbox/node-sqlite3)) - These are powerful low level libraries that handle connecting to a database, executing raw SQL, and returning raw rows. All the higher level abstractions are built on these. While they can be used directly, `sql-toolkit` aims at providing structure fo the returned raw rows by creating pure, nested business objects for the result rows.
-
-Middle Level Abstractions
-
-- Query Builders (eg [knex](https://github.com/tgriesser/knex)) - query builder libraries (built on database drivers) aim at the _writing of raw SQL_: seeking to solve the problem of composing sql queries in a dialetic-generic api. `sql-toolkit` takes the approach that the tradeoff of developers having to learn the huge surface area of dialetic-generic api, and having to map the complexity and nuance of SQL to it, are simply not worth the cost, and so does not use a query building library. With `sql-toolkit` you just write SQL. The tradeoff on `sql-toolkits` side that is indeed being tied to a sql dialect and in the inability to compose sql expressions (strings don't compose nicely). Yet all this considered, `sql-toolkit` sees writing straight SQL heaviliy as a feature, not a defect needing solved.
-- Query Resolvers (eg `sql-toolkit`) - query resolvers librarys (built on database drivers) aim at the _receiving of raw rows_: seeking to provided pure, properly nested business objects (with custom methods and dynamic properties) in place of raw, flat result rows. To my knowledge, `sql-toolkit` is the only player in this space.
-
-High Level Abstractions
-
-- ORMs (eg [sequelize](https://github.com/sequelize/sequelize), [waterline](https://github.com/balderdashy/waterline), [bookshelf](https://github.com/bookshelf/bookshelf), [typeorm](https://github.com/typeorm/typeorm) - orms (built on database drivers as well as sometimes standalone query builders, and with some query resolving baked in) aim at providing it all. `sql-toolkit` is more than just the preference against query builders - it also resolves the result rows to _pure_ business objects, not stateful, db-connected objects. This purity in business objects fosters a clean layer of the business layer from the data access layer.
+---
 
 ## Current Status
 
 #### Current Limitations (PRs welcome!)
 
+- `pg-promise`/`node-postgres` is the only database driver supported. There is not technical reason for this, other than that the project I'm using has a postgres database and so I only had `node-postgres` in mind. It would be great if `sql-toolkit` was database driver agnostic.
 - the dao you are writing your sql in must always be in the "select" and must be the one you want as your root(s) return objects
   - the query can start from some other table, and join a bunch of times to get there, though
 - there must be a clear path in the "select" to your leaf joined-to-entities (eg, (Good): Article, ArticleTag, Tag, TagModerator, Moderator; not (Bad): Article, Moderator).
