@@ -66,9 +66,9 @@ module.exports = ({ db: closureDB, logError: closureLogError }) =>
     create(bo) {
       const { columns, values, valuesVar } = bo.getSqlInsertParts();
       const query = `
-        INSERT INTO "${bo.Bo.tableName}" ( ${columns} )
+        INSERT INTO "${bo.constructor.tableName}" ( ${columns} )
         VALUES ( ${valuesVar} )
-        RETURNING ${bo.Bo.getSQLSelectClause()};
+        RETURNING ${bo.constructor.getSQLSelectClause()};
       `;
       return this.one(query, values);
     }
@@ -77,10 +77,10 @@ module.exports = ({ db: closureDB, logError: closureLogError }) =>
     update(bo) {
       const { clause, idVar, values } = bo.getSqlUpdateParts();
       const query = `
-        UPDATE "${bo.Bo.tableName}"
+        UPDATE "${bo.constructor.tableName}"
         SET ${clause}
-        WHERE "${bo.Bo.tableName}".id = ${idVar}
-        RETURNING ${bo.Bo.getSQLSelectClause()};
+        WHERE "${bo.constructor.tableName}".id = ${idVar}
+        RETURNING ${bo.constructor.getSQLSelectClause()};
       `;
       return this.one(query, values);
     }
@@ -89,8 +89,8 @@ module.exports = ({ db: closureDB, logError: closureLogError }) =>
     delete(bo) {
       const id = bo.id;
       const query = `
-        DELETE FROM "${bo.Bo.tableName}"
-        WHERE "${bo.Bo.tableName}".id = ${id}
+        DELETE FROM "${bo.constructor.tableName}"
+        WHERE "${bo.constructor.tableName}".id = ${id}
       `;
       return this.db
         .none(query)
@@ -101,8 +101,8 @@ module.exports = ({ db: closureDB, logError: closureLogError }) =>
     getMatching(bo) {
       const { whereClause, values } = bo.getMatchingParts();
       const query = `
-        SELECT ${bo.Bo.getSQLSelectClause()}
-        FROM "${bo.Bo.tableName}"
+        SELECT ${bo.constructor.getSQLSelectClause()}
+        FROM "${bo.constructor.tableName}"
         WHERE ${whereClause};
       `;
       return this.one(query, values);
@@ -111,8 +111,8 @@ module.exports = ({ db: closureDB, logError: closureLogError }) =>
     getAllMatching(bo) {
       const { whereClause, values } = bo.getMatchingParts();
       const query = `
-        SELECT ${bo.Bo.getSQLSelectClause()}
-        FROM "${bo.Bo.tableName}"
+        SELECT ${bo.constructor.getSQLSelectClause()}
+        FROM "${bo.constructor.tableName}"
         WHERE ${whereClause};
       `;
       return this.db.many(query, values);
