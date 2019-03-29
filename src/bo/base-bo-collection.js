@@ -1,6 +1,6 @@
 class BaseBoCollection {
   constructor(props = {}) {
-    this.models = props.models;
+    this.models = props.models || [];
   }
 
   static get displayName() {
