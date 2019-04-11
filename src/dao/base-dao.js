@@ -1,4 +1,4 @@
-const { Left, Right } = require('../lib/either');
+const { Left, Right } = require('uter');
 const { getColumnsValuesFromInsertError } = require('../util/helpers');
 
 /*
