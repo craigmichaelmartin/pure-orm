@@ -1,5 +1,5 @@
 {
-  "name": "sql-toolkit",
+  "name": "pure-orm",
   "version": "0.3.2",
   "main": "src/index.js",
   "engines": {
@@ -44,6 +44,7 @@
     "postgresql",
     "orm",
     "object-relational mapping",
+    "pure",
     "toolkit",
     "business objects",
     "data access objects"

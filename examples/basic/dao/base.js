@@ -1,4 +1,4 @@
-const { createBaseDAO } = require('sql-toolkit');
+const { createBaseDAO } = require('pure-orm');
 const getTableData = require('../table-data');
 const db = require('../db');
 

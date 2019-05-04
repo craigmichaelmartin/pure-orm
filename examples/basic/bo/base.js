@@ -1,4 +1,4 @@
-const { createBaseBO } = require('sql-toolkit');
+const { createBaseBO } = require('pure-orm');
 const getBusinessObjects = require('../business-objects');
 
 const constructor = createBaseBO({ getBusinessObjects });

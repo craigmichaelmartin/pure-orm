@@ -1,31 +1,37 @@
-# [SQL Toolkit](https://github.com/craigmichaelmartin/sql-toolkit) &middot; [![Build Status](https://travis-ci.org/craigmichaelmartin/sql-toolkit.svg?branch=master)](https://travis-ci.org/craigmichaelmartin/sql-toolkit) [![Greenkeeper badge](https://badges.greenkeeper.io/craigmichaelmartin/sql-toolkit.svg)](https://greenkeeper.io/) [![codecov](https://codecov.io/gh/craigmichaelmartin/sql-toolkit/branch/master/graph/badge.svg)](https://codecov.io/gh/craigmichaelmartin/sql-toolkit)
+# [PureORM](https://github.com/craigmichaelmartin/pure-orm) &middot; [![Build Status](https://travis-ci.org/craigmichaelmartin/pure-orm.svg?branch=master)](https://travis-ci.org/craigmichaelmartin/pure-orm) [![Greenkeeper badge](https://badges.greenkeeper.io/craigmichaelmartin/pure-orm.svg)](https://greenkeeper.io/) [![codecov](https://codecov.io/gh/craigmichaelmartin/pure-orm/branch/master/graph/badge.svg)](https://codecov.io/gh/craigmichaelmartin/pure-orm)
 
 ## Installation
 
 ```bash
-npm install --save sql-toolkit
+npm install --save pure-orm
 ```
 
-## What is SQL Toolkit?
+## What is PureORM?
 
-SQL Toolkit is a node library built for `pg-promise` which allows you to write regular native SQL and receive back properly structured (nested) pure business objects.
+PureORM is a pure ORM sql toolkit library for node (on top of `pg-promise`). It allows you to write regular native SQL and receive back properly structured (nested) pure business objects.
 
 #### Philosophy
 
-- Have _pure_ "business objects" which can represent the data of a table and be the subject of the app's business logic.
-  - These objects are pure javascript objects which describe the shape of data for table, but are not connected to the database.
-  - They will be full of userland business logic methods, and their purity will allow them to be easy to test/use.
+- Write _native_, _unobstructed_ SQL in a "data access layer" which returns _pure_ "business objects" to be used in the app's business logic.
 - Have _database-connected_ "data access objects" which allow the unobstructed writing of normal SQL.
-  - This is not an ORM. There are not hundreds of methods mapping the complexity, expressiveness, and nuance of SQL to class objects.
-  - Rather, a data access layer in which native SQL (not ORM-abstracted SQL-ish) is written, and which understands pure business objects as inputs, and returns them property nested and structured as output.
+- Have the "data access objects" returning the pure business objects.
 
 #### Concepts
 
 A **Business Object** (BO) is a pure javascript object corresponding to a table.
 
-A **Data Access Object** (DAO) is a database-aware abstraction layer where SQL is written.
+- They represent a row of the table data, but as pure javascript objects.
+- They are not connected to the database.
+- They are the subject of the app's business logic.
+- They will be full of userland business logic methods.
+- Their purity allows them to be easy to test/use.
 
-DAO methods return pure BOs. Likewise, BOs may be passed to DAO methods to get or update records.
+
+A **Data Access Object** (DAO) is a database-aware abstraction layer where native SQL is written.
+
+- This is not an "expresion language" or "query builder". There are not hundreds of methods mapping the complexity, expressiveness, and nuance of SQL to class objects.
+- Rather, is a data access layer in which native SQL is written, and which returns business objects (properly nested and structured).
+- By convention, they may also accept business objects as inputs (to get, create, or update records) - but this is just a convention (necessary input data can be passed as separate arguments, or however).
 
 ---
 
@@ -37,7 +43,8 @@ Our data access layer where SQL is written.
 
 ```javascript
 class Person extends BaseDAO {
-  // ...
+  Bo = Person;
+  // example code from below...
 }
 ```
 
@@ -53,21 +60,12 @@ getRandom() {
     ORDER BY random()
     LIMIT 1;
   `;
-  return this.db
-    .one(query)
-    .then(result => Right(Person.createOneFromDatabase(result)))
-    .catch(err => {
-      if (!err.name === 'QueryResultError') {
-        logError(err);
-      }
-      return Left(err);
-    });
+  return this.db.one(query).then(Person.createOneFromDatabase)
 }
 // OUTPUT: Person {id, firstName, lastName, createdDate, employerId}
 ```
 
-Creating our business object and catching the error is tedious. Instead,
-lets use `BaseDAO.one`.
+We can use **`BaseDAO.one`** to create our business object for us.
 
 ```diff
 getRandom() {
@@ -78,20 +76,12 @@ getRandom() {
     LIMIT 1;
   `;
 + return this.one(query);
-- return this.db
--   .one(query)
--   .then(result => Right(Person.createOneFromDatabase(result)))
--   .catch(err => {
--     if (!err.name === 'QueryResultError') {
--       logError(err);
--     }
--     return Left(err);
--   });
+- return this.db.one(query).then(Person.createOneFromDatabase)
 }
 // OUTPUT: Person {id, firstName, lastName, createdDate, employerId}
 ```
 
-Also, specifying all the columns is tedious; lets use
+Specifying all the columns is tedious; lets use
 **`BaseBo.getSQLSelectClause()`** to get them for free.
 
 ```diff
@@ -189,10 +179,10 @@ collections
 - return this.many(query, { slugs });
 + return this.many(query, { slugs });
 }
--// OUTPUT: Article {person: Person, tags: Tags[Tag, Tag, Tag]}
+-// OUTPUT: Article { person: Person, articleTags: Array<ArticleTag> }
 +// OUTPUT: Articles[
-+//  Article {person: Person, tags: Tags[Tag, Tag, Tag]}
-+//  Article {person: Person, tags: Tags[Tag, Tag]}
++//  Article { person: Person, articleTags: Array<ArticleTag> }
++//  Article { person: Person, articleTags: Array<ArticleTag> }
 +// ]
 ```
 
@@ -222,7 +212,7 @@ getBloggerPayout(id, startDate, endDate) {
       person.pay_frequency
     ORDER BY meta_amount DESC NULLS LAST;
   `;
-  return this.one(query, {id, startDate, endDate });
+  return this.one(query, { id, startDate, endDate });
 }
 ```
 
@@ -264,7 +254,7 @@ await personDAO.delete(person);
 person = await personDAO.getFromCustomMadeMethod();
 ```
 
-To see everything in action, check out [the examples directory](https://github.com/craigmichaelmartin/sql-toolkit/tree/master/examples) and the [tests](https://github.com/craigmichaelmartin/sql-toolkit/blob/master/src/bo/base-bo.spec.js).
+To see everything in action, check out [the examples directory](https://github.com/craigmichaelmartin/pure-orm/tree/master/examples) and the [tests](https://github.com/craigmichaelmartin/pure-orm/blob/master/src/bo/base-bo.spec.js).
 
 ---
 
@@ -272,16 +262,19 @@ To see everything in action, check out [the examples directory](https://github.c
 
 Low Level Abstractions
 
-- **Database Drivers** (eg [node-postgres](https://github.com/brianc/node-postgres), [mysql](https://github.com/mysqljs/mysql), [node-sqlite3](https://github.com/mapbox/node-sqlite3)) - These are powerful low level libraries that handle connecting to a database, executing raw SQL, and returning raw rows. All the higher level abstractions are built on these. While they can be used directly, `sql-toolkit` aims at providing structure fo the returned raw rows by creating pure, nested business objects for the result rows.
+- **Database Drivers** (eg [node-postgres](https://github.com/brianc/node-postgres), [mysql](https://github.com/mysqljs/mysql), [node-sqlite3](https://github.com/mapbox/node-sqlite3)) - These are powerful low level libraries that handle connecting to a database, executing raw SQL, and returning raw rows. All the higher level abstractions are built on these. `PureORM` like "stateful ORMs" are built on these.
 
-Middle Level Abstractions
+Stateful ORMs (comprised of two portions)
 
-- **Query Builders** (eg [knex](https://github.com/tgriesser/knex)) - query builder libraries (built on database drivers) aim at the _writing of raw SQL_: seeking to solve the problem of composing sql queries in a dialetic-generic api. `sql-toolkit` takes the approach that the tradeoff of developers having to learn the huge surface area of dialetic-generic api, and having to map the complexity and nuance of SQL to it, are simply not worth the cost, and so does not use a query building library. With `sql-toolkit` you just write SQL. The tradeoff on `sql-toolkits` side that is indeed being tied to a sql dialect and in the inability to compose sql expressions (strings don't compose nicely). Yet all this considered, `sql-toolkit` sees writing straight SQL heaviliy as a feature, not a defect needing solved.
-- **Result Resolvers** (eg `sql-toolkit`) - result resolvers librarys (built on database drivers) aim at the _receiving of raw result rows_: seeking to provided pure, properly nested business objects (with custom methods and dynamic properties) in place of raw, flat result rows. To my knowledge, `sql-toolkit` is the only player in this space.
+- **Query Builders** (eg [knex](https://github.com/tgriesser/knex)) - query builder libraries (built on database drivers) aim at the _writing of raw SQL_: seeking to solve the problem of composing sql queries in a dialetic-generic api. `pure-orm` takes the approach that the tradeoff of developers having to learn the huge surface area of dialetic-generic api, and having to map the complexity and nuance of SQL to it, are simply not worth the cost, and so does not use a query building library. With `pure-orm` you just write SQL. The tradeoff on `pure-orms` side that is indeed being tied to a sql dialect and in the inability to compose sql expressions (strings don't compose nicely). Yet all this considered, `pure-orm` sees writing straight SQL heaviliy as a feature, not a defect needing solved.
 
-High Level Abstractions
+- **Stateful, Database Aware Objects** (eg [sequelize](https://github.com/sequelize/sequelize), [waterline](https://github.com/balderdashy/waterline), [bookshelf](https://github.com/bookshelf/bookshelf), [typeorm](https://github.com/typeorm/typeorm)) - "Stateful, Database-Aware, Structured Objects" are the end-result of "Stateful ORMs"
 
-- **ORMs** (eg [sequelize](https://github.com/sequelize/sequelize), [waterline](https://github.com/balderdashy/waterline), [bookshelf](https://github.com/bookshelf/bookshelf), [typeorm](https://github.com/typeorm/typeorm)) - orms (built on database drivers as well as sometimes standalone query builders, and with some result resolving baked in) aim at providing it all. `sql-toolkit` is more than just the preference against the query builder portion of ORMs - it also resolves the result rows to _pure_ business objects, not stateful, db-connected objects. This purity in business objects fosters a clean layer of the business layer from the data access layer.
+PureORM
+
+- `pure-orm` is more than just the preference against the query builder portion of Stateful ORMs
+- `pure-orm` is the preference against stateful, db-connected objects: `pure-orm` resolves result rows to _pure_ business objects. This purity in business objects fosters a clean layer of the business layer from the data access layer, as well as perforcing the very best in performance (eg, the [N+1 problem](https://docs.sqlalchemy.org/en/13/glossary.html#term-n-plus-one-problem) can't exist with pure objects).
+
 
 ---
 
@@ -417,7 +410,7 @@ Lets take a few examples to show this.
 
 #### Current Limitations (PRs welcome!)
 
-- `pg-promise`/`node-postgres` is the only database driver supported. There is not technical reason for this, other than that the project I'm using has a postgres database and so I only had `node-postgres` in mind. It would be great if `sql-toolkit` was database driver agnostic.
+- `pg-promise`/`node-postgres` is the only database driver supported. There is not technical reason for this, other than that the project I'm using has a postgres database and so I only had `node-postgres` in mind. It would be great if `pure-orm` was database driver agnostic.
 - the dao you are writing your sql in must always be in the "select" and must be the one you want as your root(s) return objects
   - the query can start from some other table, and join a bunch of times to get there, though
 - there must be a clear path in the "select" to your leaf joined-to-entities (eg, (Good): Article, ArticleTag, Tag, TagModerator, Moderator; not (Bad): Article, Moderator).
