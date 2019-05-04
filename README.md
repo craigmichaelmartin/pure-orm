@@ -26,7 +26,6 @@ A **Business Object** (BO) is a pure javascript object corresponding to a table.
 - They will be full of userland business logic methods.
 - Their purity allows them to be easy to test/use.
 
-
 A **Data Access Object** (DAO) is a database-aware abstraction layer where native SQL is written.
 
 - This is not an "expresion language" or "query builder". There are not hundreds of methods mapping the complexity, expressiveness, and nuance of SQL to class objects.
@@ -274,7 +273,6 @@ PureORM
 
 - `pure-orm` is more than just the preference against the query builder portion of Stateful ORMs
 - `pure-orm` is the preference against stateful, db-connected objects: `pure-orm` resolves result rows to _pure_ business objects. This purity in business objects fosters a clean layer of the business layer from the data access layer, as well as perforcing the very best in performance (eg, the [N+1 problem](https://docs.sqlalchemy.org/en/13/glossary.html#term-n-plus-one-problem) can't exist with pure objects).
-
 
 ---
 
