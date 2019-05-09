@@ -10,6 +10,10 @@ npm install --save pure-orm
 
 PureORM is a pure ORM sql toolkit library for node (on top of `pg-promise`). It allows you to write regular native SQL and receive back properly structured (nested) pure business objects.
 
+This contrasts against traditional ("stateful") ORMs which use query builders (rather than raw SQL) to return database-aware (rather than pure) objects.
+
+The name name `pureOrm` reflects both that it is _pure_ ORM (there is no query builder dimension), and the _purity_ of the mapped Objects.
+
 #### Philosophy
 
 - Write _native_, _unobstructed_ SQL in a "data access layer" which returns _pure_ "business objects" to be used in the app's business logic.
