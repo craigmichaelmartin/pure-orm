@@ -12,7 +12,7 @@ PureORM is a pure ORM sql toolkit library for node (on top of `pg-promise`). It 
 
 This contrasts against traditional ("stateful") ORMs which use query builders (rather than raw SQL) to return database-aware (rather than pure) objects.
 
-The name name `pureOrm` reflects both that it is _pure_ ORM (there is no query builder dimension), and the _purity_ of the mapped Objects.
+The name _**pure**ORM_ reflects both that it is _pure_ ORM (there is no query builder dimension) as well as the _purity_ of the mapped Objects.
 
 #### Philosophy
 
