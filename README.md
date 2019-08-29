@@ -45,7 +45,7 @@ A **Data Access Object** (DAO) is a database-aware abstraction layer where nativ
 Our data access layer where SQL is written.
 
 ```javascript
-class Person extends BaseDAO {
+class PersonDAO extends BaseDAO {
   Bo = Person;
   // example code from below...
 }
@@ -63,7 +63,7 @@ getRandom() {
     ORDER BY random()
     LIMIT 1;
   `;
-  return this.db.one(query).then(Person.createOneFromDatabase)
+  return db.one(query).then(Person.createOneFromDatabase)
 }
 // OUTPUT: Person {id, firstName, lastName, createdDate, employerId}
 ```
@@ -78,8 +78,8 @@ getRandom() {
     ORDER BY random()
     LIMIT 1;
   `;
+- return db.one(query).then(Person.createOneFromDatabase)
 + return this.one(query);
-- return this.db.one(query).then(Person.createOneFromDatabase)
 }
 // OUTPUT: Person {id, firstName, lastName, createdDate, employerId}
 ```
@@ -151,7 +151,7 @@ getBySlug(slug) {
   `;
   return this.one(query, { slug });
 }
-// OUTPUT: Article {person: Person, tags: Tags[Tag, Tag, Tag]}
+// OUTPUT: Article { person: Person, articleTags: Array<ArticleTag> }
 ```
 
 Notice that we're using `this.one`, which is what we want. The DAO methods for `one`, `oneOrNone`, `many`, `any` ensure their count against the number of generated top level business objects - not the number of rows the sql expression returns!
@@ -179,7 +179,7 @@ collections
 -   WHERE article.slug = $(slug);
 +   WHERE article.slug in ($(slugs:csv));
   `;
-- return this.many(query, { slugs });
+- return this.one(query, { slugs });
 + return this.many(query, { slugs });
 }
 -// OUTPUT: Article { person: Person, articleTags: Array<ArticleTag> }
@@ -189,19 +189,13 @@ collections
 +// ]
 ```
 
-Lastly, lets switch gears one more time to see how meta data can be intertwined:
+Lastly, lets switch gears one more time to see how meta data can be intertwined. Prefix the value as `meta_` and it will be passed through to the business object.
 
 ```javascript
 getBloggerPayout(id, startDate, endDate) {
   const query = `
     SELECT
-      person.id,
-      person.slug,
-      person.email,
-      person.first_name,
-      person.last_name,
-      person.last_paid_date,
-      person.pay_frequency,
+      ${Person.getSQLSelectClause()},
       COALESCE(SUM(article.blogger_payout), 0) as meta_amount,
     FROM
       person
@@ -269,9 +263,9 @@ Low Level Abstractions
 
 Stateful ORMs (comprised of two portions)
 
-- **Query Builders** (eg [knex](https://github.com/tgriesser/knex)) - query builder libraries (built on database drivers) aim at the _writing of raw SQL_: seeking to solve the problem of composing sql queries in a dialetic-generic api. `pure-orm` takes the approach that the tradeoff of developers having to learn the huge surface area of dialetic-generic api, and having to map the complexity and nuance of SQL to it, are simply not worth the cost, and so does not use a query building library. With `pure-orm` you just write SQL. The tradeoff on `pure-orms` side that is indeed being tied to a sql dialect and in the inability to compose sql expressions (strings don't compose nicely). Yet all this considered, `pure-orm` sees writing straight SQL heaviliy as a feature, not a defect needing solved.
+- **Query Builders** (eg [knex](https://github.com/tgriesser/knex)) - These (built on database drivers) offer a dialetic-generic, chainable object api for expressing underlying SQL - thus solving for database "lock-in" as well the inability to compose SQL queriers as strings. `pure-orm` takes the approach that the tradeoff of developers having to learn the huge surface area of dialetic-generic api, and having to map the complexity and nuance of SQL to it, are simply not worth the cost, and so does not use a query building library. With `pure-orm` you just write SQL. The tradeoff on `pure-orms` side that is indeed being tied to a sql dialect and in the inability to compose sql expressions (strings don't compose nicely). Yet all this considered, `pure-orm` sees writing straight SQL heaviliy as a feature, not a defect needing solved, and not eclipsed by the composibility of a query builder.
 
-- **Stateful, Database Aware Objects** (eg [sequelize](https://github.com/sequelize/sequelize), [waterline](https://github.com/balderdashy/waterline), [bookshelf](https://github.com/bookshelf/bookshelf), [typeorm](https://github.com/typeorm/typeorm)) - "Stateful, Database-Aware, Structured Objects" are the end-result of "Stateful ORMs"
+- **Stateful, Database Aware Objects** (eg [sequelize](https://github.com/sequelize/sequelize), [waterline](https://github.com/balderdashy/waterline), [bookshelf](https://github.com/bookshelf/bookshelf), [typeorm](https://github.com/typeorm/typeorm)) - "Stateful, Database-Aware, Structured Objects" are the end-result of "Stateful ORMs". `PureORM` yields pure, un-attached, structured objects.
 
 PureORM
 
