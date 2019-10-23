@@ -79,9 +79,7 @@ module.exports = ({ getBusinessObjects }) =>
                 propertyName = camelCase(column);
               } else {
                 throw Error(
-                  `No property name for "${column}" in business object "${
-                    Bo.displayName
-                  }". Non-spec'd columns must begin with "meta_".`
+                  `No property name for "${column}" in business object "${Bo.displayName}". Non-spec'd columns must begin with "meta_".`
                 );
               }
             }
@@ -272,9 +270,7 @@ module.exports = ({ getBusinessObjects }) =>
       const whereClause = this.constructor.columns
         .map((col, index) =>
           this[col] != null
-            ? `"${this.constructor.tableName}".${
-                this.constructor.sqlColumns[index]
-              }`
+            ? `"${this.constructor.tableName}".${this.constructor.sqlColumns[index]}`
             : null
         )
         .filter(x => x != null)
@@ -292,9 +288,7 @@ module.exports = ({ getBusinessObjects }) =>
       const whereClause = this.constructor.columns
         .map((col, index) =>
           this[col] != null
-            ? `"${this.constructor.tableName}".${
-                this.constructor.sqlColumns[index]
-              }`
+            ? `"${this.constructor.tableName}".${this.constructor.sqlColumns[index]}`
             : null
         )
         .filter(x => x != null)
