@@ -148,6 +148,11 @@ module.exports = ({ getBusinessObjects }) =>
       // Wowzer is this both CPU and Memory inefficient
       clump.forEach(array => {
         array.forEach(bo => {
+          const nodeAlreadySeen = nodes.find(
+            x =>
+              x.constructor.name === bo.constructor.name &&
+              x.getId() === bo.getId()
+          );
           const nodePointingToIt = nodes.find(x => {
             const index = Object.values(x.constructor.references).indexOf(
               bo.constructor
@@ -168,6 +173,9 @@ module.exports = ({ getBusinessObjects }) =>
             const property = Object.keys(bo.constructor.references)[index];
             return bo[property] === x.id;
           });
+          if (nodeAlreadySeen && nodeItPointsTo) {
+            return;
+          }
           if (!(nodePointingToIt || nodeItPointsTo)) {
             if (!bo.getId()) {
               // If the join is fruitless; todo: add a test for this path

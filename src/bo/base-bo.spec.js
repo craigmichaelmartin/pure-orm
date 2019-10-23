@@ -1,6 +1,8 @@
 const Order = require('../../examples/order/bo/order');
 const Article = require('../../examples/blog/bo/article');
 const Articles = require('../../examples/blog/bo/articles');
+const InventoryLevel = require('../../examples/order-more/bo/inventory-level');
+const inventoryLevelJson = require('../../fixtures/inventory-items-with-already-seen-nodes.json');
 
 test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with all one-to-one or one-to-many tables)', () => {
   const results = [{
@@ -1199,4 +1201,58 @@ test('Bo#parseFromDatabase where multiple rows reduce to many rows with nested o
   expect(second.articleTags.models[1].tag.id).toEqual(5);
   expect(second.articleTags.models[2].id).toEqual(35);
   expect(second.articleTags.models[2].tag.id).toEqual(15);
+});
+
+// Tests for where a deeply nested node which points to a node, is itself
+// reused (not recreated each time) so that nodes pointing to it all stack
+// together on it, rather than each attaching to different replica nodes
+// which overwrite themselves on the node it points to.
+// The example here is with the productVariant node being reused so that
+// productVariantImages append to it, instead of each productVariantImage
+// living on its own productVariant (which would keep overwriting itself
+// on the actualProductVariant node).
+test('Bo#parseFromDatabase where node is already seen', () => {
+  const inventoryLevels = InventoryLevel.createFromDatabase(inventoryLevelJson);
+
+  const first = inventoryLevels.models[0];
+  expect(first.id).toEqual(15);
+  expect(first.actualProductVariant.id).toEqual(120);
+  expect(first.actualProductVariant.productVariants.models.length).toEqual(1);
+  expect(first.actualProductVariant.productVariants.models[0].actualProductVariantId).toEqual(120);
+  // I think the above test is good enough, and not sure I actual care about below
+  // expect(first.actualProductVariant.productVariants.models[0].actualProductVariant.id).toEqual(120);
+  expect(first.actualProductVariant.productVariants.models[0].id).toEqual(199);
+  expect(first.actualProductVariant.productVariants.models[0].color.id).toEqual(1);
+  expect(first.actualProductVariant.productVariants.models[0].gender.id).toEqual(1);
+  expect(first.actualProductVariant.productVariants.models[0].product.id).toEqual(1);
+  expect(first.actualProductVariant.productVariants.models[0].size.id).toEqual(4);
+  expect(first.actualProductVariant.productVariants.models[0].productVariantImages.models.length).toEqual(7);
+  expect(first.actualProductVariant.productVariants.models[0].productVariantImages.models[0].id).toEqual(621);
+  expect(first.actualProductVariant.productVariants.models[0].productVariantImages.models[1].id).toEqual(709);
+  expect(first.actualProductVariant.productVariants.models[0].productVariantImages.models[2].id).toEqual(797);
+  expect(first.actualProductVariant.productVariants.models[0].productVariantImages.models[3].id).toEqual(885);
+  expect(first.actualProductVariant.productVariants.models[0].productVariantImages.models[4].id).toEqual(973);
+  expect(first.actualProductVariant.productVariants.models[0].productVariantImages.models[5].id).toEqual(1061);
+  expect(first.actualProductVariant.productVariants.models[0].productVariantImages.models[6].id).toEqual(1149);
+
+  const second = inventoryLevels.models[1];
+  expect(second.id).toEqual(35);
+  expect(second.actualProductVariant.id).toEqual(125);
+  expect(second.actualProductVariant.productVariants.models.length).toEqual(1);
+  expect(second.actualProductVariant.productVariants.models[0].actualProductVariantId).toEqual(125);
+  // I think the above test is good enough, and not sure I actual care about below
+  // expect(second.actualProductVariant.productVariants.models[0].actualProductVariant.id).toEqual(125);
+  expect(second.actualProductVariant.productVariants.models[0].id).toEqual(209);
+  expect(second.actualProductVariant.productVariants.models[0].color.id).toEqual(1);
+  expect(second.actualProductVariant.productVariants.models[0].gender.id).toEqual(1);
+  expect(second.actualProductVariant.productVariants.models[0].product.id).toEqual(1);
+  expect(second.actualProductVariant.productVariants.models[0].size.id).toEqual(9);
+  expect(second.actualProductVariant.productVariants.models[0].productVariantImages.models.length).toEqual(7);
+  expect(second.actualProductVariant.productVariants.models[0].productVariantImages.models[0].id).toEqual(679);
+  expect(second.actualProductVariant.productVariants.models[0].productVariantImages.models[1].id).toEqual(767);
+  expect(second.actualProductVariant.productVariants.models[0].productVariantImages.models[2].id).toEqual(855);
+  expect(second.actualProductVariant.productVariants.models[0].productVariantImages.models[3].id).toEqual(943);
+  expect(second.actualProductVariant.productVariants.models[0].productVariantImages.models[4].id).toEqual(1031);
+  expect(second.actualProductVariant.productVariants.models[0].productVariantImages.models[5].id).toEqual(1119);
+  expect(second.actualProductVariant.productVariants.models[0].productVariantImages.models[6].id).toEqual(1207);
 });
