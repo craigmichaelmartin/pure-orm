@@ -223,6 +223,9 @@ module.exports = ({ getBusinessObjects }) =>
     }
 
     static createOneOrNoneFromDatabase(_result) {
+      if (!_result) {
+        return _result;
+      }
       const collection = this.createFromDatabase(_result);
       if (collection.models.length > 1) {
         throw Error('Got more than one.');
