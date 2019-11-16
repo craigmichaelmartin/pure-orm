@@ -190,9 +190,9 @@ module.exports = ({ getBusinessObjects }) =>
             if (collection) {
               collection.models.push(bo);
             } else {
-              nodeItPointsTo[bo.BoCollection.displayName] = new bo.BoCollection(
-                { models: [bo] }
-              );
+              nodeItPointsTo[
+                bo.BoCollection.displayName
+              ] = new bo.BoCollection({ models: [bo] });
             }
           }
           nodes = [bo, ...nodes];
