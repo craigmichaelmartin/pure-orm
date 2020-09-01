@@ -115,7 +115,7 @@ module.exports = ({ db: closureDB, logError: closureLogError }) =>
         FROM "${bo.constructor.tableName}"
         WHERE ${whereClause};
       `;
-      return this.db.many(query, values);
+      return this.many(query, values);
     }
 
     getOrCreate(bo) {
