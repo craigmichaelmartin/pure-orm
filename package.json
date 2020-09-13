@@ -1,6 +1,6 @@
 {
   "name": "pure-orm",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "main": "src/index.js",
   "engines": {
     "node": ">=6"
