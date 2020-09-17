@@ -26,7 +26,7 @@ module.exports = ({ db: closureDB, logError: closureLogError }) =>
 
     oneOrNone(query, values, errorHandler = this.errorHandler) {
       return this.db
-        .oneOrNone(query, values)
+        .any(query, values)
         .then(rows => Right(this.Bo.createOneOrNoneFromDatabase(rows)))
         .catch(errorHandler);
     }
