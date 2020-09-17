@@ -115,7 +115,7 @@ module.exports = ({ db: closureDB, logError: closureLogError }) =>
         FROM "${bo.constructor.tableName}"
         WHERE ${whereClause};
       `;
-      return this.one(query, values);
+      return this.any(query, values);
     }
 
     getAllMatching(bo) {
