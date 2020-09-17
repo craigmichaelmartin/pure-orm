@@ -108,6 +108,16 @@ module.exports = ({ db: closureDB, logError: closureLogError }) =>
       return this.one(query, values);
     }
 
+    getOneOrNoneMatching(bo) {
+      const { whereClause, values } = bo.getMatchingParts();
+      const query = `
+        SELECT ${bo.constructor.getSQLSelectClause()}
+        FROM "${bo.constructor.tableName}"
+        WHERE ${whereClause};
+      `;
+      return this.oneOrNone(query, values);
+    }
+
     getAnyMatching(bo) {
       const { whereClause, values } = bo.getMatchingParts();
       const query = `
