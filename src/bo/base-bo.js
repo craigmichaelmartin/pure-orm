@@ -261,7 +261,7 @@ module.exports = ({ getBusinessObjects }) =>
         .filter(
           (sqlColumn, index) => this[this.constructor.columns[index]] != null
         )
-        .map((sqlColumn, index) => `${sqlColumn} = $${index + 1}`);
+        .map((sqlColumn, index) => `"${sqlColumn}" = $${index + 1}`);
       const clause = clauseArray.join(', ');
       const idVar = `$${clauseArray.length + 1}`;
       const _values = this.constructor.columns
