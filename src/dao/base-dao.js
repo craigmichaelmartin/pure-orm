@@ -46,7 +46,10 @@ module.exports = ({ db: closureDB, logError: closureLogError }) =>
     }
 
     none(query, values, errorHandler = this.errorHandler) {
-      return this.db.none(query, values).catch(errorHandler);
+      return this.db
+        .none(query, values)
+        .then(() => Right(null))
+        .catch(errorHandler);
     }
 
     /* Piecemeal endings if using this.db directly --------------------------*/
@@ -92,10 +95,16 @@ module.exports = ({ db: closureDB, logError: closureLogError }) =>
         DELETE FROM "${bo.constructor.tableName}"
         WHERE "${bo.constructor.tableName}".id = ${id}
       `;
-      return this.db
-        .none(query)
-        .then(data => Right(data))
-        .catch(this.errorHandler);
+      return this.none(query);
+    }
+
+    deleteMatching(bo) {
+      const { whereClause, values } = bo.getMatchingParts();
+      const query = `
+        DELETE FROM "${bo.constructor.tableName}"
+        WHERE ${whereClause};
+      `;
+      return this.none(query, values);
     }
 
     getMatching(bo) {
