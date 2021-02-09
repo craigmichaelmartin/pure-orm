@@ -74,12 +74,12 @@ module.exports = ({ db: closureDB, logError: closureLogError }) =>
     }
 
     // Standard update
-    update(bo) {
-      const { clause, idVar, values } = bo.getSqlUpdateParts();
+    update(bo, { on = 'id' } = {}) {
+      const { clause, idVar, values } = bo.getSqlUpdateParts(on);
       const query = `
         UPDATE "${bo.constructor.tableName}"
         SET ${clause}
-        WHERE "${bo.constructor.tableName}".id = ${idVar}
+        WHERE "${bo.constructor.tableName}".${on} = ${idVar}
         RETURNING ${bo.constructor.getSQLSelectClause()};
       `;
       return this.one(query, values);

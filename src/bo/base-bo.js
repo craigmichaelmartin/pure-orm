@@ -256,7 +256,7 @@ module.exports = ({ getBusinessObjects }) =>
       return { columns, values, valuesVar };
     }
 
-    getSqlUpdateParts() {
+    getSqlUpdateParts(on = 'id') {
       const clauseArray = this.constructor.sqlColumns
         .filter(
           (sqlColumn, index) => this[this.constructor.columns[index]] != null
@@ -267,7 +267,7 @@ module.exports = ({ getBusinessObjects }) =>
       const _values = this.constructor.columns
         .map(column => this[column])
         .filter(value => value != null);
-      const values = [..._values, this.id];
+      const values = [..._values, this[on]];
       return { clause, idVar, values };
     }
 
