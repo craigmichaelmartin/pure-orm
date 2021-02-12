@@ -1,6 +1,3 @@
-const { Left, Right } = require('uter');
-const { getColumnsValuesFromInsertError } = require('../util/helpers');
-
 /*
  * A wrapper function returning the base data access abstraction.
  */
@@ -20,35 +17,35 @@ module.exports = ({ db: closureDB, logError: closureLogError }) =>
     one(query, values, errorHandler = this.errorHandler) {
       return this.db
         .many(query, values)
-        .then(rows => Right(this.Bo.createOneFromDatabase(rows)))
+        .then(rows => this.Bo.createOneFromDatabase(rows))
         .catch(errorHandler);
     }
 
     oneOrNone(query, values, errorHandler = this.errorHandler) {
       return this.db
         .any(query, values)
-        .then(rows => Right(this.Bo.createOneOrNoneFromDatabase(rows)))
+        .then(rows => this.Bo.createOneOrNoneFromDatabase(rows))
         .catch(errorHandler);
     }
 
     many(query, values, errorHandler = this.errorHandler) {
       return this.db
         .any(query, values)
-        .then(rows => Right(this.Bo.createManyFromDatabase(rows)))
+        .then(rows => this.Bo.createManyFromDatabase(rows))
         .catch(errorHandler);
     }
 
     any(query, values, errorHandler = this.errorHandler) {
       return this.db
         .any(query, values)
-        .then(rows => Right(this.Bo.createFromDatabase(rows)))
+        .then(rows => this.Bo.createFromDatabase(rows))
         .catch(errorHandler);
     }
 
     none(query, values, errorHandler = this.errorHandler) {
       return this.db
         .none(query, values)
-        .then(() => Right(null))
+        .then(() => null)
         .catch(errorHandler);
     }
 
@@ -59,7 +56,7 @@ module.exports = ({ db: closureDB, logError: closureLogError }) =>
       if (!err.name === 'QueryResultError') {
         this.logError(err);
       }
-      return Left(err);
+      throw err;
     }
 
     /* Built-in basic DAO methods -------------------------------------------*/
@@ -145,37 +142,5 @@ module.exports = ({ db: closureDB, logError: closureLogError }) =>
         WHERE ${whereClause};
       `;
       return this.many(query, values);
-    }
-
-    getOrCreate(bo) {
-      return this.create(bo).then(lor => {
-        return lor.tryfix(err => {
-          const [keys, values] = getColumnsValuesFromInsertError(
-            err.detail,
-            bo
-          );
-          if (keys) {
-            const matchingBo = bo.getNewWith(keys, values);
-            return this.getMatching(matchingBo);
-          }
-          return Left(err);
-        });
-      });
-    }
-
-    // fyi: ALL fields must be present in the bo (for it to be created correctly
-    // if necessary) but that makes the matching unrealistic/undesired.
-    // Thus this method is likely practically unusable.
-    getMatchOrCreate(bo) {
-      return this.getMatching(bo).then(obj => {
-        let matchingBo;
-        try {
-          matchingBo = obj.val();
-        } catch (_err) {}
-        if (matchingBo) {
-          return Right(matchingBo);
-        }
-        return this.create(bo);
-      });
     }
   };

@@ -15,8 +15,7 @@
     "pub": "npm run test && np"
   },
   "dependencies": {
-    "camelcase": "^5.0.0",
-    "uter": "0.0.1"
+    "camelcase": "^5.0.0"
   },
   "devDependencies": {
     "jest": "^24.8.0",
