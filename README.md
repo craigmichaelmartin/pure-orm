@@ -215,7 +215,7 @@ getBloggerPayout(id, startDate, endDate) {
 
 ### Business Object Usage
 
-Now lets look at our business logic layer where we use the DAO to get/persist pure data.
+Now lets look at our business logic layer where we use the DAO to get/persist pure data. (This example uses the few included common DAO methods in order to show something. However, in practice you'll mainly be using your own custom functions with your own SQL to do your own interesting things; vs this contrived and basic example.)
 
 ```javascript
 let raw = new Person({
@@ -247,8 +247,6 @@ same.id === person.id; // true
 // Deletes the person data form the database
 await personDAO.delete(person);
 
-// Returns the person business object returned by whatever DAO methods your write
-person = await personDAO.getFromCustomMadeMethod();
 ```
 
 To see everything in action, check out [the examples directory](https://github.com/craigmichaelmartin/pure-orm/tree/master/examples) and the [tests](https://github.com/craigmichaelmartin/pure-orm/blob/master/src/bo/base-bo.spec.js).
@@ -265,7 +263,7 @@ Stateful ORMs (comprised of two portions)
 
 - **Query Builders** (eg [knex](https://github.com/tgriesser/knex)) - These (built on database drivers) offer a dialetic-generic, chainable object api for expressing underlying SQL - thus solving for database "lock-in" as well the inability to compose SQL queriers as strings. `pure-orm` takes the approach that the tradeoff of developers having to learn the huge surface area of dialetic-generic api, and having to map the complexity and nuance of SQL to it, are simply not worth the cost, and so does not use a query building library. With `pure-orm` you just write SQL. The tradeoff on `pure-orms` side that is indeed being tied to a sql dialect and in the inability to compose sql expressions (strings don't compose nicely). Yet all this considered, `pure-orm` sees writing straight SQL heaviliy as a feature, not a defect needing solved, and not eclipsed by the composibility of a query builder.
 
-- **Stateful, Database Aware Objects** (eg [sequelize](https://github.com/sequelize/sequelize), [waterline](https://github.com/balderdashy/waterline), [bookshelf](https://github.com/bookshelf/bookshelf), [typeorm](https://github.com/typeorm/typeorm)) - "Stateful, Database-Aware, Structured Objects" are the end-result of "Stateful ORMs". `PureORM` yields pure, un-attached, structured objects.
+- **Stateful, Database Aware Objects** (eg [sequelize](https://github.com/sequelize/sequelize), [waterline](https://github.com/balderdashy/waterline), [bookshelf](https://github.com/bookshelf/bookshelf), [typeorm](https://github.com/typeorm/typeorm)) - These stateful, database-aware object libraries are the full embrace of "Stateful ORMs". Contrary to this these is `pure-orm` which yields pure, un-attached, structured objects.
 
 PureORM
 
@@ -303,25 +301,7 @@ Optional
 **Public Methods**
 
 - `constructor(props: object)`
-- `static primaryKey()`
-- `static get columns()`
-- `static get sqlColumns()`
-- `static get references()`
-- `static get displayName()`
-- `static getPrefixedColumnNames()`
-- `static getSQLSelectClause()`
-- `static objectifyDatabaseResult(result)`
-- `static mapToBos(objectified)`
-- `static clumpIntoGroups(processed)`
-- `static nestClump(clump)`
-- `static createFromDatabase(result)`
-- `static createOneFromDatabase(result)`
-- `getSqlInsertParts()`
-- `getSqlUpdateParts()`
-- `getMatchingParts()`
-- `getMatchingPartsObject()`
-- `getNewWith(sqlColumns, values)`
-- `getValueBySqlColumn(sqlColumn)`
+- and more
 
 #### `BaseBoCollection`
 
@@ -338,7 +318,7 @@ Optional
 **Public Methods**
 
 - `constructor(props: object)`
-- `static get displayName()`
+- and more
 
 #### `BaseDAO`
 
@@ -359,23 +339,22 @@ Abstractions over `pg-promise`'s query methods:
 - `oneOrNone(query: string, params: object)` - executes a query and returns a Bo or undefined, or throws.
 - `many(query: string, params: object)` - executes a query and returns a BoCollection with at least one model, or throws.
 - `any(query: string, params: object)` - executes a query and returns a BoCollection.
+- `none(query: string, params: object)` - executes a query and returns null.
 
 (Note, these methods assert the correct number on the created BO's - not the raw postgres sql result. Thus, for example, `one` understands that there may be multiple result rows (which pg-promise's `one` would throw at) but which could correctly nest into one BO.)
-
-Helper functions if usint `pr-promise`'s query methods directly:
-
-- `errorHandler(err)` - helper function if using pg-promise `db` directly
 
 Built-in "basic" / generic functions which your extending DAO class instance gets for free
 
 - `getMatching(bo: BaseBO)`
+- `getOneOrNoneMatching(bo: BaseBO)`
+- `getAnyMatching(bo: BaseBO)`
 - `getAllMatching(bo: BaseBO)`
-- `getOrCreate(bo: BaseBO)`
 - `create(bo: BaseBO)`
 - `update(bo: BaseBO)`
 - `delete(bo: BaseBO)`
+- `deleteMatching(bo: BaseBO)`
 
-Lets take a few examples to show this.
+These are just provided because they are so common and straight-forward. However, the point of this library specifically contrasts against having a large surface area of pre-built functions to learn. The idea is to add a DAO class, and add your own custom functions with your own SQL.
 
 ### Methods
 
