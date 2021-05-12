@@ -173,8 +173,20 @@ module.exports = ({ getBusinessObjects }) =>
             const property = Object.keys(bo.constructor.references)[index];
             return bo[property] === x.id;
           });
-          if (nodeAlreadySeen && nodeItPointsTo) {
-            return;
+          if (nodeAlreadySeen) {
+            if (nodeItPointsTo) {
+              return;
+            }
+            // If the nodePointingToIt (eg, parcel_event) is part of an
+            // existing collection on this node (eg, parcel) which is a
+            // nodeAlreadySeen, early return so we don't create it (parcel) on
+            // the nodePointingToIt (parcel_event), since it (parcel) has been
+            // shown to be the parent (of parcel_events).
+            const ec =
+              nodeAlreadySeen[nodePointingToIt.BoCollection.displayName];
+            if (ec && ec.models.find(m => m === nodePointingToIt)) {
+              return;
+            }
           }
           if (!(nodePointingToIt || nodeItPointsTo)) {
             if (!bo.getId()) {

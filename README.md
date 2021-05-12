@@ -246,7 +246,6 @@ same.id === person.id; // true
 
 // Deletes the person data form the database
 await personDAO.delete(person);
-
 ```
 
 To see everything in action, check out [the examples directory](https://github.com/craigmichaelmartin/pure-orm/tree/master/examples) and the [tests](https://github.com/craigmichaelmartin/pure-orm/blob/master/src/bo/base-bo.spec.js).
