@@ -4,7 +4,6 @@ const Parcel = require('./parcel');
 const LineItem = require('./line-item');
 
 class ParcelLineItem extends Base {
-
   get BoCollection() {
     return ParcelLineItems;
   }
@@ -17,8 +16,8 @@ class ParcelLineItem extends Base {
     return [
       'id',
       { column: 'parcel_id', references: Parcel },
-      { column: 'line_item_id', references: LineItem },
-    ];  
+      { column: 'line_item_id', references: LineItem }
+    ];
   }
 }
 

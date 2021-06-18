@@ -2,7 +2,6 @@ const Base = require('./base');
 const Parcels = require('./parcels');
 
 class Parcel extends Base {
-
   get BoCollection() {
     return Parcels;
   }
@@ -12,9 +11,7 @@ class Parcel extends Base {
   }
 
   static get sqlColumnsData() {
-    return [
-      'id',
-    ];  
+    return ['id'];
   }
 }
 

@@ -3,7 +3,6 @@ const Order = require('./order');
 const LineItems = require('./customers');
 
 class LineItem extends Base {
-
   get BoCollection() {
     return LineItems;
   }
@@ -13,10 +12,7 @@ class LineItem extends Base {
   }
 
   static get sqlColumnsData() {
-    return [
-      'id',
-      { column: 'order_id', references: Order },
-    ];  
+    return ['id', { column: 'order_id', references: Order }];
   }
 }
 

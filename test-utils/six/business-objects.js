@@ -5,7 +5,7 @@ const getBusinessObjects = () => [
   require('./bo/parcel-line-item'),
   require('./bo/line-item'),
   require('./bo/order'),
-  require('./bo/customer'),
+  require('./bo/customer')
 ];
 
 module.exports = getBusinessObjects;
