@@ -8,6 +8,8 @@ const three = require('../../test-utils/three/results');
 const four = require('../../test-utils/four/results.json');
 const Order5 = require('../../test-utils/five/bo/order');
 const five = require('../../test-utils/five/results.json');
+const Parcel = require('../../test-utils/six/bo/parcel');
+const six = require('../../test-utils/six/results.json');
 
 test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with all one-to-one or one-to-many tables)', () => {
   const order = Order.createOneFromDatabase(one);
@@ -218,4 +220,35 @@ test('Bo#parseFromDatabase where a deeply nested models property was misbehaving
   expect(orders.models[1].lineItems.models.length).toEqual(1);
   expect(orders.models[1].lineItems.models[0].id).toEqual(16900);
   expect(orders.models[1].lineItems.models[0].orderId).toEqual(13888);
+});
+
+// Problem:
+// Parcel
+//  ParcelLineItem
+//   LineItem
+//    Order
+//     Customer
+//  ParcelLineItem
+//   LineItem
+//    [MISSING ORDER]
+// Issue occcurs in nestClump
+// Problem only surfaced when custom was included
+test('Bo#parseOneFromDatabase where a deeply nested models property was misbehaving', () => {
+  const parcel = Parcel.createOneFromDatabase(six);
+  // The assertion that failed when the bug was present
+  expect(parcel.parcelLineItems.models[1].lineItem.order).toBeDefined();
+  // Lots of other assertions that are unrelated and shouldn't be here except
+  // I'm insecure about the lack of tests so just going at it cause I can.
+  expect(parcel.id).toEqual(1);
+  expect(parcel.parcelLineItems.models.length).toEqual(2);
+  expect(parcel.parcelLineItems.models[0].id).toEqual(604);
+  expect(parcel.parcelLineItems.models[0].lineItem.id).toEqual(17298);
+  expect(parcel.parcelLineItems.models[0].lineItem.order.id).toEqual(14219);
+  expect(parcel.parcelLineItems.models[0].lineItem.order.customer.id).toEqual(5390);
+  expect(parcel.parcelLineItems.models[0].lineItem.order.customer.email).toEqual('tswift@kujo.com');
+  expect(parcel.parcelLineItems.models[1].id).toEqual(605);
+  expect(parcel.parcelLineItems.models[1].lineItem.id).toEqual(17297);
+  expect(parcel.parcelLineItems.models[1].lineItem.order.id).toEqual(14219);
+  expect(parcel.parcelLineItems.models[1].lineItem.order.customer.id).toEqual(5390);
+  expect(parcel.parcelLineItems.models[1].lineItem.order.customer.email).toEqual('tswift@kujo.com');
 });

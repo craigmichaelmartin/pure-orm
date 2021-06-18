@@ -1,0 +1,26 @@
+[
+  {
+    "parcel#id": 1,
+    "parcel_line_item#id": 604,
+    "parcel_line_item#parcel_id": 1,
+    "parcel_line_item#line_item_id": 17298,
+    "line_item#id": 17298,
+    "line_item#order_id": 14219,
+    "order#id": 14219,
+    "order#customer_id": 5390,
+    "customer#id": 5390,
+    "customer#email": "tswift@kujo.com"
+  },
+  {
+    "parcel#id": 1,
+    "parcel_line_item#id": 605,
+    "parcel_line_item#parcel_id": 1,
+    "parcel_line_item#line_item_id": 17297,
+    "line_item#id": 17297,
+    "line_item#order_id": 14219,
+    "order#id": 14219,
+    "order#customer_id": 5390,
+    "customer#id": 5390,
+    "customer#email": "tswift@kujo.com"
+  }
+]

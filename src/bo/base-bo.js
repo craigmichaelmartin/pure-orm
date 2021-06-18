@@ -174,7 +174,7 @@ module.exports = ({ getBusinessObjects }) =>
             return bo[property] === x.id;
           });
           if (nodeAlreadySeen) {
-            if (nodeItPointsTo) {
+            if (nodeItPointsTo && !nodePointingToIt) {
               return;
             }
             // If the nodePointingToIt (eg, parcel_event) is part of an
