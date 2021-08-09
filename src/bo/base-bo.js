@@ -163,7 +163,8 @@ module.exports = ({ getBusinessObjects }) =>
             const property = Object.keys(x.constructor.references)[index];
             return x[property] === bo.id;
           });
-          const nodeItPointsTo = nodes.find(x => {
+          const reversedNodes = nodes.slice().reverse();
+          const nodeItPointsTo = reversedNodes.find(x => {
             const index = Object.values(bo.constructor.references).indexOf(
               x.constructor
             );

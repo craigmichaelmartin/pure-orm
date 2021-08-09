@@ -10,6 +10,7 @@ const Order5 = require('../../test-utils/five/bo/order');
 const five = require('../../test-utils/five/results.json');
 const Parcel = require('../../test-utils/six/bo/parcel');
 const six = require('../../test-utils/six/results.json');
+const seven = require('../../test-utils/seven/results.json');
 
 test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with all one-to-one or one-to-many tables)', () => {
   const order = Order.createOneFromDatabase(one);
@@ -251,4 +252,37 @@ test('Bo#parseOneFromDatabase where a deeply nested models property was misbehav
   expect(parcel.parcelLineItems.models[1].lineItem.order.id).toEqual(14219);
   expect(parcel.parcelLineItems.models[1].lineItem.order.customer.id).toEqual(5390);
   expect(parcel.parcelLineItems.models[1].lineItem.order.customer.email).toEqual('tswift@kujo.com');
+});
+
+// Problem:
+// InventoryLevel
+//  ActualProductVariant
+//   ProductVariant(1)
+//    Color
+//      ProductVariant(2)
+// Instead of:
+// InventoryLevel
+//  ActualProductVariant
+//   ProductVariant
+//    Color
+//   ProductVariant(2)
+//    Color
+// Issue occcurs in nestClump
+test('Bo#parseOneFromDatabase where a deeply nested models property was attaching to wrong parent', () => {
+  const inventoryLevel = InventoryLevel.createOneFromDatabase(seven);
+  // The assertion that failed when the bug was present
+  expect(inventoryLevel.actualProductVariant.productVariants.models[1]).toBeDefined();
+  // Lots of other assertions that are unrelated and shouldn't be here except
+  // I'm insecure about the lack of tests so just going at it cause I can.
+  expect(inventoryLevel.id).toEqual(30);
+  expect(inventoryLevel.actualProductVariant.id).toEqual(15);
+  expect(inventoryLevel.actualProductVariant.productVariants.models.length).toEqual(2);
+  expect(inventoryLevel.actualProductVariant.productVariants.models[0].id).toEqual(179);
+  expect(inventoryLevel.actualProductVariant.productVariants.models[0].color.id).toEqual(4);
+  expect(inventoryLevel.actualProductVariant.productVariants.models[0].gender.id).toEqual(1);
+  expect(inventoryLevel.actualProductVariant.productVariants.models[0].size.id).toEqual(8);
+  expect(inventoryLevel.actualProductVariant.productVariants.models[1].id).toEqual(180);
+  expect(inventoryLevel.actualProductVariant.productVariants.models[1].color.id).toEqual(4);
+  expect(inventoryLevel.actualProductVariant.productVariants.models[1].gender.id).toEqual(2);
+  expect(inventoryLevel.actualProductVariant.productVariants.models[1].size.id).toEqual(11);
 });

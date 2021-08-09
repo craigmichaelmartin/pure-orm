@@ -1,0 +1,32 @@
+[
+  {
+    "inventory_level#id": 30,
+    "inventory_level#actual_product_variant_id": 15,
+    "actual_product_variant#id": 15,
+    "product_variant#id": 179,
+    "product_variant#product_id": 1,
+    "product_variant#actual_product_variant_id": 15,
+    "product_variant#color_id": 4,
+    "product_variant#gender_id": 1,
+    "product_variant#size_id": 8,
+    "product#id": 1,
+    "size#id": 8,
+    "gender#id": 1,
+    "color#id": 4
+  },
+  {
+    "inventory_level#id": 30,
+    "inventory_level#actual_product_variant_id": 15,
+    "actual_product_variant#id": 15,
+    "product_variant#id": 180,
+    "product_variant#product_id": 2,
+    "product_variant#actual_product_variant_id": 15,
+    "product_variant#color_id": 4,
+    "product_variant#gender_id": 2,
+    "product_variant#size_id": 11,
+    "product#id": 2,
+    "size#id": 11,
+    "gender#id": 2,
+    "color#id": 4
+  }
+]
