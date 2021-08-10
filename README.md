@@ -400,4 +400,4 @@ These are just provided because they are so common and straight-forward. However
 
 #### Is it production ready?
 
-It is in production at [www.kujo.com](www.kujo.com) - powering the marketing pages and blog, as well as the customer, affiliate, and admin platforms (behind login). When considering for your case, note the Current Limitations and TODOs sections above.
+It is in production at [www.kujo.com](https://www.kujo.com) - powering the marketing pages and blog, as well as the customer, affiliate, and admin platforms (behind login). When considering for your case, note the Current Limitations and TODOs sections above.
