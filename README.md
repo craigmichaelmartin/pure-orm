@@ -240,7 +240,7 @@ same.id === person.id; // true
 
 // Returns the person business object which matches this data
 same = await personDAO.getMatching(
-  new Person({ email: 'craigmartin11@gmail.com' })
+  new Person({ email: 'craigmartin@gmail.com' })
 );
 same.id === person.id; // true
 
