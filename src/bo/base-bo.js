@@ -261,6 +261,7 @@ module.exports = ({ getBusinessObjects }) =>
         .filter(
           (column, index) => this[this.constructor.columns[index]] != null
         )
+        .map(col => `"${col}"`)
         .join(', ');
       const values = this.constructor.columns
         .map(column => this[column])
@@ -288,9 +289,9 @@ module.exports = ({ getBusinessObjects }) =>
       const whereClause = this.constructor.columns
         .map((col, index) =>
           this[col] != null
-            ? `"${this.constructor.tableName}".${
+            ? `"${this.constructor.tableName}"."${
                 this.constructor.sqlColumns[index]
-              }`
+              }"`
             : null
         )
         .filter(x => x != null)
@@ -308,9 +309,9 @@ module.exports = ({ getBusinessObjects }) =>
       const whereClause = this.constructor.columns
         .map((col, index) =>
           this[col] != null
-            ? `"${this.constructor.tableName}".${
+            ? `"${this.constructor.tableName}"."${
                 this.constructor.sqlColumns[index]
-              }`
+              }"`
             : null
         )
         .filter(x => x != null)
