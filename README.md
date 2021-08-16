@@ -57,7 +57,7 @@ Using PureORM allows you to write code like this:
 
 ```javascript
 class PersonDAO extends BaseDAO {
-  get({id}) {
+  get({ id }) {
     const query = `
       SELECT
         ${Person.getSQLSelectClause()},
@@ -68,7 +68,7 @@ class PersonDAO extends BaseDAO {
       JOIN employer on job.employer_id = employer.id
       WHERE id = $(id)
     `;
-    return this.one(query, {id});
+    return this.one(query, { id });
   }
 }
 ```
@@ -116,6 +116,7 @@ Person {
 > This is a quick showcase. To see how to wire up this code, see the full [Practical Example](#practical-example) below.
 
 Things to note:
+
 - Our DAO returns a single Person business object which is properly structured from the relational row records!
 - Our query is executed with a `one` method. The DAO methods for `one`, `oneOrNone`, `many`, `any` ensure their count against the number of generated top level business objects - not the number of relational row records the sql expression returns!
 - Rather than manually specifying our columns in the sql select expression, we use the business object's `getSQLSelectClause`. This is purely a convenience method which namespaces each column with the table name prefix to ensure column names don't collide. (You are welcome to do this by hand if you don't mind the tedium.)
@@ -129,10 +130,12 @@ PureORM can work with no integration with your database driver. This is the stri
 PureORM also can wrap your database driver to make the API slightly less redundant. In this case you'll use the export which is a factory to create a base dao constructor (`createBaseDAO`). When you use this PureORM in this way, your DAO also inherits a handful of convenience methods for basic CRUD operations.
 
 Overview of the API (full [API details](#api) further down):
+
 - `createBaseBO` is a factory to create a base bo constructor. This factory method accepts a single argument: `getBusinessObjects` which is a function that returns an array of all your business object classes. You extend this class for all your business objects, and for each of these you must provide static `table` and `sqlColumnsData` fields. There are a number of other methods you can override from base to accomodate more advanced usage (including a `BoCollection` field to reference a custom class you want used for the collection).
 - `BaseBoCollection` can be used as the base class for any bo collection classes you make. Sometimes it can be useful to have business methods on the collection entity (not just each model entity) and so you can create such a class by extending `BaseBoCollection` and providing a `BoCollection` field on the business object model class.
 
 If you would like PureORM to wrap your database driver, you'll also use:
+
 - `createBaseBO` is a factory to create a base dao constructor. This factory method accepts two arguments: `db` which is your database driver, and optionally `logError` which logs any database errors. You extend this class for all your dao objects, and for each of these you must provide a `Bo` field in the class which references the busines object this class is used for.
 
 ## Practical Example
@@ -258,10 +261,7 @@ const Base = require('./base');
 
 class Person extends Base {
   static tableName = 'person';
-  static sqlColumnsData = [
-    'id',
-    'name',
-  ];
+  static sqlColumnsData = ['id', 'name'];
   // any other business methods...
 }
 module.exports = Person;
@@ -280,7 +280,7 @@ class Job extends Base {
     { column: 'person_id', references: Person },
     { column: 'employer_id', references: Employer },
     'start_date',
-    'end_date',
+    'end_date'
   ];
   // any other business methods...
 }
@@ -293,18 +293,16 @@ const Base = require('./base');
 
 class Employer extends Base {
   static tableName = 'employer';
-  static sqlColumnsData = [
-    'id',
-    'name',
-  ];
+  static sqlColumnsData = ['id', 'name'];
   // any other business methods...
 }
 module.exports = Employer;
 ```
 
 We've not got our three business object classes. To review, each business object class has:
-  - A static `tableName` property to denote which table results this class is for.
-  - A static `sqlColumnsData` property to enumerate the table columns.
+
+- A static `tableName` property to denote which table results this class is for.
+- A static `sqlColumnsData` property to enumerate the table columns.
 
 The last business object we have to make is the `Base` one all of our above model classes extend. In order for any business model to properly structure/nest any other business object, each business object needs to know about every other business object. We do this by providing a `getBusinessObjects` method to our `createBaseBO` factory. (There is of course a circular dependency between the base class needing all classes that will end up being created which extend it, and using a function allows us to get around this circular dependency.)
 
@@ -316,7 +314,7 @@ const BaseBO = createBaseBO({
   getBusinessObjects: () => [
     require('./person'), // eslint-disable-line
     require('./job'), // eslint-disable-line
-    require('./employer'), // eslint-disable-line
+    require('./employer') // eslint-disable-line
   ]
 });
 module.exports = BaseBO;
@@ -337,7 +335,7 @@ We'll import the database driver (`db`) and use it directly, and then call our O
 const { db } = require('../factories/db');
 const Person = require('../business-objects/person');
 class PersonDAO {
-  async get({id}) {
+  async get({ id }) {
     const query = `
       SELECT
         ${Person.getSQLSelectClause()},
@@ -348,14 +346,14 @@ class PersonDAO {
       JOIN employer on job.employer_id = employer.id
       WHERE id = $(id)
     `;
-    const rawResultRows = await db.many(query, {id});
+    const rawResultRows = await db.many(query, { id });
     return Person.createOneFromDatabase(rawResultRows);
   }
 }
 module.exports = new PersonDAO();
 ```
 
-Notice we are using the *one* method `createOneFromDatabase` which is what we want since we are creating *one* person, even though we use *many* for the database driver. From the database driver's perspective there are many relational result row; however, from our perspective, these compose *one* properly structured person. The create from database methods (`createOneFromDatabase`, `createOneOrNoneFromDatabase`, `createManyFromDatabase`, `createFromDatabase` for any) ensure their count against the number of generated top level business objects - not the number of rows the sql expression returns!
+Notice we are using the _one_ method `createOneFromDatabase` which is what we want since we are creating _one_ person, even though we use _many_ for the database driver. From the database driver's perspective there are many relational result row; however, from our perspective, these compose _one_ properly structured person. The create from database methods (`createOneFromDatabase`, `createOneOrNoneFromDatabase`, `createManyFromDatabase`, `createFromDatabase` for any) ensure their count against the number of generated top level business objects - not the number of rows the sql expression returns!
 
 If you are opting for this strict/narrow usage of PureORM, you're done! The DAO get method returns the relational result rows properly structured as we needed them to be. (Step 6 just shows us creating the database driver since we import a database driver - but it has nothing specific to PureORM).
 
@@ -366,8 +364,8 @@ If you are opting for this strict/narrow usage of PureORM, you're done! The DAO 
 const BaseDAO = require('../dao/base');
 const Person = require('../business-objects/person');
 class PersonDAO extends BaseDAO {
-  Bo = Person
-  get({id}) {
+  Bo = Person;
+  get({ id }) {
     const query = `
       SELECT
         ${Person.getSQLSelectClause()},
@@ -378,7 +376,7 @@ class PersonDAO extends BaseDAO {
       JOIN employer on job.employer_id = employer.id
       WHERE id = $(id)
     `;
-    return this.one(query, {id});
+    return this.one(query, { id });
   }
 }
 module.exports = new PersonDAO();
@@ -438,9 +436,9 @@ class Library extends Base {
     return [
       'id',
       'name',
-      {column: 'is_ala_member', property: 'isALAMember'},
-      {column: 'address', references: Address},
-    ]
+      { column: 'is_ala_member', property: 'isALAMember' },
+      { column: 'address', references: Address }
+    ];
   }
 }
 ```
@@ -551,6 +549,7 @@ Optional
 - `createOneOrNoneFromDatabase(relationalResultRows)` - Returns the properly structured Bo object if results (asserts one or none).
 - `createManyFromDatabase(relationalResultRows)` - Returns the properly structured Bo objects (asserts many).
 - `createFromDatabase(relationalResultRows)` - Returns any properly structured Bo objects (no assertion on count).
+
 (Note these create from database methods ensure their count against the number of generated top level business objects - not the number of relational rows used!)
 
 #### `BaseBoCollection`
