@@ -12,7 +12,7 @@ PureORM is a lightweight ORM for mapping the relational result rows of a databas
 
 It's purpose - and guiding principle - is to allow you to write regular native SQL (not niche library-specific ORM wrapper APIs) and receive back properly structured/nested pure business objects (not database-connected stateful objects).
 
-PureORM is the top layer for interfacing with your database. You bring your own database driver (eg [postgres](https://github.com/brianc/node-postgres), [mysql](https://github.com/mysqljs/mysql), [node-sqlite3](https://github.com/mapbox/node-sqlite3), [node-mssql](https://github.com/tediousjs/node-mssql), [node-oracledb](https://github.com/oracle/node-oracledb)), and PureORM works on top of it to perform the Object-Relational Mapping (ORM).
+PureORM is the top layer for interfacing with your database. You bring your own database driver (eg [node-postgres](https://github.com/brianc/node-postgres)/[pg-promise](https://github.com/vitaly-t/pg-promise), [mysql](https://github.com/mysqljs/mysql), [node-sqlite3](https://github.com/mapbox/node-sqlite3), [node-mssql](https://github.com/tediousjs/node-mssql), [node-oracledb](https://github.com/oracle/node-oracledb), etc), and PureORM works on top of it to perform the Object-Relational Mapping (ORM).
 
 PureORM contrasts with tradtional ORMs in two ways:
 
