@@ -2,6 +2,7 @@ const Order = require('../../examples/order/bo/order');
 const Article = require('../../examples/blog/bo/article');
 const Articles = require('../../examples/blog/bo/articles');
 const InventoryLevel = require('../../examples/order-more/bo/inventory-level');
+const Shipment = require('../../examples/order-more/bo/shipment');
 const one = require('../../test-utils/one/results.json');
 const two = require('../../test-utils/two/results');
 const three = require('../../test-utils/three/results');
@@ -11,6 +12,7 @@ const five = require('../../test-utils/five/results.json');
 const Parcel = require('../../test-utils/six/bo/parcel');
 const six = require('../../test-utils/six/results.json');
 const seven = require('../../test-utils/seven/results.json');
+const eight = require('../../test-utils/eight/results.json');
 
 test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with all one-to-one or one-to-many tables)', () => {
   const order = Order.createOneFromDatabase(one);
@@ -285,4 +287,81 @@ test('Bo#parseOneFromDatabase where a deeply nested models property was attachin
   expect(inventoryLevel.actualProductVariant.productVariants.models[1].color.id).toEqual(4);
   expect(inventoryLevel.actualProductVariant.productVariants.models[1].gender.id).toEqual(2);
   expect(inventoryLevel.actualProductVariant.productVariants.models[1].size.id).toEqual(11);
+});
+
+// Problem:
+// Shipment
+//  ShipmentActualProductVariant
+//   ActualProductVariant
+//    ProductVariant(1)
+//     Product
+//      ProductVariant(2)
+//  ShipmentActualProductVariant
+//   ActualProductVariant
+// Instead of:
+// Shipment
+//  ShipmentActualProductVariant
+//   ActualProductVariant
+//    ProductVariant(1)
+//     Product
+//  ShipmentActualProductVariant
+//   ActualProductVariant
+//    ProductVariant(2)
+//     Product
+// Issue occcurs in nestClump
+test('Bo#parseOneFromDatabase where a deeply nested models property was attaching to wrong parent 2', () => {
+  const shipments = Shipment.createFromDatabase(eight);
+  // The assertion that failed when the bug was present
+  expect(shipments.models[0].shipmentActualProductVariants.models[1].actualProductVariant.productVariants).toBeDefined();
+  // IN ADDITION TO ABOVE ASSERTION and helpful test description of what is
+  // being tested, the below tests tease out some logic that was hitherto
+  // incorrect. This "some logic" should be defined and have separate tests
+  // and jazz, but my brain hurts so TLDR these below tests are important but
+  // (somewhat?) unrelated to the example/assertion above. "Are you serious?!"
+  expect(shipments.models.length).toEqual(2);
+
+  expect(shipments.models[0].id).toEqual(19);
+  expect(shipments.models[0].shipmentActualProductVariants.models.length).toEqual(2);
+  expect(shipments.models[0].shipmentActualProductVariants.models[0].id).toEqual(25);
+  expect(shipments.models[0].shipmentActualProductVariants.models[0].actualProductVariant.id).toEqual(65);
+  expect(shipments.models[0].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models.length).toEqual(2);
+  expect(shipments.models[0].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[0].id).toEqual(310);
+  expect(shipments.models[0].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[0].product.id).toEqual(1);
+  expect(shipments.models[0].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[0].size.id).toEqual(1);
+  expect(shipments.models[0].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[0].color.id).toEqual(1);
+  expect(shipments.models[0].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[0].gender.id).toEqual(1);
+  expect(shipments.models[0].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[1].id).toEqual(309);
+  expect(shipments.models[0].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[1].product.id).toEqual(2);
+  expect(shipments.models[0].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[1].size.id).toEqual(4);
+  expect(shipments.models[0].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[1].color.id).toEqual(1);
+  expect(shipments.models[0].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[1].gender.id).toEqual(2);
+  expect(shipments.models[0].shipmentActualProductVariants.models[1].id).toEqual(26);
+  expect(shipments.models[0].shipmentActualProductVariants.models[1].actualProductVariant.id).toEqual(25);
+  expect(shipments.models[0].shipmentActualProductVariants.models[1].actualProductVariant.productVariants.models.length).toEqual(2);
+  expect(shipments.models[0].shipmentActualProductVariants.models[1].actualProductVariant.productVariants.models[0].id).toEqual(194);
+  expect(shipments.models[0].shipmentActualProductVariants.models[1].actualProductVariant.productVariants.models[0].product.id).toEqual(1);
+  expect(shipments.models[0].shipmentActualProductVariants.models[1].actualProductVariant.productVariants.models[0].size.id).toEqual(2);
+  expect(shipments.models[0].shipmentActualProductVariants.models[1].actualProductVariant.productVariants.models[0].color.id).toEqual(1);
+  expect(shipments.models[0].shipmentActualProductVariants.models[1].actualProductVariant.productVariants.models[0].gender.id).toEqual(1);
+  expect(shipments.models[0].shipmentActualProductVariants.models[1].actualProductVariant.productVariants.models[1].id).toEqual(195);
+  expect(shipments.models[0].shipmentActualProductVariants.models[1].actualProductVariant.productVariants.models[1].product.id).toEqual(2);
+  expect(shipments.models[0].shipmentActualProductVariants.models[1].actualProductVariant.productVariants.models[1].size.id).toEqual(5);
+  expect(shipments.models[0].shipmentActualProductVariants.models[1].actualProductVariant.productVariants.models[1].color.id).toEqual(1);
+  expect(shipments.models[0].shipmentActualProductVariants.models[1].actualProductVariant.productVariants.models[1].gender.id).toEqual(2);
+  expect(shipments.models[1].id).toEqual(18);
+  expect(shipments.models[1].shipmentActualProductVariants.models.length).toEqual(1);
+  expect(shipments.models[1].shipmentActualProductVariants.models[0].id).toEqual(1);
+  expect(shipments.models[1].shipmentActualProductVariants.models[0].actualProductVariant.id).toEqual(25);
+  expect(shipments.models[1].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models.length).toEqual(2);
+  expect(shipments.models[1].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[0].id).toEqual(194);
+  expect(shipments.models[1].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[0].product.id).toEqual(1);
+  expect(shipments.models[1].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[0].size.id).toEqual(2);
+  expect(shipments.models[1].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[0].color.id).toEqual(1);
+  expect(shipments.models[1].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[0].gender.id).toEqual(1);
+  expect(shipments.models[1].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[1].id).toEqual(195);
+  expect(shipments.models[1].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[1].product.id).toEqual(2);
+  expect(shipments.models[1].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[1].size.id).toEqual(5);
+  expect(shipments.models[1].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[1].color.id).toEqual(1);
+  expect(shipments.models[1].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[1].gender.id).toEqual(2);
+
 });

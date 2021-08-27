@@ -147,35 +147,45 @@ module.exports = ({ getBusinessObjects }) =>
 
       // Wowzer is this both CPU and Memory inefficient
       clump.forEach(array => {
+        const oldestParentType = array[0].constructor;
         array.forEach(bo => {
           const nodeAlreadySeen = nodes.find(
             x =>
               x.constructor.name === bo.constructor.name &&
               x.getId() === bo.getId()
           );
-          const nodePointingToIt = nodes.find(x => {
-            const index = Object.values(x.constructor.references).indexOf(
+          const nodePointingToIt = nodes.find(node => {
+            const index = Object.values(node.constructor.references).indexOf(
               bo.constructor
             );
             if (index === -1) {
               return false;
             }
-            const property = Object.keys(x.constructor.references)[index];
-            return x[property] === bo.id;
+            const property = Object.keys(node.constructor.references)[index];
+            return node[property] === bo.id;
           });
-          const reversedNodes = nodes.slice().reverse();
-          const nodeItPointsTo = reversedNodes.find(x => {
+          const parentHeirarchy = [
+            ...nodes
+              .slice(
+                0,
+                nodes.findIndex(n => n.constructor === oldestParentType) + 1
+              )
+              .reverse(),
+            root
+          ];
+          const nodeItPointsTo = parentHeirarchy.find(parent => {
             const index = Object.values(bo.constructor.references).indexOf(
-              x.constructor
+              parent.constructor
             );
             if (index === -1) {
               return false;
             }
             const property = Object.keys(bo.constructor.references)[index];
-            return bo[property] === x.id;
+            return bo[property] === parent.id;
           });
           if (nodeAlreadySeen) {
             if (nodeItPointsTo && !nodePointingToIt) {
+              nodes = [nodeAlreadySeen, ...nodes];
               return;
             }
             // If the nodePointingToIt (eg, parcel_event) is part of an
@@ -186,21 +196,14 @@ module.exports = ({ getBusinessObjects }) =>
             const ec =
               nodeAlreadySeen[nodePointingToIt.BoCollection.displayName];
             if (ec && ec.models.find(m => m === nodePointingToIt)) {
+              // nodes = [nodeAlreadySeen, ...nodes];
               return;
             }
-          }
-          if (!(nodePointingToIt || nodeItPointsTo)) {
-            if (!bo.getId()) {
-              // If the join is fruitless; todo: add a test for this path
-              return;
-            }
-            throw Error(
-              `Could not find how this BO fits: ${JSON.stringify(bo)}`
-            );
           }
           if (nodePointingToIt) {
-            nodePointingToIt[bo.constructor.displayName] = bo;
-          } else {
+            nodePointingToIt[bo.constructor.displayName] =
+              nodeAlreadySeen || bo;
+          } else if (nodeItPointsTo) {
             let collection = nodeItPointsTo[bo.BoCollection.displayName];
             if (collection) {
               collection.models.push(bo);
@@ -209,8 +212,16 @@ module.exports = ({ getBusinessObjects }) =>
                 { models: [bo] }
               );
             }
+          } else {
+            if (!bo.getId()) {
+              // If the join is fruitless; todo: add a test for this path
+              return;
+            }
+            throw Error(
+              `Could not find how this BO fits: ${JSON.stringify(bo)}`
+            );
           }
-          nodes = [bo, ...nodes];
+          nodes = [nodeAlreadySeen || bo, ...nodes];
         });
       });
 
