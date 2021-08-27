@@ -148,12 +148,14 @@ module.exports = ({ getBusinessObjects }) =>
       // Wowzer is this both CPU and Memory inefficient
       clump.forEach(array => {
         const oldestParentType = array[0].constructor;
-        array.forEach(bo => {
+        array.forEach(_bo => {
           const nodeAlreadySeen = nodes.find(
             x =>
-              x.constructor.name === bo.constructor.name &&
-              x.getId() === bo.getId()
+              x.constructor.name === _bo.constructor.name &&
+              x.getId() === _bo.getId()
           );
+          const bo = nodeAlreadySeen || _bo;
+          const isNodeAlreadySeen = !!nodeAlreadySeen;
           const nodePointingToIt = nodes.find(node => {
             const index = Object.values(node.constructor.references).indexOf(
               bo.constructor
@@ -183,9 +185,9 @@ module.exports = ({ getBusinessObjects }) =>
             const property = Object.keys(bo.constructor.references)[index];
             return bo[property] === parent.id;
           });
-          if (nodeAlreadySeen) {
+          if (isNodeAlreadySeen) {
             if (nodeItPointsTo && !nodePointingToIt) {
-              nodes = [nodeAlreadySeen, ...nodes];
+              nodes = [bo, ...nodes];
               return;
             }
             // If the nodePointingToIt (eg, parcel_event) is part of an
@@ -193,16 +195,14 @@ module.exports = ({ getBusinessObjects }) =>
             // nodeAlreadySeen, early return so we don't create it (parcel) on
             // the nodePointingToIt (parcel_event), since it (parcel) has been
             // shown to be the parent (of parcel_events).
-            const ec =
-              nodeAlreadySeen[nodePointingToIt.BoCollection.displayName];
+            const ec = bo[nodePointingToIt.BoCollection.displayName];
             if (ec && ec.models.find(m => m === nodePointingToIt)) {
-              // nodes = [nodeAlreadySeen, ...nodes];
+              // nodes = [bo, ...nodes];
               return;
             }
           }
           if (nodePointingToIt) {
-            nodePointingToIt[bo.constructor.displayName] =
-              nodeAlreadySeen || bo;
+            nodePointingToIt[bo.constructor.displayName] = bo;
           } else if (nodeItPointsTo) {
             let collection = nodeItPointsTo[bo.BoCollection.displayName];
             if (collection) {
@@ -221,7 +221,7 @@ module.exports = ({ getBusinessObjects }) =>
               `Could not find how this BO fits: ${JSON.stringify(bo)}`
             );
           }
-          nodes = [nodeAlreadySeen || bo, ...nodes];
+          nodes = [bo, ...nodes];
         });
       });
 
