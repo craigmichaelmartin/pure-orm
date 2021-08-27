@@ -3,6 +3,7 @@ const Article = require('../../examples/blog/bo/article');
 const Articles = require('../../examples/blog/bo/articles');
 const InventoryLevel = require('../../examples/order-more/bo/inventory-level');
 const Shipment = require('../../examples/order-more/bo/shipment');
+const FeatureSwitch = require('../../test-utils/nine/bo/feature-switch');
 const one = require('../../test-utils/one/results.json');
 const two = require('../../test-utils/two/results');
 const three = require('../../test-utils/three/results');
@@ -13,6 +14,7 @@ const Parcel = require('../../test-utils/six/bo/parcel');
 const six = require('../../test-utils/six/results.json');
 const seven = require('../../test-utils/seven/results.json');
 const eight = require('../../test-utils/eight/results.json');
+const nine = require('../../test-utils/nine/results.json');
 
 test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with all one-to-one or one-to-many tables)', () => {
   const order = Order.createOneFromDatabase(one);
@@ -364,4 +366,22 @@ test('Bo#parseOneFromDatabase where a deeply nested models property was attachin
   expect(shipments.models[1].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[1].color.id).toEqual(1);
   expect(shipments.models[1].shipmentActualProductVariants.models[0].actualProductVariant.productVariants.models[1].gender.id).toEqual(2);
 
+});
+
+// Issue occcurs in nestClump
+// Problem is with only top level nodes
+test('Bo#parseFromDatabase with just top level nodes', () => {
+  let featureSwitches;
+  try {
+    // This failed when the bug was present
+    featureSwitches = FeatureSwitch.createFromDatabase(nine);
+  } catch (e) {
+    expect(e).not.toBeDefined();
+  }
+  expect(featureSwitches).toBeDefined();
+  // Lots of other assertions that are unrelated and shouldn't be here except
+  // I'm insecure about the lack of tests so just going at it cause I can.
+  expect(featureSwitches.models.length).toEqual(2);
+  expect(featureSwitches.models[0].id).toEqual('google_one_tap_sign_in');
+  expect(featureSwitches.models[1].id).toEqual('website_live_chat');
 });

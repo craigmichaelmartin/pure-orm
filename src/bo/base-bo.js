@@ -147,6 +147,9 @@ module.exports = ({ getBusinessObjects }) =>
 
       // Wowzer is this both CPU and Memory inefficient
       clump.forEach(array => {
+        if (!array || !array.length) {
+          return;
+        }
         const oldestParentType = array[0].constructor;
         array.forEach(_bo => {
           const nodeAlreadySeen = nodes.find(

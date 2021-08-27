@@ -1,0 +1,12 @@
+[
+    {
+        "feature_switch#id": "google_one_tap_sign_in",
+        "feature_switch#label": "Google One Tap Sign In",
+        "feature_switch#on": true
+    },
+    {
+        "feature_switch#id": "website_live_chat",
+        "feature_switch#label": "Website Live Chat",
+        "feature_switch#on": false
+    }
+]
