@@ -2,7 +2,6 @@ const Base = require('./base');
 const FeatureSwitches = require('./feature-switches');
 
 class FeatureSwitch extends Base {
-
   get BoCollection() {
     return FeatureSwitches;
   }

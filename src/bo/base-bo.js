@@ -147,10 +147,6 @@ module.exports = ({ getBusinessObjects }) =>
 
       // Wowzer is this both CPU and Memory inefficient
       clump.forEach(array => {
-        if (!array || !array.length) {
-          return;
-        }
-        const oldestParentType = array[0].constructor;
         array.forEach(_bo => {
           const nodeAlreadySeen = nodes.find(
             x =>
@@ -169,13 +165,22 @@ module.exports = ({ getBusinessObjects }) =>
             const property = Object.keys(node.constructor.references)[index];
             return node[property] === bo.id;
           });
+          // For first obj type which is has an instance in nodes array,
+          // get its index in nodes array
+          const indexOfOldestParent = array.reduce((answer, obj) => {
+            if (answer != null) {
+              return answer;
+            }
+            const index = nodes.findIndex(
+              n => n.constructor === obj.constructor
+            );
+            if (index !== -1) {
+              return index;
+            }
+            return null;
+          }, null);
           const parentHeirarchy = [
-            ...nodes
-              .slice(
-                0,
-                nodes.findIndex(n => n.constructor === oldestParentType) + 1
-              )
-              .reverse(),
+            ...nodes.slice(0, indexOfOldestParent + 1).reverse(),
             root
           ];
           const nodeItPointsTo = parentHeirarchy.find(parent => {

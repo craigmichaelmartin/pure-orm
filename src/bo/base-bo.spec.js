@@ -2,6 +2,7 @@ const Order = require('../../examples/order/bo/order');
 const Article = require('../../examples/blog/bo/article');
 const Articles = require('../../examples/blog/bo/articles');
 const InventoryLevel = require('../../examples/order-more/bo/inventory-level');
+const OrderFull = require('../../examples/order-more/bo/order');
 const Shipment = require('../../examples/order-more/bo/shipment');
 const FeatureSwitch = require('../../test-utils/nine/bo/feature-switch');
 const one = require('../../test-utils/one/results.json');
@@ -15,6 +16,7 @@ const six = require('../../test-utils/six/results.json');
 const seven = require('../../test-utils/seven/results.json');
 const eight = require('../../test-utils/eight/results.json');
 const nine = require('../../test-utils/nine/results.json');
+const ten = require('../../test-utils/ten/results.json');
 
 test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with all one-to-one or one-to-many tables)', () => {
   const order = Order.createOneFromDatabase(one);
@@ -384,4 +386,128 @@ test('Bo#parseFromDatabase with just top level nodes', () => {
   expect(featureSwitches.models.length).toEqual(2);
   expect(featureSwitches.models[0].id).toEqual('google_one_tap_sign_in');
   expect(featureSwitches.models[1].id).toEqual('website_live_chat');
+});
+
+// Issue occcurs in nestClump
+// Problem is when oldest parent is an empty join record and is not included
+// which results in the oldest parent search returning -1 and parent heirarchy
+// is thus messed up.
+test('Bo#parseFromDatabase ', () => {
+  let orders;
+  try {
+    // This failed when the bug was present
+    orders = OrderFull.createFromDatabase(ten);
+  } catch (e) {
+    expect(e).not.toBeDefined();
+  }
+  expect(orders).toBeDefined();
+  // Lots of other assertions that are unrelated and shouldn't be here except
+  // I'm insecure about the lack of tests so just going at it cause I can.
+  expect(orders.models.length).toEqual(5);
+
+  expect(orders.models[0].id).toEqual(24591);
+  expect(orders.models[0].customer.id).toEqual(5390);
+  expect(orders.models[0].physicalAddress.id).toEqual(48982);
+  expect(orders.models[0].lineItems.models.length).toEqual(1);
+  expect(orders.models[0].lineItems.models[0].id).toEqual(29883);
+  expect(orders.models[0].lineItems.models[0].productVariant.id).toEqual(158);
+  expect(orders.models[0].lineItems.models[0].productVariant.product.id).toEqual(1);
+  expect(orders.models[0].lineItems.models[0].productVariant.size.id).toEqual(9);
+  expect(orders.models[0].lineItems.models[0].productVariant.color.id).toEqual(3);
+  expect(orders.models[0].lineItems.models[0].productVariant.gender.id).toEqual(1);
+  expect(orders.models[0].lineItems.models[0].productVariant.productVariantImages.models.length).toEqual(1);
+  expect(orders.models[0].lineItems.models[0].productVariant.productVariantImages.models[0].id).toEqual(17);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models.length).toEqual(1);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].id).toEqual(6100);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].parcel.id).toEqual(5942);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models.length).toEqual(14);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[0].id).toEqual(193775);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[1].id).toEqual(193774);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[2].id).toEqual(193773);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[3].id).toEqual(193425);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[4].id).toEqual(193424);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[5].id).toEqual(193423);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[6].id).toEqual(192713);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[7].id).toEqual(192712);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[8].id).toEqual(192711);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[9].id).toEqual(192709);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[10].id).toEqual(192171);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[11].id).toEqual(192170);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[12].id).toEqual(192169);
+  expect(orders.models[0].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[13].id).toEqual(191790);
+  expect(orders.models[1].id).toEqual(24589);
+  expect(orders.models[1].customer.id).toEqual(5390);
+  expect(orders.models[1].physicalAddress.id).toEqual(48982);
+  expect(orders.models[1].lineItems.models.length).toEqual(1);
+  expect(orders.models[1].lineItems.models[0].id).toEqual(29880);
+  expect(orders.models[1].lineItems.models[0].productVariant.id).toEqual(158);
+  expect(orders.models[1].lineItems.models[0].productVariant.product.id).toEqual(1);
+  expect(orders.models[1].lineItems.models[0].productVariant.size.id).toEqual(9);
+  expect(orders.models[1].lineItems.models[0].productVariant.color.id).toEqual(3);
+  expect(orders.models[1].lineItems.models[0].productVariant.gender.id).toEqual(1);
+  expect(orders.models[1].lineItems.models[0].productVariant.productVariantImages.models.length).toEqual(1);
+  expect(orders.models[1].lineItems.models[0].productVariant.productVariantImages.models[0].id).toEqual(17);
+  expect(orders.models[2].id).toEqual(24587);
+  expect(orders.models[2].customer.id).toEqual(5390);
+  expect(orders.models[2].physicalAddress.id).toEqual(28145);
+  expect(orders.models[2].lineItems.models.length).toEqual(1);
+  expect(orders.models[2].lineItems.models[0].id).toEqual(29877);
+  expect(orders.models[2].lineItems.models[0].productVariant.id).toEqual(158);
+  expect(orders.models[2].lineItems.models[0].productVariant.product.id).toEqual(1);
+  expect(orders.models[2].lineItems.models[0].productVariant.size.id).toEqual(9);
+  expect(orders.models[2].lineItems.models[0].productVariant.color.id).toEqual(3);
+  expect(orders.models[2].lineItems.models[0].productVariant.gender.id).toEqual(1);
+  expect(orders.models[2].lineItems.models[0].productVariant.productVariantImages.models.length).toEqual(1);
+  expect(orders.models[2].lineItems.models[0].productVariant.productVariantImages.models[0].id).toEqual(17);
+  expect(orders.models[2].lineItems.models[0].parcelLineItems.models.length).toEqual(1);
+  expect(orders.models[2].lineItems.models[0].parcelLineItems.models[0].id).toEqual(6070);
+  expect(orders.models[2].lineItems.models[0].parcelLineItems.models[0].parcel.id).toEqual(5914);
+  expect(orders.models[2].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models.length).toEqual(1);
+  expect(orders.models[2].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[0].id).toEqual(189194);
+  expect(orders.models[3].id).toEqual(14219);
+  expect(orders.models[3].customer.id).toEqual(5390);
+  expect(orders.models[3].physicalAddress.id).toEqual(28145);
+  expect(orders.models[3].lineItems.models.length).toEqual(2);
+  expect(orders.models[3].lineItems.models[0].id).toEqual(17298);
+  expect(orders.models[3].lineItems.models[0].productVariant.id).toEqual(353);
+  expect(orders.models[3].lineItems.models[0].productVariant.product.id).toEqual(8);
+  expect(orders.models[3].lineItems.models[0].productVariant.size.id).toEqual(20);
+  expect(orders.models[3].lineItems.models[0].productVariant.color.id).toEqual(10);
+  expect(orders.models[3].lineItems.models[0].productVariant.gender.id).toEqual(3);
+  expect(orders.models[3].lineItems.models[0].productVariant.productVariantImages.models.length).toEqual(1);
+  expect(orders.models[3].lineItems.models[0].productVariant.productVariantImages.models[0].id).toEqual(789);
+  expect(orders.models[3].lineItems.models[0].parcelLineItems.models.length).toEqual(1);
+  expect(orders.models[3].lineItems.models[0].parcelLineItems.models[0].id).toEqual(3338);
+  expect(orders.models[3].lineItems.models[0].parcelLineItems.models[0].parcel.id).toEqual(3304);
+  expect(orders.models[3].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models.length).toEqual(3);
+  expect(orders.models[3].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[0].id).toEqual(87279);
+  expect(orders.models[3].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[1].id).toEqual(87278);
+  expect(orders.models[3].lineItems.models[0].parcelLineItems.models[0].parcel.parcelEvents.models[2].id).toEqual(84361);
+  expect(orders.models[3].lineItems.models[1].id).toEqual(17297);
+  expect(orders.models[3].lineItems.models[1].productVariant.id).toEqual(344);
+  expect(orders.models[3].lineItems.models[1].productVariant.product.id).toEqual(6);
+  expect(orders.models[3].lineItems.models[1].productVariant.size.id).toEqual(22);
+  expect(orders.models[3].lineItems.models[1].productVariant.color.id).toEqual(8);
+  expect(orders.models[3].lineItems.models[1].productVariant.gender.id).toEqual(3);
+  expect(orders.models[3].lineItems.models[1].productVariant.productVariantImages.models.length).toEqual(1);
+  expect(orders.models[3].lineItems.models[1].productVariant.productVariantImages.models[0].id).toEqual(780);
+  expect(orders.models[3].lineItems.models[1].parcelLineItems.models.length).toEqual(1);
+  expect(orders.models[3].lineItems.models[1].parcelLineItems.models[0].id).toEqual(2311);
+  expect(orders.models[3].lineItems.models[1].parcelLineItems.models[0].parcel.id).toEqual(2317);
+  expect(orders.models[3].lineItems.models[1].parcelLineItems.models[0].parcel.parcelEvents.models.length).toEqual(3);
+  expect(orders.models[3].lineItems.models[1].parcelLineItems.models[0].parcel.parcelEvents.models[0].id).toEqual(52627);
+  expect(orders.models[3].lineItems.models[1].parcelLineItems.models[0].parcel.parcelEvents.models[1].id).toEqual(52626);
+  expect(orders.models[3].lineItems.models[1].parcelLineItems.models[0].parcel.parcelEvents.models[2].id).toEqual(48326);
+  expect(orders.models[4].id).toEqual(13888);
+  expect(orders.models[4].customer.id).toEqual(5390);
+  expect(orders.models[4].physicalAddress.id).toEqual(7608);
+  expect(orders.models[4].lineItems.models.length).toEqual(1);
+  expect(orders.models[4].lineItems.models[0].id).toEqual(16900);
+  expect(orders.models[4].lineItems.models[0].productVariant.id).toEqual(363);
+  expect(orders.models[4].lineItems.models[0].productVariant.product.id).toEqual(5);
+  expect(orders.models[4].lineItems.models[0].productVariant.size.id).toEqual(8);
+  expect(orders.models[4].lineItems.models[0].productVariant.color.id).toEqual(12);
+  expect(orders.models[4].lineItems.models[0].productVariant.gender.id).toEqual(1);
+  expect(orders.models[4].lineItems.models[0].productVariant.productVariantImages.models.length).toEqual(1);
+  expect(orders.models[4].lineItems.models[0].productVariant.productVariantImages.models[0].id).toEqual(829);
 });

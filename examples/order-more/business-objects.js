@@ -10,7 +10,17 @@ const getBusinessObjects = () => [
   require('./bo/color'),
   require('./bo/gender'),
   require('./bo/shipment'),
-  require('./bo/shipment-actual-product-variant')
+  require('./bo/shipment-actual-product-variant'),
+  require('./bo/refund'),
+  require('./bo/order'),
+  require('./bo/line-item'),
+  require('./bo/customer'),
+  require('./bo/physical-address'),
+  require('./bo/utm-source'),
+  require('./bo/utm-medium'),
+  require('./bo/parcel-line-item'),
+  require('./bo/parcel'),
+  require('./bo/parcel-event')
 ];
 
 module.exports = getBusinessObjects;
