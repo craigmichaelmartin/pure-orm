@@ -17,6 +17,7 @@ const seven = require('../../test-utils/seven/results.json');
 const eight = require('../../test-utils/eight/results.json');
 const nine = require('../../test-utils/nine/results.json');
 const ten = require('../../test-utils/ten/results.json');
+const eleven = require('../../test-utils/eleven/results.json');
 
 test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with all one-to-one or one-to-many tables)', () => {
   const order = Order.createOneFromDatabase(one);
@@ -392,7 +393,7 @@ test('Bo#parseFromDatabase with just top level nodes', () => {
 // Problem is when oldest parent is an empty join record and is not included
 // which results in the oldest parent search returning -1 and parent heirarchy
 // is thus messed up.
-test('Bo#parseFromDatabase ', () => {
+test('Bo#parseFromDatabase 10', () => {
   let orders;
   try {
     // This failed when the bug was present
@@ -510,4 +511,20 @@ test('Bo#parseFromDatabase ', () => {
   expect(orders.models[4].lineItems.models[0].productVariant.gender.id).toEqual(1);
   expect(orders.models[4].lineItems.models[0].productVariant.productVariantImages.models.length).toEqual(1);
   expect(orders.models[4].lineItems.models[0].productVariant.productVariantImages.models[0].id).toEqual(829);
+});
+
+// Issue occcurs in nestClump
+// Problem from early returning not logging bo so parent hierarcy was missing it
+test('Bo#parseFromDatabase 11', () => {
+  let orders;
+  try {
+    // This failed when the bug was present
+    orders = OrderFull.createFromDatabase(eleven);
+  } catch (e) {
+    expect(e).not.toBeDefined();
+  }
+  expect(orders).toBeDefined();
+  // Lots of other assertions that are unrelated and shouldn't be here except
+  // I'm insecure about the lack of tests so just going at it cause I can.
+  // TODO add more later
 });

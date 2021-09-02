@@ -205,7 +205,7 @@ module.exports = ({ getBusinessObjects }) =>
             // shown to be the parent (of parcel_events).
             const ec = bo[nodePointingToIt.BoCollection.displayName];
             if (ec && ec.models.find(m => m === nodePointingToIt)) {
-              // nodes = [bo, ...nodes];
+              nodes = [bo, ...nodes];
               return;
             }
           }
