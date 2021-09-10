@@ -119,7 +119,33 @@ Things to note:
 
 - Our DAO returns a single Person business object which is properly structured from the relational row records!
 - Our query is executed with a `one` method. The DAO methods for `one`, `oneOrNone`, `many`, `any` ensure their count against the number of generated top level business objects - not the number of relational row records the sql expression returns!
-- Rather than manually specifying our columns in the sql select expression, we use the business object's `getSQLSelectClause`. This is purely a convenience method which namespaces each column with the table name prefix to ensure column names don't collide. (You are welcome to do this by hand if you don't mind the tedium.)
+- Rather than manually specifying our columns in the sql select expression, we use the business object's `getSQLSelectClause`. This is purely a convenience method which namespaces each column with the table name prefix to ensure column names don't collide (for example, the person, job, and employer `id`s would collide if not namespaced, as would person and employer `name`s). You are welcome to do this by hand instead of using the convenience methods (as were used above), if you don't mind the tedium:
+  ```javascript
+  class PersonDAO extends BaseDAO {
+    get({ id }) {
+      // Example showing you can manually specific the select expression fields
+      // instead of using a business object's `getSQLSelectClause` convenience
+      // method. Note: you must namespace the field with table name and hashtag.
+      const query = `
+        SELECT
+          person.id as "person#id",
+          person.name as "person#name",
+          job.id as "job#id",
+          job.person_id: "job#person_id",
+          job.employer_id: "job#employer_id",
+          job.start_date: "job#start_date",
+          job.end_date: "job#end_date",
+          employer.id as "employer#id",
+          employer.name as "employer#name"
+        FROM person
+        JOIN job on person.id = job.person_id
+        JOIN employer on job.employer_id = employer.id
+        WHERE id = $(id)
+      `;
+      return this.one(query, { id });
+    }
+  }
+  ```
 
 ## Usage
 
