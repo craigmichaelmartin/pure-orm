@@ -100,7 +100,7 @@ Person {
       Job {
         id: 278,
         personId: 55,
-        employerId: 26
+        employerId: 26,
         startDate: '2021-01-01',
         endDate: '2021-12-31',
         employer: Employer {
@@ -192,7 +192,7 @@ const renderProfile = (req, res) => {
         {
           id: 278,
           personId: 55,
-          employerId: 26
+          employerId: 26,
           startDate: '2021-01-01',
           endDate: '2021-12-31',
           employer: {
@@ -259,7 +259,7 @@ const renderProfile = (req, res) => {
 -       {
 -         id: 278,
 -         personId: 55,
--         employerId: 26
+-         employerId: 26,
 -         startDate: '2021-01-01',
 -         endDate: '2021-12-31',
 -         employer: {
