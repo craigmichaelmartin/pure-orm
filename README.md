@@ -76,7 +76,7 @@ class PersonDAO extends BaseDAO {
 And use it like this:
 
 ```javascript
-const person = personDAO.get(55);
+const person = await personDAO.get({ id: 55 });
 console.log(person);
 ```
 
@@ -115,9 +115,9 @@ Person {
 
 > This is a quick showcase. To see how to wire up this code, see the full [Practical Example](#practical-example) below.
 
-Things to note:
+### Things to Note:
 
-- Our DAO returns a single Person business object which is properly structured from the relational row records!
+- Our DAO returns a single Person business object which is properly structured from the many relational row records!
 - Our query is executed with a `one` method. The DAO methods for `one`, `oneOrNone`, `many`, `any` ensure their count against the number of generated top level business objects - not the number of relational row records the sql expression returns!
 - Rather than manually specifying our columns in the sql select expression, we use the business object's `getSQLSelectClause`. This is purely a convenience method which namespaces each column with the table name prefix to ensure column names don't collide (for example, the person, job, and employer `id`s would collide if not namespaced, as would person and employer `name`s). You are welcome to do this by hand instead of using the convenience methods (as were used above), if you don't mind the tedium:
   ```javascript
@@ -186,7 +186,7 @@ const renderProfile = (req, res) => {
           endDate: '2020-12-31',
           employer: {
             id: 17,
-            name: 'Good Corp',
+            name: 'Good Corp'
           }
         },
         {
@@ -197,7 +197,7 @@ const renderProfile = (req, res) => {
           endDate: '2021-12-31',
           employer: {
             id: 26,
-            name: 'Better Corp',
+            name: 'Better Corp'
           }
         }
       ]
@@ -270,8 +270,7 @@ const renderProfile = (req, res) => {
 -     ]
 -   }
 - };
-+ const personId = req.params.id;
-+ const person = personDAO.get({personId});
++ const person = personDAO.get({ id: req.params.id });
   res.render('profile.html', person);
 ```
 
