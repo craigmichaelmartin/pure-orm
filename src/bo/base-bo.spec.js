@@ -18,6 +18,8 @@ const eight = require('../../test-utils/eight/results.json');
 const nine = require('../../test-utils/nine/results.json');
 const ten = require('../../test-utils/ten/results.json');
 const eleven = require('../../test-utils/eleven/results.json');
+const twelve = require('../../test-utils/twelve/results.json');
+const Prompt = require('../../test-utils/twelve/bo/prompt');
 
 test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with all one-to-one or one-to-many tables)', () => {
   const order = Order.createOneFromDatabase(one);
@@ -527,4 +529,19 @@ test('Bo#parseFromDatabase 11', () => {
   // Lots of other assertions that are unrelated and shouldn't be here except
   // I'm insecure about the lack of tests so just going at it cause I can.
   // TODO add more later
+});
+
+// Issue occcurs in nestClump
+// Problem when a table references another model twice (two columns)
+test('Bo#parseFromDatabase 12', () => {
+  let prompt;
+  try {
+    // This failed when the bug was present
+    prompt = Prompt.createFromDatabase(twelve);
+  } catch (e) {
+    expect(e).not.toBeDefined();
+  }
+  expect(prompt).toBeDefined();
+  // Ideally the below should work
+  // expect(prompt.fromMember.id).toEqual(1);
 });

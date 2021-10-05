@@ -156,14 +156,19 @@ module.exports = ({ getBusinessObjects }) =>
           const bo = nodeAlreadySeen || _bo;
           const isNodeAlreadySeen = !!nodeAlreadySeen;
           const nodePointingToIt = nodes.find(node => {
-            const index = Object.values(node.constructor.references).indexOf(
-              bo.constructor
-            );
-            if (index === -1) {
+            const indexes = Object.values(node.constructor.references)
+              .map((x, i) => (x === bo.constructor ? i : null))
+              .filter(x => x != null);
+            if (!indexes.length) {
               return false;
             }
-            const property = Object.keys(node.constructor.references)[index];
-            return node[property] === bo.id;
+            for (const index of indexes) {
+              const property = Object.keys(node.constructor.references)[index];
+              if (node[property] === bo.id) {
+                return true;
+              }
+            }
+            return false;
           });
           // For first obj type which is has an instance in nodes array,
           // get its index in nodes array
