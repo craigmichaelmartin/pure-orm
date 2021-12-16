@@ -283,13 +283,13 @@ module.exports = ({ getBusinessObjects }) =>
     getSqlInsertParts() {
       const columns = this.constructor.sqlColumns
         .filter(
-          (column, index) => this[this.constructor.columns[index]] != null
+          (column, index) => this[this.constructor.columns[index]] !== void 0
         )
         .map(col => `"${col}"`)
         .join(', ');
       const values = this.constructor.columns
         .map(column => this[column])
-        .filter(value => value != null);
+        .filter(value => value !== void 0);
       const valuesVar = values.map((value, index) => `$${index + 1}`);
       return { columns, values, valuesVar };
     }
@@ -297,14 +297,14 @@ module.exports = ({ getBusinessObjects }) =>
     getSqlUpdateParts(on = 'id') {
       const clauseArray = this.constructor.sqlColumns
         .filter(
-          (sqlColumn, index) => this[this.constructor.columns[index]] != null
+          (sqlColumn, index) => this[this.constructor.columns[index]] !== void 0
         )
         .map((sqlColumn, index) => `"${sqlColumn}" = $${index + 1}`);
       const clause = clauseArray.join(', ');
       const idVar = `$${clauseArray.length + 1}`;
       const _values = this.constructor.columns
         .map(column => this[column])
-        .filter(value => value != null);
+        .filter(value => value !== void 0);
       const values = [..._values, this[on]];
       return { clause, idVar, values };
     }
