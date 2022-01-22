@@ -20,6 +20,8 @@ const ten = require('../../test-utils/ten/results.json');
 const eleven = require('../../test-utils/eleven/results.json');
 const twelve = require('../../test-utils/twelve/results.json');
 const Prompt = require('../../test-utils/twelve/bo/prompt');
+const thirteen = require('../../test-utils/thirteen/results.json');
+const Member = require('../../test-utils/thirteen/bo/member');
 
 test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with all one-to-one or one-to-many tables)', () => {
   const order = Order.createOneFromDatabase(one);
@@ -544,4 +546,40 @@ test('Bo#parseFromDatabase 12', () => {
   expect(prompt).toBeDefined();
   // Ideally the below should work
   // expect(prompt.fromMember.id).toEqual(1);
+});
+
+// Issue occcurs in nestClump
+// Problem when a table has records that are supposed to nest under root
+// but nest under other stuff below it instead
+// Member
+//  Recommendations [1]
+//   Brand
+//    Recommendations [1]
+//   Passion
+//    Recommendations [2]
+// -- instead of correct --
+// Member
+//  Recommendations[4]
+//   Brand
+//   Passion
+test('Bo#parseFromDatabase 13', () => {
+  const members = Member.createFromDatabase(thirteen);
+  const member = members.models[0];
+  expect(member.recommendations.models.length).toEqual(4);
+  expect(member.recommendations.models[0].brand.id).toEqual(2);
+  expect(member.recommendations.models[0].product.id).toEqual(7);
+  expect(member.recommendations.models[0].category.id).toEqual(1);
+  expect(member.recommendations.models[0].recommendationAudiences.models[0].audience.id).toEqual(1);
+  expect(member.recommendations.models[1].brand.id).toEqual(2);
+  expect(member.recommendations.models[1].product.id).toEqual(1);
+  expect(member.recommendations.models[1].category.id).toEqual(2);
+  expect(member.recommendations.models[1].recommendationAudiences.models[0].audience.id).toEqual(1);
+  expect(member.recommendations.models[2].brand.id).toEqual(3);
+  expect(member.recommendations.models[2].product.id).toEqual(27);
+  expect(member.recommendations.models[2].category.id).toEqual(3);
+  expect(member.recommendations.models[2].recommendationAudiences.models[0].audience.id).toEqual(1);
+  expect(member.recommendations.models[3].brand.id).toEqual(6);
+  expect(member.recommendations.models[3].product.id).toEqual(75);
+  expect(member.recommendations.models[3].category.id).toEqual(4);
+  expect(member.recommendations.models[3].recommendationAudiences.models[0].audience.id).toEqual(1);
 });

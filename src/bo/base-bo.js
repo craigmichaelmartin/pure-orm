@@ -185,8 +185,8 @@ module.exports = ({ getBusinessObjects }) =>
             return null;
           }, null);
           const parentHeirarchy = [
-            ...nodes.slice(0, indexOfOldestParent + 1).reverse(),
-            root
+            root,
+            ...nodes.slice(0, indexOfOldestParent + 1).reverse()
           ];
           const nodeItPointsTo = parentHeirarchy.find(parent => {
             const index = Object.values(bo.constructor.references).indexOf(
