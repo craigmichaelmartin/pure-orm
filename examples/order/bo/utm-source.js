@@ -1,6 +1,8 @@
-const Base = require('./base');
+class UtmSource {
+  constructor(props) {
+    Object.assign(this, props);
+  }
 
-class UtmSource extends Base {
   static get tableName() {
     return 'utm_source';
   }

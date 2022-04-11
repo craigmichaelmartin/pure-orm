@@ -1,10 +1,13 @@
-const BaseBo = require('./base');
 const Orders = require('./orders');
 const UtmSource = require('./utm-source');
 const Customer = require('./customer');
 const PhysicalAddress = require('./physical-address');
 
-class Order extends BaseBo {
+class Order {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return Orders;
   }

@@ -1,8 +1,11 @@
-const Base = require('./base');
 const Order = require('./order');
 const Refunds = require('./refunds');
 
-class Refund extends Base {
+class Refund {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return Refunds;
   }

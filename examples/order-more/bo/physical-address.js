@@ -1,7 +1,10 @@
-const Base = require('./base');
 const PhysicalAddresses = require('./physical-addresses');
 
-class PhysicalAddress extends Base {
+class PhysicalAddress {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return PhysicalAddresses;
   }

@@ -1,7 +1,10 @@
-const Base = require('./base');
 const Genders = require('./genders');
 
-class Gender extends Base {
+class Gender {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return Genders;
   }

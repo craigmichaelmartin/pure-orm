@@ -1,8 +1,9 @@
-const { BaseBoCollection } = require('../../../src/index');
-
-class ProductVariantImages extends BaseBoCollection {
+class ProductVariantImages {
   static get Bo() {
     return require('./product-variant-image'); // eslint-disable-line
+  }
+  constructor(props = {}) {
+    this.models = props.models || [];
   }
 }
 

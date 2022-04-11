@@ -1,8 +1,9 @@
-const { BaseBoCollection } = require('../../../src/index');
-
-class Passions extends BaseBoCollection {
+class Passions {
   static get Bo() {
     return require('./passion'); // eslint-disable-line
+  }
+  constructor(props = {}) {
+    this.models = props.models || [];
   }
 }
 

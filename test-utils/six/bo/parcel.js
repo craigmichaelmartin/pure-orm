@@ -1,7 +1,10 @@
-const Base = require('./base');
 const Parcels = require('./parcels');
 
-class Parcel extends Base {
+class Parcel {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return Parcels;
   }

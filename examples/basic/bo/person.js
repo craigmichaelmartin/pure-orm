@@ -1,6 +1,8 @@
-const BaseBo = require('./base');
+class Person {
 
-class Person extends BaseBo {
+  constructor(props) {
+    Object.assign(this, props);
+  }
   static get tableName() {
     return 'person';
   }

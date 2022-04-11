@@ -1,8 +1,11 @@
-const Base = require('./base');
 const Prompts = require('./prompts');
 const Member = require('./member');
 
-class Prompt extends Base {
+class Prompt {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return Prompts;
   }

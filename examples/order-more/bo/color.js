@@ -1,7 +1,10 @@
-const Base = require('./base');
 const Colors = require('./colors');
 
-class Color extends Base {
+class Color {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return Colors;
   }

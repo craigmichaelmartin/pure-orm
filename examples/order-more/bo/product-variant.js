@@ -1,4 +1,3 @@
-const Base = require('./base');
 const ProductVariants = require('./product-variants');
 const Product = require('./product');
 const ActualProductVariant = require('./actual-product-variant');
@@ -6,7 +5,11 @@ const Color = require('./color');
 const Gender = require('./gender');
 const Size = require('./size');
 
-class ProductVariant extends Base {
+class ProductVariant {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return ProductVariants;
   }

@@ -1,6 +1,9 @@
-const Base = require('./base');
+class Tag {
 
-class Tag extends Base {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   static get tableName() {
     return 'tag';
   }

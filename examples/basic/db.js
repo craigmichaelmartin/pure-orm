@@ -1,24 +1,15 @@
 const pgPromise = require('pg-promise');
-const {
-  rdsDbName,
-  rdsHostname,
-  rdsPassword,
-  rdsPort,
-  rdsUsername,
-  debugMode
-} = require('./secret-stuffz');
-
 const options = {
-  ...(debugMode && { query: e => console.log(e.query) })
+  ...(process.env.DEBUG && { query: e => console.log(e.query) })
 };
 
 const pgp = pgPromise(options);
 const connectionObject = {
-  host: rdsHostname,
-  port: rdsPort,
-  database: rdsDbName,
-  user: rdsUsername,
-  password: rdsPassword
+  host: process.env.DB_HOSTNAME,
+  port: process.env.DB_PORT,
+  database: process.env.DB_NAME,
+  user: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD
 };
 const db = pgp(connectionObject);
 

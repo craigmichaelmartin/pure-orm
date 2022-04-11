@@ -1,9 +1,12 @@
-const Base = require('./base');
 const LineItems = require('./line-items');
 const ProductVariant = require('./product-variant');
 const Order = require('./order');
 
-class LineItem extends Base {
+class LineItem {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return LineItems;
   }

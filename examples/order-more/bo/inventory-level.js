@@ -1,9 +1,12 @@
-const Base = require('./base');
 const InventoryLevels = require('./inventory-levels');
 const ActualProductVariant = require('./actual-product-variant');
 const Shipment = require('./shipment');
 
-class InventoryLevel extends Base {
+class InventoryLevel {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return InventoryLevels;
   }

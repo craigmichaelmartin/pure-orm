@@ -1,32 +1,33 @@
-const Order = require('../../examples/order/bo/order');
-const Article = require('../../examples/blog/bo/article');
-const Articles = require('../../examples/blog/bo/articles');
-const InventoryLevel = require('../../examples/order-more/bo/inventory-level');
-const OrderFull = require('../../examples/order-more/bo/order');
-const Shipment = require('../../examples/order-more/bo/shipment');
-const FeatureSwitch = require('../../test-utils/nine/bo/feature-switch');
-const one = require('../../test-utils/one/results.json');
-const two = require('../../test-utils/two/results');
-const three = require('../../test-utils/three/results');
-const four = require('../../test-utils/four/results.json');
-const Order5 = require('../../test-utils/five/bo/order');
-const five = require('../../test-utils/five/results.json');
-const Parcel = require('../../test-utils/six/bo/parcel');
-const six = require('../../test-utils/six/results.json');
-const seven = require('../../test-utils/seven/results.json');
-const eight = require('../../test-utils/eight/results.json');
-const nine = require('../../test-utils/nine/results.json');
-const ten = require('../../test-utils/ten/results.json');
-const eleven = require('../../test-utils/eleven/results.json');
-const twelve = require('../../test-utils/twelve/results.json');
-const Prompt = require('../../test-utils/twelve/bo/prompt');
-const thirteen = require('../../test-utils/thirteen/results.json');
-const Member = require('../../test-utils/thirteen/bo/member');
+/* eslint-disable max-len */
+const { createOneFromDatabase, createFromDatabase } = require('pure-orm');
+const { getBusinessObjects: getBusinessObjectsA } = require('../examples/order/orm');
+const { getBusinessObjects: getBusinessObjectsB } = require('../examples/blog/orm');
+const { getBusinessObjects: getBusinessObjectsC } = require('../examples/order-more/orm');
+const { getBusinessObjects: getBusinessObjectsD } = require('../test-utils/nine/orm');
+const { getBusinessObjects: getBusinessObjectsE } = require('../test-utils/five/orm');
+const { getBusinessObjects: getBusinessObjectsF } = require('../test-utils/six/orm');
+const { getBusinessObjects: getBusinessObjectsG } = require('../test-utils/twelve/orm');
+const { getBusinessObjects: getBusinessObjectsH } = require('../test-utils/thirteen/orm');
+const Articles = require('../examples/blog/bo/articles');
+const one = require('../test-utils/one/results.json');
+const two = require('../test-utils/two/results');
+const three = require('../test-utils/three/results');
+const four = require('../test-utils/four/results.json');
+const five = require('../test-utils/five/results.json');
+const six = require('../test-utils/six/results.json');
+const seven = require('../test-utils/seven/results.json');
+const eight = require('../test-utils/eight/results.json');
+const nine = require('../test-utils/nine/results.json');
+const ten = require('../test-utils/ten/results.json');
+const eleven = require('../test-utils/eleven/results.json');
+const twelve = require('../test-utils/twelve/results.json');
+const thirteen = require('../test-utils/thirteen/results.json');
 
 test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with all one-to-one or one-to-many tables)', () => {
-  const order = Order.createOneFromDatabase(one);
+  const order = createOneFromDatabase(one, getBusinessObjectsA);
   expect(Array.isArray(order)).toBe(false);
   expect(order.id).toEqual(3866);
+  debugger;
   expect(order.utmSource.id).toEqual(6);
   expect(order.lineItems.models.length).toEqual(6);
 
@@ -56,7 +57,7 @@ test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with
 });
 
 test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with many-to-many tables)', () => {
-  const article = Article.createOneFromDatabase(two);
+  const article = createOneFromDatabase(two, getBusinessObjectsB);
   expect(Array.isArray(article)).toBe(false);
   expect(article.id).toEqual(14);
   expect(article.person.id).toEqual(8);
@@ -86,7 +87,7 @@ test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with
 
 test('Bo#parseFromDatabase where multiple rows reduce to many rows with nested objects (with many-to-many tables)', () => {
 
-  const articles = Article.createFromDatabase(three);
+  const articles = createFromDatabase(three, getBusinessObjectsB);
   expect(Array.isArray(articles.models)).toBe(true);
   expect(articles instanceof Articles).toBe(true);
   expect(articles.models.length).toEqual(2);
@@ -138,7 +139,7 @@ test('Bo#parseFromDatabase where multiple rows reduce to many rows with nested o
 // living on its own productVariant (which would keep overwriting itself
 // on the actualProductVariant node).
 test('Bo#parseFromDatabase where node is already seen', () => {
-  const inventoryLevels = InventoryLevel.createFromDatabase(four);
+  const inventoryLevels = createFromDatabase(four, getBusinessObjectsC);
 
   const first = inventoryLevels.models[0];
   expect(first.id).toEqual(15);
@@ -201,7 +202,7 @@ test('Bo#parseFromDatabase where node is already seen', () => {
 // be doing that, but since code coverage all-around isn't great and I already
 // had this fuller json dump from production, I just used it all - YOLO.
 test('Bo#parseFromDatabase where a deeply nested models property was misbehaving', () => {
-  const orders = Order5.createFromDatabase(five);
+  const orders = createFromDatabase(five, getBusinessObjectsE);
   // The assertion that failed when the bug was present
   expect(
     orders.models[0].lineItems.models[1].parcelLineItems.models[0].parcel.parcelEvents.models.length
@@ -246,7 +247,7 @@ test('Bo#parseFromDatabase where a deeply nested models property was misbehaving
 // Issue occcurs in nestClump
 // Problem only surfaced when custom was included
 test('Bo#parseOneFromDatabase where a deeply nested models property was misbehaving', () => {
-  const parcel = Parcel.createOneFromDatabase(six);
+  const parcel = createOneFromDatabase(six, getBusinessObjectsF);
   // The assertion that failed when the bug was present
   expect(parcel.parcelLineItems.models[1].lineItem.order).toBeDefined();
   // Lots of other assertions that are unrelated and shouldn't be here except
@@ -280,7 +281,7 @@ test('Bo#parseOneFromDatabase where a deeply nested models property was misbehav
 //    Color
 // Issue occcurs in nestClump
 test('Bo#parseOneFromDatabase where a deeply nested models property was attaching to wrong parent', () => {
-  const inventoryLevel = InventoryLevel.createOneFromDatabase(seven);
+  const inventoryLevel = createOneFromDatabase(seven, getBusinessObjectsC);
   // The assertion that failed when the bug was present
   expect(inventoryLevel.actualProductVariant.productVariants.models[1]).toBeDefined();
   // Lots of other assertions that are unrelated and shouldn't be here except
@@ -319,7 +320,7 @@ test('Bo#parseOneFromDatabase where a deeply nested models property was attachin
 //     Product
 // Issue occcurs in nestClump
 test('Bo#parseOneFromDatabase where a deeply nested models property was attaching to wrong parent 2', () => {
-  const shipments = Shipment.createFromDatabase(eight);
+  const shipments = createFromDatabase(eight, getBusinessObjectsC);
   // The assertion that failed when the bug was present
   expect(shipments.models[0].shipmentActualProductVariants.models[1].actualProductVariant.productVariants).toBeDefined();
   // IN ADDITION TO ABOVE ASSERTION and helpful test description of what is
@@ -381,7 +382,7 @@ test('Bo#parseFromDatabase with just top level nodes', () => {
   let featureSwitches;
   try {
     // This failed when the bug was present
-    featureSwitches = FeatureSwitch.createFromDatabase(nine);
+    featureSwitches = createFromDatabase(nine, getBusinessObjectsD);
   } catch (e) {
     expect(e).not.toBeDefined();
   }
@@ -401,7 +402,7 @@ test('Bo#parseFromDatabase 10', () => {
   let orders;
   try {
     // This failed when the bug was present
-    orders = OrderFull.createFromDatabase(ten);
+    orders = createFromDatabase(ten, getBusinessObjectsC);
   } catch (e) {
     expect(e).not.toBeDefined();
   }
@@ -523,14 +524,11 @@ test('Bo#parseFromDatabase 11', () => {
   let orders;
   try {
     // This failed when the bug was present
-    orders = OrderFull.createFromDatabase(eleven);
+    orders = createFromDatabase(eleven, getBusinessObjectsC);
   } catch (e) {
     expect(e).not.toBeDefined();
   }
   expect(orders).toBeDefined();
-  // Lots of other assertions that are unrelated and shouldn't be here except
-  // I'm insecure about the lack of tests so just going at it cause I can.
-  // TODO add more later
 });
 
 // Issue occcurs in nestClump
@@ -539,7 +537,7 @@ test('Bo#parseFromDatabase 12', () => {
   let prompt;
   try {
     // This failed when the bug was present
-    prompt = Prompt.createFromDatabase(twelve);
+    prompt = createFromDatabase(twelve, getBusinessObjectsG);
   } catch (e) {
     expect(e).not.toBeDefined();
   }
@@ -563,7 +561,7 @@ test('Bo#parseFromDatabase 12', () => {
 //   Brand
 //   Passion
 test('Bo#parseFromDatabase 13', () => {
-  const members = Member.createFromDatabase(thirteen);
+  const members = createFromDatabase(thirteen, getBusinessObjectsH);
   const member = members.models[0];
   expect(member.recommendations.models.length).toEqual(4);
   expect(member.recommendations.models[0].brand.id).toEqual(2);
