@@ -1,11 +1,12 @@
-const { BaseBoCollection } = require('../../../src/index');
-
-class FeatureSwitches extends BaseBoCollection {
+class FeatureSwitches {
   static get displayName() {
     return 'featureSwitches';
   }
   static get Bo() {
     return require('./feature-switch'); // eslint-disable-line
+  }
+  constructor(props = {}) {
+    this.models = props.models || [];
   }
 }
 

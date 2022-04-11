@@ -1,8 +1,9 @@
-const { BaseBoCollection } = require('../../../src/index');
-
-class ShipmentActualProductVariants extends BaseBoCollection {
+class ShipmentActualProductVariants {
   static get Bo() {
     return require('./shipment-actual-product-variant'); // eslint-disable-line
+  }
+  constructor(props = {}) {
+    this.models = props.models || [];
   }
 }
 

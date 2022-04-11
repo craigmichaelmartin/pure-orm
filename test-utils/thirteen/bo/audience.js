@@ -1,7 +1,10 @@
-const Base = require('./base');
 const Audiences = require('./audiences');
 
-class Audience extends Base {
+class Audience {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return Audiences;
   }

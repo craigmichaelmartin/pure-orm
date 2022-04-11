@@ -1,4 +1,3 @@
-const Base = require('./base');
 const Recommendations = require('./recommendations');
 const Member = require('./member');
 const Brand = require('./brand');
@@ -6,7 +5,11 @@ const Product = require('./product');
 const Category = require('./category');
 const Passion = require('./passion');
 
-class Recommendation extends Base {
+class Recommendation {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return Recommendations;
   }

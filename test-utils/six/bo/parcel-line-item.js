@@ -1,9 +1,12 @@
-const Base = require('./base');
 const ParcelLineItems = require('./parcel-line-items');
 const Parcel = require('./parcel');
 const LineItem = require('./line-item');
 
-class ParcelLineItem extends Base {
+class ParcelLineItem {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return ParcelLineItems;
   }

@@ -1,10 +1,9 @@
-const BaseDAO = require('./base');
 const Person = require('../bo/person');
 
 /*
  * The person data abstraction for the persistence mechinism.
  */
-module.exports = class PersonDAO extends BaseDAO {
+module.exports = class PersonDAO {
   get Bo() {
     return Person;
   }

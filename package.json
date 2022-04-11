@@ -12,12 +12,14 @@
     "test:unit:debug": "node --inspect-brk node_modules/.bin/jest --runInBand --verbose",
     "test:format": "prettier -l \"**/*.{js,json,md}\" \"!src/**/*.spec.js\" \"!coverage/**/*\"",
     "format": "prettier --write  \"**/*.{js,json,md}\" \"!src/**/*.spec.js\" \"!coverage/**/*\"",
+    "lint": "eslint .",
     "pub": "npm run test && np"
   },
   "dependencies": {
     "camelcase": "^5.0.0"
   },
   "devDependencies": {
+    "eslint": "^2.8.0",
     "jest": "^24.8.0",
     "np": "^5.0.1",
     "prettier": "^1.9.2"
@@ -46,6 +48,6 @@
     "pure",
     "toolkit",
     "business objects",
-    "data access objects"
+    "data access layer"
   ]
 }

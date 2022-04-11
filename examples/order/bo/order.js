@@ -1,8 +1,11 @@
-const BaseBo = require('./base');
 const Orders = require('./orders');
 const UtmSource = require('./utm-source');
 
-class Order extends BaseBo {
+class Order {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return Orders;
   }

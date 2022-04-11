@@ -1,7 +1,10 @@
-const Base = require('./base');
 const Sizes = require('./sizes');
 
-class Size extends Base {
+class Size {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return Sizes;
   }

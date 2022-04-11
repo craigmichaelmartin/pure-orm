@@ -1,8 +1,11 @@
-const Base = require('./base');
 const ParcelEvents = require('./parcel-events');
 const Parcel = require('./parcel');
 
-class ParcelEvent extends Base {
+class ParcelEvent {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return ParcelEvents;
   }

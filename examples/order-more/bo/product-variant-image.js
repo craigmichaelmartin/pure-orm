@@ -1,8 +1,11 @@
-const Base = require('./base');
 const ProductVariantImages = require('./product-variant-images');
 const ProductVariant = require('./product-variant');
 
-class ProductVariantImage extends Base {
+class ProductVariantImage {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return ProductVariantImages;
   }

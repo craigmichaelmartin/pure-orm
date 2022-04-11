@@ -1,7 +1,10 @@
-const Base = require('./base');
 const FeatureSwitches = require('./feature-switches');
 
-class FeatureSwitch extends Base {
+class FeatureSwitch {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return FeatureSwitches;
   }

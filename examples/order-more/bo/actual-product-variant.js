@@ -1,7 +1,10 @@
-const Base = require('./base');
 const ActualProductVariants = require('./actual-product-variants');
 
-class ActualProductVariant extends Base {
+class ActualProductVariant {
+  constructor(props) {
+    Object.assign(this, props);
+  }
+
   get BoCollection() {
     return ActualProductVariants;
   }
