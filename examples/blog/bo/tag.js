@@ -1,5 +1,4 @@
 class Tag {
-
   constructor(props) {
     Object.assign(this, props);
   }

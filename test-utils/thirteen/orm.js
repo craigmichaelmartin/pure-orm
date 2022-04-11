@@ -15,11 +15,11 @@ const getBusinessObjects = () => [
   Category,
   Passion,
   RecommendationAudience,
-  Audience,
+  Audience
 ];
 const orm = create({
   getBusinessObjects,
-  db: void 0,
+  db: void 0
 });
 module.exports = orm;
 module.exports.getBusinessObjects = getBusinessObjects;

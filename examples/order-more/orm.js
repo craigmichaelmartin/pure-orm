@@ -39,11 +39,11 @@ const getBusinessObjects = () => [
   UtmMedium,
   ParcelLineItem,
   Parcel,
-  ParcelEvent,
+  ParcelEvent
 ];
 const orm = create({
   getBusinessObjects,
-  db: void 0,
+  db: void 0
 });
 module.exports = orm;
 module.exports.getBusinessObjects = getBusinessObjects;

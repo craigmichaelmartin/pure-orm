@@ -1,21 +1,19 @@
 const camelCase = require('camelcase');
 
-const getPrimaryKey = (Bo) => {
+const getPrimaryKey = Bo => {
   const primaryKey = Bo.sqlColumnsData.filter(x => x.primaryKey);
   return primaryKey.length > 0 ? primaryKey : ['id'];
 };
 
-const getProperties = (Bo) => {
-  return Bo.sqlColumnsData.map(
-    x => x.property || camelCase(x.column || x)
-  );
+const getProperties = Bo => {
+  return Bo.sqlColumnsData.map(x => x.property || camelCase(x.column || x));
 };
 
-const getSqlColumns = (Bo) => {
+const getSqlColumns = Bo => {
   return Bo.sqlColumnsData.map(x => x.column || x);
 };
 
-const getReferences = (Bo) => {
+const getReferences = Bo => {
   return Bo.sqlColumnsData
     .filter(x => x.references)
     .reduce(
@@ -27,19 +25,19 @@ const getReferences = (Bo) => {
     );
 };
 
-const getDisplayName = (Bo) => {
+const getDisplayName = Bo => {
   return camelCase(Bo.tableName);
 };
 
-const getCollectionDisplayName = (bo) => {
+const getCollectionDisplayName = bo => {
   return bo.BoCollection.displayName || `${getDisplayName(bo.constructor)}s`;
 };
 
-const getPrefixedColumnNames = (Bo) => {
+const getPrefixedColumnNames = Bo => {
   return getSqlColumns(Bo).map(col => `${Bo.tableName}#${col}`);
 };
 
-const getColumns = (Bo) => {
+const getColumns = Bo => {
   return getPrefixedColumnNames(Bo)
     .map(
       (prefixed, index) =>
@@ -49,12 +47,11 @@ const getColumns = (Bo) => {
 };
 
 // Returns unique identifier of bo (the values of the primary keys)
-const getId = (bo) => {
+const getId = bo => {
   return getPrimaryKey(bo.constructor)
     .map(key => bo[key])
     .join('');
 };
-
 
 /*
  * In:
@@ -65,7 +62,7 @@ const getId = (bo) => {
  * Out:
  *  Article {id: 32, ArticleTags articleTags: [ArticleTag {id: 54}, ArticleTag {id: 55}]
  */
-const nestClump = (clump) => {
+const nestClump = clump => {
   clump = clump.map(x => Object.values(x)); // clump wasn't actually what I have documented
   const root = clump[0][0];
   clump = clump.map(row => row.filter((item, index) => index !== 0));
@@ -78,8 +75,7 @@ const nestClump = (clump) => {
     array.forEach(_bo => {
       const nodeAlreadySeen = nodes.find(
         x =>
-          x.constructor.name === _bo.constructor.name &&
-          getId(x) === getId(_bo)
+          x.constructor.name === _bo.constructor.name && getId(x) === getId(_bo)
       );
       const bo = nodeAlreadySeen || _bo;
       const isNodeAlreadySeen = !!nodeAlreadySeen;
@@ -104,9 +100,7 @@ const nestClump = (clump) => {
         if (answer != null) {
           return answer;
         }
-        const index = nodes.findIndex(
-          n => n.constructor === obj.constructor
-        );
+        const index = nodes.findIndex(n => n.constructor === obj.constructor);
         if (index !== -1) {
           return index;
         }
@@ -149,18 +143,16 @@ const nestClump = (clump) => {
         if (collection) {
           collection.models.push(bo);
         } else {
-          nodeItPointsTo[getCollectionDisplayName(bo)] = new bo.BoCollection(
-            { models: [bo] }
-          );
+          nodeItPointsTo[getCollectionDisplayName(bo)] = new bo.BoCollection({
+            models: [bo]
+          });
         }
       } else {
         if (!getId(bo)) {
           // If the join is fruitless; todo: add a test for this path
           return;
         }
-        throw Error(
-          `Could not find how this BO fits: ${JSON.stringify(bo)}`
-        );
+        throw Error(`Could not find how this BO fits: ${JSON.stringify(bo)}`);
       }
       nodes = [bo, ...nodes];
     });
@@ -188,7 +180,7 @@ const nestClump = (clump) => {
  *    ]
  *  ]
  */
-const clumpIntoGroups = (processed) => {
+const clumpIntoGroups = processed => {
   const rootBo = processed[0][0].constructor;
   const clumps = processed.reduce((accum, item) => {
     const id = getPrimaryKey(rootBo)
@@ -218,9 +210,9 @@ const mapToBos = (objectified, getBusinessObjects) => {
             propertyName = camelCase(column);
           } else {
             throw Error(
-              `No property name for "${column}" in business object "${
-                getDisplayName(Bo)
-              }". Non-spec'd columns must begin with "meta_".`
+              `No property name for "${column}" in business object "${getDisplayName(
+                Bo
+              )}". Non-spec'd columns must begin with "meta_".`
             );
           }
         }
@@ -234,10 +226,10 @@ const mapToBos = (objectified, getBusinessObjects) => {
 };
 
 /*
-  * Make objects (based on special table#column names) from flat database
-  * return value.
-  */
-const objectifyDatabaseResult = (result) => {
+ * Make objects (based on special table#column names) from flat database
+ * return value.
+ */
+const objectifyDatabaseResult = result => {
   return Object.keys(result).reduce((obj, text) => {
     const tableName = text.split('#')[0];
     const column = text.split('#')[1];
@@ -254,9 +246,7 @@ const createFromDatabase = (_result, getBusinessObjects) => {
   const clumps = clumpIntoGroups(boified);
   const nested = clumps.map(nestClump);
   const models = nested.map(n => Object.values(n)[0]);
-  return models.length
-    ? new (models[0].BoCollection)({ models })
-    : void 0;
+  return models.length ? new models[0].BoCollection({ models }) : void 0;
 };
 
 const createOneFromDatabase = (_result, getBusinessObjects) => {
@@ -288,7 +278,7 @@ const createManyFromDatabase = (_result, getBusinessObjects) => {
   return collection;
 };
 
-const getSqlInsertParts = (bo) => {
+const getSqlInsertParts = bo => {
   const columns = getSqlColumns(bo.constructor)
     .filter(
       (column, index) => bo[getProperties(bo.constructor)[index]] !== void 0
@@ -317,7 +307,7 @@ const getSqlUpdateParts = (bo, on = 'id') => {
   return { clause, idVar, values };
 };
 
-const getMatchingParts = (bo) => {
+const getMatchingParts = bo => {
   const whereClause = getProperties(bo.constructor)
     .map((property, index) =>
       bo[property] != null
@@ -337,7 +327,7 @@ const getMatchingParts = (bo) => {
 
 // This one returns an object, which allows it to be more versatile.
 // To-do: make this one even better and use it instead of the one above.
-const getMatchingPartsObject = (bo) => {
+const getMatchingPartsObject = bo => {
   const whereClause = getProperties(bo.constructor)
     .map((property, index) =>
       bo[property] != null
@@ -373,10 +363,11 @@ const getNewWith = (bo, sqlColumns, values) => {
 
 const getValueBySqlColumn = (bo, sqlColumn) => {
   return bo[
-    getProperties(bo.constructor)[getSqlColumns(bo.constructor).indexOf(sqlColumn)]
+    getProperties(bo.constructor)[
+      getSqlColumns(bo.constructor).indexOf(sqlColumn)
+    ]
   ];
 };
-
 
 module.exports.getPrimaryKey = getPrimaryKey;
 module.exports.getProperties = getProperties;

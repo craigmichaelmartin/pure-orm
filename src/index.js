@@ -23,7 +23,7 @@ const {
   getMatchingPartsObject,
   getNewWith,
   getValueBySqlColumn,
-  getId,
+  getId
 } = require('./bo');
 
 module.exports.getPrimaryKey = getPrimaryKey;

@@ -1,5 +1,4 @@
 class UtmMedium {
-
   constructor(props) {
     Object.assign(this, props);
   }

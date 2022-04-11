@@ -1,5 +1,4 @@
 class UtmSource {
-
   constructor(props) {
     Object.assign(this, props);
   }

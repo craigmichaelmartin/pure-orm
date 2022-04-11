@@ -66,7 +66,7 @@ const getPerson = ({ id }) => {
     WHERE id = $(id)
   `;
   return orm.one(query, { id });
-}
+};
 
 // ./controllers/rest/person.js
 const { getPerson } = require('./dal/person');
@@ -141,7 +141,7 @@ Person {
       WHERE id = $(id)
     `;
     return orm.one(query, { id });
-  }
+  };
   ```
 
 ## Usage
@@ -324,7 +324,7 @@ const Employer = require('./employer');
 
 const orm = create({
   db,
-  getBusinessObjects: () => [ Person, Job, Employer ],
+  getBusinessObjects: () => [Person, Job, Employer]
 });
 module.exports = BaseBO;
 ```
@@ -433,9 +433,13 @@ const get = (req, res) => {
     return res.json(await orm.get(new Person({ id })));
   }
   if (req.query.name) {
-    return res.json(await orm.getAnyMatching(new Person({ name: req.query.name })));
+    return res.json(
+      await orm.getAnyMatching(new Person({ name: req.query.name }))
+    );
   }
-  res.status(404).json({ error: 'Please specify an id or provide a name filter' });
+  res
+    .status(404)
+    .json({ error: 'Please specify an id or provide a name filter' });
 };
 ```
 
@@ -449,12 +453,13 @@ const get = (req, res) => {
     return res.json(await getPerson(id));
   }
   if (req.query.name) {
-    return res.json(await getPeopleWithName(req.query.name ));
+    return res.json(await getPeopleWithName(req.query.name));
   }
-  res.status(404).json({ error: 'Please specify an id or provide a name filter' });
+  res
+    .status(404)
+    .json({ error: 'Please specify an id or provide a name filter' });
 };
 ```
-
 
 ### Whare are the tradeoffs that PureORM makes in using SQL instead of a query builder API?
 
@@ -475,7 +480,7 @@ The only difference is how the SQL is invoked: `orm.one(query, {})` vs `orm.db.o
 Yes, if you'd like to get the mapping while also passing through some select expressions, use the special meta prefix. For example:
 
 ```javascript
-const getBloggerPayout = ({id, startDate, endDate}) => {
+const getBloggerPayout = ({ id, startDate, endDate }) => {
   const query = `
     SELECT
       ${Person.getSQLSelectClause()},
@@ -533,14 +538,12 @@ An interface which your business object classes need to implement.
 - `get BoCollection()?: BoCollection` - (Optional) returns the business object collection class constructor.
 - `static get displayName()?: string` - (Optional) returns the string display name of the business object (defaults to camelcase of tableName)
 
-
 #### `PureORMCollection`
 
 An abstract class which is the base class your Bo Collection classes extend.
 
 - `static get Bo(): BO` - Returns the individual (singular) business object class constructor.
 - `get displayName()?: BO` - (Optional) returns the string display name of the business object collection (defaults to bo displayName with an "s")
-
 
 #### `create`
 
@@ -577,7 +580,6 @@ Built-in "basic" / generic crud functions
 - `deleteMatching(bo: BaseBO)`
 
 These are just provided because they are so common and straight-forward. While the goal of this library is foster writing SQL in your DAL (which returns pure business objects) some CRUD operations are so common they are included in the ORM. Feel free to completely disregard if you want to write these in your DAL yourself.
-
 
 ## Current Status
 
