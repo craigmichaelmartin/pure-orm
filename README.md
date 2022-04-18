@@ -29,7 +29,7 @@ The name _**pure**ORM_ reflects both of these points - that it is _pure_ ORM (th
 
 #### Concepts
 
-A **Business Object** (BO) is a pure javascript object corresponding to a table.
+A **Business Object** is a pure javascript object corresponding to a table.
 
 - They represent a row of the table data, but as pure javascript objects.
 - They are not connected to the database.
@@ -38,119 +38,15 @@ A **Business Object** (BO) is a pure javascript object corresponding to a table.
 - Their purity allows them to be easy to test/use.
 - These are also referred to as "models".
 
-A **Business Object Collection** (BO Collection) is a group of pure javascript objects.
+A **Business Object Collection** is a group of business objects.
 
-- If your query returns records for multiple business objects, a BO Collection will be created and returned.
-- You can create a BO Collection class for your business objects (in cases where it is useful to have business methods on the collection entity, not just each model entity).
+- If your query returns records for multiple business objects, a Business Object Collection will be created and returned.
+- You can create a Business Object Collection class for your business objects (in cases where it is useful to have business methods on the collection entity, not just each model entity).
 
 A **Data Access Layer** (DAL) is a database-aware abstraction layer where native SQL is written.
 
 - This is not an "expresion language" or "query builder". There are not hundreds of methods mapping the complexity, expressiveness, and nuance of SQL to class objects.
 - Rather, is a data access layer in which native SQL is written, and which returns business objects (properly nested and structured).
-
-## Quick Example
-
-Using PureORM allows you to write code like this:
-
-```javascript
-// ./dal/person.js
-const getPerson = ({ id }) => {
-  const query = `
-    SELECT
-      ${orm.tables.person.columns},
-      ${orm.tables.job.columns},
-      ${orm.tables.employer.columns}
-    FROM person
-    JOIN job on person.id = job.person_id
-    JOIN employer on job.employer_id = employer.id
-    WHERE id = $(id)
-  `;
-  return orm.one(query, { id });
-};
-
-// ./controllers/rest/person.js
-const { getPerson } = require('./dal/person');
-const get = (req, res) => {
-  const person = await getPerson({ id: req.params.id });
-  res.json(person);
-};
-```
-
-Which a GET to that controller would return
-
-```javascript
-Person {
-  id: 55,
-  name: 'John Doe',
-  jobs: JobsCollection {
-    models: [
-      Job {
-        id: 277,
-        personId: 55,
-        employerId: 17,
-        startDate: '2020-01-01',
-        endDate: '2020-12-31',
-        employer: Employer {
-          id: 17,
-          name: 'Good Corp',
-        }
-      },
-      Job {
-        id: 278,
-        personId: 55,
-        employerId: 26,
-        startDate: '2021-01-01',
-        endDate: '2021-12-31',
-        employer: Employer {
-          id: 26,
-          name: 'Better Corp',
-        }
-      }
-    ]
-  }
-}
-```
-
-> This is a quick showcase. To see how to wire up this code, see the full [Practical Example](#practical-example) below.
-
-### Things to Note:
-
-- Our DAL function returns a single Person business object which is properly structured from the many relational row records!
-- Our query is executed with a `one` method. The ORM methods for `one`, `oneOrNone`, `many`, `any` ensure their count against the number of generated top level business objects - not the number of relational row records the sql expression returns!
-- Rather than manually specifying our columns in the sql select expression, we used the orm's getter for columns. This is purely a convenience method which namespaces each column with the table name prefix to ensure column names don't collide (for example, the person, job, and employer `id`s would collide if not namespaced, as would person and employer `name`s). You are welcome to do this by hand instead of using this convenience if you don't mind the tedium:
-  ```javascript
-  // ./dal/person.js
-  const getPerson = ({ id }) => {
-    // Example showing you can manually specify the select expression fields
-    // instead of using the orm's columns getter.
-    // Note: you must namespace the field with table name and hashtag.
-    const query = `
-      SELECT
-        person.id as "person#id",
-        person.name as "person#name",
-        job.id as "job#id",
-        job.person_id: "job#person_id",
-        job.employer_id: "job#employer_id",
-        job.start_date: "job#start_date",
-        job.end_date: "job#end_date",
-        employer.id as "employer#id",
-        employer.name as "employer#name"
-      FROM person
-      JOIN job on person.id = job.person_id
-      JOIN employer on job.employer_id = employer.id
-      WHERE id = $(id)
-    `;
-    return orm.one(query, { id });
-  };
-  ```
-
-## Usage
-
-The exports you'll use from pure-orm:
-
-- `create` is a factory to create your ORM. This factory function accepts an object with two properties.
-  - `getBusinessObjects` which is a function that returns an array of all your business object classes (where each business object must implement static `table` and `sqlColumnsData` fields.
-  - `db` which is an instance of the database driver.
 
 ## Practical Example
 
@@ -159,7 +55,7 @@ Lets take a practical example to see all this in action. Lets fill in the backen
 Lets say we have a database with three tables: person, job, and employer. We want our rest server to return an payload like this for requests which the get method receive.
 
 ```javascript
-// ./controllers/rest/person.js
+// controllers/rest/person.js
 const get = (req, res) => {
   const person = {
     id: 55,
@@ -201,7 +97,7 @@ Based on the tables, I know exactly how to query for this:
 SELECT *
 FROM person
 LEFT JOIN job on person.id = job.person_id
-JOIN employer on job.employer_id = employer.id
+LEFT JOIN employer on job.employer_id = employer.id
 WHERE id = 55;
 ```
 
@@ -225,8 +121,8 @@ npm install --save pg-promise
 Lets remove our hardcoded example, and write our contoller code using functions we want to exist and will create.
 
 ```diff
-// ./controllers/rest/person.js
-+const { getPerson } = require('./dal/person');
+// controllers/rest/person.js
++const { getPerson } = require('../../dal/person');
 const renderProfile = (req, res) => {
 - const person = {
 -   id: 55,
@@ -269,7 +165,7 @@ This looks nice, now let's create the necessary bo and function in the dal.
 Let's create a `/bo` directory and the classes we want.
 
 ```javascript
-// ./bo/person.js
+// bo/person.js
 class Person {
   static tableName = 'person';
   static sqlColumnsData = ['id', 'name'];
@@ -279,7 +175,7 @@ module.exports = Person;
 ```
 
 ```javascript
-// ./bo/job.js
+// bo/job.js
 const Person = require('./person');
 const Employer = require('./employer');
 
@@ -298,7 +194,7 @@ module.exports = Job;
 ```
 
 ```javascript
-// ./bo/employer.js
+// bo/employer.js
 class Employer {
   static tableName = 'employer';
   static sqlColumnsData = ['id', 'name'];
@@ -315,24 +211,24 @@ We've not got our three business object classes. To review, each business object
 ### Step 4: Creating our ORM
 
 ```javascript
-// ./factories/orm.js
-const db = require('./db');
+// factories/orm.js
 const { create } = require('pure-orm');
-const Person = require('./person');
-const Job = require('./job');
-const Employer = require('./employer');
+const db = require('./db');
+const Person = require('../bo/person');
+const Job = require('../bo/job');
+const Employer = require('../bo/employer');
 
 const orm = create({
   db,
   getBusinessObjects: () => [Person, Job, Employer]
 });
-module.exports = BaseBO;
+module.exports = orm;
 ```
 
 ### Step 4: Creating the DAL function
 
 ```javascript
-// ./dal/person.js
+// dal/person.js
 const orm = require('../factories/orm');
 
 const getPerson({ id }) {
@@ -351,14 +247,42 @@ const getPerson({ id }) {
 module.exports = getPerson;
 ```
 
-Notice that we're using `orm.one`, which is what we want. The DAO methods for `one`, `oneOrNone`, `many`, `any` ensure their count against the number of generated top level business objects - not the number of rows the sql expression returns!
+Some things to note:
+- Our DAL function returns a single Person business object which is properly structured from the many relational row records!
+- Our query is executed with a `one` method. The ORM methods for `one`, `oneOrNone`, `many`, `any` ensure their count against the number of generated top level business objects - not the number of relational row records the sql expression returns!
+- Rather than manually specifying our columns in the sql select expression, we used the orm's getter for columns. This is purely a convenience method which namespaces each column with the table name prefix to ensure column names don't collide (for example, the person, job, and employer `id`s would collide if not namespaced, as would person and employer `name`s). You are welcome to do this by hand instead of using this convenience if you don't mind the tedium:
+  ```javascript
+  // dal/person.js
+  const getPerson = ({ id }) => {
+    // Example showing you can manually specify the select expression fields
+    // instead of using the orm's columns getter.
+    // Note: you must namespace the field with table name and hashtag.
+    const query = `
+      SELECT
+        person.id as "person#id",
+        person.name as "person#name",
+        job.id as "job#id",
+        job.person_id: "job#person_id",
+        job.employer_id: "job#employer_id",
+        job.start_date: "job#start_date",
+        job.end_date: "job#end_date",
+        employer.id as "employer#id",
+        employer.name as "employer#name"
+      FROM person
+      JOIN job on person.id = job.person_id
+      JOIN employer on job.employer_id = employer.id
+      WHERE id = $(id)
+    `;
+    return orm.one(query, { id });
+  };
+  ```
 
 ### Step 6: Creating the Database Driver Instance
 
 The last step is creating the datebase driver, that we had imported up in `./factories/orm`.
 
 ```javascript
-// ./factories/db.js
+// factories/db.js
 const pgPromise = require('pg-promise');
 const pgp = pgPromise();
 module.exports = pgp({
@@ -377,7 +301,7 @@ That's it! Our example controller code now works! The `getPerson` function in ou
 ### Can you show a more complex business object and collection?
 
 ```javascript
-// ./bo/library.js
+// bo/library.js
 const Libraries = require('./libraries');
 class Library {
   get BoCollection() {
@@ -405,7 +329,7 @@ class Library {
 ```
 
 ```javascript
-// ./bo/libraries.js
+// bo/libraries.js
 class Library {
   static get Bo() {
     return require('./person'); // eslint-disable-line
@@ -424,13 +348,13 @@ class Library {
 
 The goal of PureORM is to foster writing SQL and receiving pure business objects. That said, some SQL is so common that we preload the created ORM with with some basic CRUD operations.
 
-For example, rather than every entity's DAL needing basic get, create, etc method, you can use:
+For example, rather than every entity's DAL needing basic get, create, etc method, you can use built-in orm functions.
 
 ```javascript
-// ./controllers/rest/person.js
+// controllers/rest/person.js
 const get = (req, res) => {
   if (req.params.id) {
-    return res.json(await orm.get(new Person({ id })));
+    return res.json(await orm.getMatching(new Person({ id })));
   }
   if (req.query.name) {
     return res.json(
@@ -446,7 +370,7 @@ const get = (req, res) => {
 At any point you can ditch these built-ins and write some SQL in a DAL function.
 
 ```javascript
-// ./controllers/rest/person.js
+// controllers/rest/person.js
 const { getPerson, getPeopleWithName } = require('../../dal/person');
 const get = (req, res) => {
   if (req.params.id) {
@@ -520,6 +444,73 @@ PureORM
 
 ## API
 
+### Functions
+
+#### `create`
+
+```typescript
+function create(options: {
+  getBusinessObjects: () => Array<new() => PureORMEntity>;
+  db: DataBaseDriver;
+ }): PureORM
+```
+
+The factory function for creating your ORM.
+
+**Parameters**
+
+- `getBusinessObjects: () => Array<PureORMEntity>` - A function which returns an array of all the business object classes (where each business object must implement `PureORMEntity`).
+- `db: <DataBaseDriverInstance>` - A database driver instance.
+
+**Return Value**
+
+Your `PureORM` instance.
+
+### Interfaces
+
+#### `PureORM`
+
+```typescript
+interface PureORM {
+  one(query: string, params: object);
+  oneOrNone(query: string, params: object);
+  many(query: string, params: object);
+  any(query: string, params: object);
+  none(query: string, params: object);
+  getMatching(bo: PureORMEntity);
+  getOneOrNoneMatching(bo: PureORMEntity);
+  getAnyMatching(bo: PureORMEntity);
+  getAllMatching(bo: PureORMEntity);
+  create(bo: PureORMEntity);
+  update(bo: PureORMEntity);
+  delete(bo: PureORMEntity);
+  deleteMatching(bo: PureORMEntity);
+}
+```
+
+It has the following query methods:
+
+- `one(query: string, params: object)` - executes a query and returns a Bo, or throws.
+- `oneOrNone(query: string, params: object)` - executes a query and returns a Bo or undefined, or throws.
+- `many(query: string, params: object)` - executes a query and returns a BoCollection with at least one model, or throws.
+- `any(query: string, params: object)` - executes a query and returns a BoCollection.
+- `none(query: string, params: object)` - executes a query and returns null.
+
+(Note these orm query methods ensure their count against the number of generated top level business objects are created - not the number of relational rows returned from the database driver! Thus, for example, `one` understands that there may be multiple result rows (which a database driver's `one` query method would throw at) but which correctly nest into one PureORMEntity.)
+
+Built-in "basic" / generic crud functions
+
+- `getMatching(bo: PureORMEntity)`
+- `getOneOrNoneMatching(bo: PureORMEntity)`
+- `getAnyMatching(bo: PureORMEntity)`
+- `getAllMatching(bo: PureORMEntity)`
+- `create(bo: PureORMEntity)`
+- `update(bo: PureORMEntity)`
+- `delete(bo: PureORMEntity)`
+- `deleteMatching(bo: PureORMEntity)`
+
+These are just provided because they are so common and straight-forward. While the goal of this library is foster writing SQL in your DAL (which returns pure business objects) some CRUD operations are so common they are included in the ORM. Feel free to completely disregard if you want to write these in your DAL yourself.
+
 ### Interfaces
 
 #### `PureORMEntity`
@@ -531,7 +522,7 @@ An interface which your business object classes need to implement.
   - `ColumnData {column, property?, references?, primaryKey?}`
     - `column: string` - The sql column name
     - `propery: string` - The javascript property name for this column (defaults to camelCase of `column`)
-    - `references: Bo` - The relationship to another Bo (defaults to null)
+    - `references: PureORMEntity` - The relationship to another PureORMEntity (defaults to null)
     - `primaryKey: boolean` - Is this column (part of) the primary key (defaults to false)
   - `string` - If a string, it is applied as the `column` value, with all others defaulted.
   - (Note: if there is no primary key, `id` is defaulted)
@@ -540,46 +531,10 @@ An interface which your business object classes need to implement.
 
 #### `PureORMCollection`
 
-An abstract class which is the base class your Bo Collection classes extend.
+An interface which your collection business object classes need to implement.
 
-- `static get Bo(): BO` - Returns the individual (singular) business object class constructor.
-- `get displayName()?: BO` - (Optional) returns the string display name of the business object collection (defaults to bo displayName with an "s")
-
-#### `create`
-
-The factory function for creating your ORM.
-
-**Parameters**
-
-- `getBusinessObjects: () => Array<BusinessObject>` - A function which returns an array of all the business objects.
-- `db: <DataBaseDriverInstance>` - A database driver instance.
-
-**Return Value**
-
-Your ORM.
-
-It has the following query methods:
-
-- `one(query: string, params: object)` - executes a query and returns a Bo, or throws.
-- `oneOrNone(query: string, params: object)` - executes a query and returns a Bo or undefined, or throws.
-- `many(query: string, params: object)` - executes a query and returns a BoCollection with at least one model, or throws.
-- `any(query: string, params: object)` - executes a query and returns a BoCollection.
-- `none(query: string, params: object)` - executes a query and returns null.
-
-(Note these orm query methods ensure their count against the number of generated top level business objects are created - not the number of relational rows returned from the database driver! Thus, for example, `one` understands that there may be multiple result rows (which a database driver's `one` query method would throw at) but which correctly nest into one BO.)
-
-Built-in "basic" / generic crud functions
-
-- `getMatching(bo: BaseBO)`
-- `getOneOrNoneMatching(bo: BaseBO)`
-- `getAnyMatching(bo: BaseBO)`
-- `getAllMatching(bo: BaseBO)`
-- `create(bo: BaseBO)`
-- `update(bo: BaseBO)`
-- `delete(bo: BaseBO)`
-- `deleteMatching(bo: BaseBO)`
-
-These are just provided because they are so common and straight-forward. While the goal of this library is foster writing SQL in your DAL (which returns pure business objects) some CRUD operations are so common they are included in the ORM. Feel free to completely disregard if you want to write these in your DAL yourself.
+- `static get Bo(): PureORMEntity` - Returns the individual (singular) business object class constructor.
+- `get displayName()?: string` - (Optional) returns the string display name of the business object collection (defaults to PureORMEntity displayName with an "s")
 
 ## Current Status
 
