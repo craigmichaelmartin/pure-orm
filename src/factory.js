@@ -8,7 +8,7 @@ const {
   getTableName,
   getColumns,
   getDisplayName
-} = require('./bo');
+} = require('./business-object');
 
 module.exports.create = ({ getBusinessObjects, db, logError }) => {
   const defaultErrorHandler = err => {

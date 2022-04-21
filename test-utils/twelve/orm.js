@@ -1,6 +1,6 @@
 const { create } = require('pure-orm');
-const Prompt = require('./bo/prompt');
-const Member = require('./bo/member');
+const Prompt = require('./business-objects/prompt');
+const Member = require('./business-objects/member');
 const getBusinessObjects = () => [Prompt, Member];
 const orm = create({
   getBusinessObjects,

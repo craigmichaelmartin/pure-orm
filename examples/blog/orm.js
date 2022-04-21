@@ -1,8 +1,8 @@
 const { create } = require('pure-orm');
-const Article = require('./bo/article');
-const Person = require('./bo/person');
-const ArticleTag = require('./bo/article_tag');
-const Tag = require('./bo/tag');
+const Article = require('./business-objects/article');
+const Person = require('./business-objects/person');
+const ArticleTag = require('./business-objects/article_tag');
+const Tag = require('./business-objects/tag');
 
 const getBusinessObjects = () => [Article, Person, ArticleTag, Tag];
 const orm = create({

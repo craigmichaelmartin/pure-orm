@@ -1,5 +1,5 @@
 const { create } = require('pure-orm');
-const FeatureSwitch = require('./bo/feature-switch');
+const FeatureSwitch = require('./business-objects/feature-switch');
 const getBusinessObjects = () => [FeatureSwitch];
 const orm = create({
   getBusinessObjects,

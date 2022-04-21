@@ -43,7 +43,7 @@ A **Business Object Collection** is a group of business objects.
 - If your query returns records for multiple business objects, a Business Object Collection will be created and returned.
 - You can create a Business Object Collection class for your business objects (in cases where it is useful to have business methods on the collection entity, not just each model entity).
 
-A **Data Access Layer** (DAL) is a database-aware abstraction layer where native SQL is written.
+A **Data Access Layer** is a database-aware abstraction layer where native SQL is written.
 
 - This is not an "expresion language" or "query builder". There are not hundreds of methods mapping the complexity, expressiveness, and nuance of SQL to class objects.
 - Rather, is a data access layer in which native SQL is written, and which returns business objects (properly nested and structured).
@@ -116,13 +116,162 @@ npm install --save pure-orm
 npm install --save pg-promise
 ```
 
-### Step 2: Writing the Controller Code
+### Step 2: Creating the Business Objects
 
-Lets remove our hardcoded example, and write our contoller code using functions we want to exist and will create.
+Let's create a `/business-objects` directory of business object classes for our database tables. These classes need to implement a static getter for `tableName` and `sqlColumnsData` to denote the database table and columns.
+
+```javascript
+// business-objects/person.js
+class Person {
+  static get tableName() {
+    return 'person';
+  }
+  static get sqlColumnsData() {
+    return ['id', 'name'];
+  }
+  // any other business methods...
+}
+module.exports = Person;
+```
+
+```javascript
+// business-objects/job.js
+const Person = require('./person');
+const Employer = require('./employer');
+
+class Job {
+  static get tableName() {
+    return 'job';
+  }
+  static get sqlColumnsData() {
+    return [
+      'id',
+      { column: 'person_id', references: Person },
+      { column: 'employer_id', references: Employer },
+      'start_date',
+      'end_date'
+    ];
+  }
+  // any other business methods...
+}
+module.exports = Job;
+```
+
+```javascript
+// business-objects/employer.js
+class Employer {
+  static get tableName() {
+    return 'employer';
+  }
+  static get sqlColumnsData {
+    return ['id', 'name'];
+  }
+  // any other business methods...
+}
+module.exports = Employer;
+```
+
+We've not got our three business object classes. To review, each business object class has:
+
+- A static `tableName` getter to denote which table results this class is for.
+- A static `sqlColumnsData` getter to enumerate the table columns.
+
+### Step 3: Creating our ORM
+
+First we create our database driver:
+
+```javascript
+// ./factories/db.js
+const pgPromise = require('pg-promise');
+const pgp = pgPromise();
+module.exports = pgp({
+  host: process.env.DB_HOSTNAME,
+  port: process.env.DB_PORT,
+  database: process.env.DB_NAME,
+  user: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD
+});
+```
+
+We can now create our ORM, which layers atop the database driver to do the object relational mapping of raw sql row data to nest objects. (Besides using the `db` instance directly, the orm also offers access to the db directly (`orm.db`) for anytime this object relational mapping isn't desired.
+
+```javascript
+// factories/orm.js
+const { create } = require('pure-orm');
+const db = require('./db');
+const Person = require('../business-objects/person');
+const Job = require('../business-objects/job');
+const Employer = require('../business-objects/employer');
+
+const orm = create({
+  db,
+  getBusinessObjects: () => [Person, Job, Employer]
+});
+module.exports = orm;
+```
+
+### Step 4: Creating our Data Access Layer
+
+Let's now create a data access directory with a person file for data access operations related to a person.
+
+```javascript
+// data-access/person.js
+const orm = require('../factories/orm');
+
+const getPerson({ id }) {
+  const query = `
+    SELECT
+      ${orm.tables.person.columns},
+      ${orm.tables.job.columns},
+      ${orm.tables.employer.columns}
+    FROM person
+    LEFT JOIN job on person.id = job.person_id
+    LEFT JOIN employer on job.employer_id = employer.id
+    WHERE id = $(id)
+  `;
+  return orm.one(query, { id });
+}
+module.exports = getPerson;
+```
+
+Some things to note:
+
+- Our data access function returns a single Person business object which is properly structured from the many relational row records!
+- Our query is executed with a `one` method. The ORM methods for `one`, `oneOrNone`, `many`, `any` ensure their count against the number of generated top level business objects - not the number of relational row records the sql expression returns!
+- Rather than manually specifying our columns in the sql select expression, we used the orm's getter for columns. This is purely a convenience method which namespaces each column with the table name prefix to ensure column names don't collide (for example, the person, job, and employer `id`s would collide if not namespaced, as would person and employer `name`s). You are welcome to do this by hand instead of using this convenience if you don't mind the tedium:
+  ```javascript
+  // data-access/person.js
+  const getPerson = ({ id }) => {
+    // Example showing you can manually specify the select expression fields
+    // instead of using the orm's columns getter.
+    // Note: you must namespace the field with table name and hashtag.
+    const query = `
+      SELECT
+        person.id as "person#id",
+        person.name as "person#name",
+        job.id as "job#id",
+        job.person_id: "job#person_id",
+        job.employer_id: "job#employer_id",
+        job.start_date: "job#start_date",
+        job.end_date: "job#end_date",
+        employer.id as "employer#id",
+        employer.name as "employer#name"
+      FROM person
+      LEFT JOIN job on person.id = job.person_id
+      LEFT JOIN employer on job.employer_id = employer.id
+      WHERE id = $(id)
+    `;
+    return orm.one(query, { id });
+  };
+  ```
+
+### Step 5: Writing the Controller Code
+
+We can now return to our controller code, and use our person data access function.
 
 ```diff
 // controllers/rest/person.js
-+const { getPerson } = require('../../dal/person');
++const { getPerson } = require('../../data-access/person');
 const renderProfile = (req, res) => {
 - const person = {
 -   id: 55,
@@ -158,150 +307,14 @@ const renderProfile = (req, res) => {
   res.render('profile.html', person);
 ```
 
-This looks nice, now let's create the necessary bo and function in the dal.
-
-### Step 3: Creating the Business Objects
-
-Let's create a `/bo` directory and the classes we want.
-
-```javascript
-// bo/person.js
-class Person {
-  static tableName = 'person';
-  static sqlColumnsData = ['id', 'name'];
-  // any other business methods...
-}
-module.exports = Person;
-```
-
-```javascript
-// bo/job.js
-const Person = require('./person');
-const Employer = require('./employer');
-
-class Job {
-  static tableName = 'job';
-  static sqlColumnsData = [
-    'id',
-    { column: 'person_id', references: Person },
-    { column: 'employer_id', references: Employer },
-    'start_date',
-    'end_date'
-  ];
-  // any other business methods...
-}
-module.exports = Job;
-```
-
-```javascript
-// bo/employer.js
-class Employer {
-  static tableName = 'employer';
-  static sqlColumnsData = ['id', 'name'];
-  // any other business methods...
-}
-module.exports = Employer;
-```
-
-We've not got our three business object classes. To review, each business object class has:
-
-- A static `tableName` property to denote which table results this class is for.
-- A static `sqlColumnsData` property to enumerate the table columns.
-
-### Step 4: Creating our ORM
-
-```javascript
-// factories/orm.js
-const { create } = require('pure-orm');
-const db = require('./db');
-const Person = require('../bo/person');
-const Job = require('../bo/job');
-const Employer = require('../bo/employer');
-
-const orm = create({
-  db,
-  getBusinessObjects: () => [Person, Job, Employer]
-});
-module.exports = orm;
-```
-
-### Step 4: Creating the DAL function
-
-```javascript
-// dal/person.js
-const orm = require('../factories/orm');
-
-const getPerson({ id }) {
-  const query = `
-    SELECT
-      ${Person.getSQLSelectClause()},
-      ${Job.getSQLSelectClause()},
-      ${Employer.getSQLSelectClause()}
-    FROM person
-    JOIN job on person.id = job.person_id
-    JOIN employer on job.employer_id = employer.id
-    WHERE id = $(id)
-  `;
-  return orm.one(query, { id });
-}
-module.exports = getPerson;
-```
-
-Some things to note:
-- Our DAL function returns a single Person business object which is properly structured from the many relational row records!
-- Our query is executed with a `one` method. The ORM methods for `one`, `oneOrNone`, `many`, `any` ensure their count against the number of generated top level business objects - not the number of relational row records the sql expression returns!
-- Rather than manually specifying our columns in the sql select expression, we used the orm's getter for columns. This is purely a convenience method which namespaces each column with the table name prefix to ensure column names don't collide (for example, the person, job, and employer `id`s would collide if not namespaced, as would person and employer `name`s). You are welcome to do this by hand instead of using this convenience if you don't mind the tedium:
-  ```javascript
-  // dal/person.js
-  const getPerson = ({ id }) => {
-    // Example showing you can manually specify the select expression fields
-    // instead of using the orm's columns getter.
-    // Note: you must namespace the field with table name and hashtag.
-    const query = `
-      SELECT
-        person.id as "person#id",
-        person.name as "person#name",
-        job.id as "job#id",
-        job.person_id: "job#person_id",
-        job.employer_id: "job#employer_id",
-        job.start_date: "job#start_date",
-        job.end_date: "job#end_date",
-        employer.id as "employer#id",
-        employer.name as "employer#name"
-      FROM person
-      JOIN job on person.id = job.person_id
-      JOIN employer on job.employer_id = employer.id
-      WHERE id = $(id)
-    `;
-    return orm.one(query, { id });
-  };
-  ```
-
-### Step 6: Creating the Database Driver Instance
-
-The last step is creating the datebase driver, that we had imported up in `./factories/orm`.
-
-```javascript
-// factories/db.js
-const pgPromise = require('pg-promise');
-const pgp = pgPromise();
-module.exports = pgp({
-  host: process.env.DB_HOSTNAME,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USERNAME,
-  password: process.env.DB_PASSWORD
-});
-```
-
-That's it! Our example controller code now works! The `getPerson` function in our data access layer now returns a properly structured business object as we desire.
+That's it! This controller code now works! The `getPerson` function returns a properly structured business object as we desire.
 
 ## FAQ
 
 ### Can you show a more complex business object and collection?
 
 ```javascript
-// bo/library.js
+// business-objects/library.js
 const Libraries = require('./libraries');
 class Library {
   get BoCollection() {
@@ -329,7 +342,7 @@ class Library {
 ```
 
 ```javascript
-// bo/libraries.js
+// business-objects/libraries.js
 class Library {
   static get Bo() {
     return require('./person'); // eslint-disable-line
@@ -348,7 +361,7 @@ class Library {
 
 The goal of PureORM is to foster writing SQL and receiving pure business objects. That said, some SQL is so common that we preload the created ORM with with some basic CRUD operations.
 
-For example, rather than every entity's DAL needing basic get, create, etc method, you can use built-in orm functions.
+For example, rather than every entity needing data access operatons for get, create, etc method, you can use built-in orm functions.
 
 ```javascript
 // controllers/rest/person.js
@@ -367,11 +380,11 @@ const get = (req, res) => {
 };
 ```
 
-At any point you can ditch these built-ins and write some SQL in a DAL function.
+At any point you can ditch these built-ins and write some SQL in a data access function.
 
 ```javascript
 // controllers/rest/person.js
-const { getPerson, getPeopleWithName } = require('../../dal/person');
+const { getPerson, getPeopleWithName } = require('../../data-access/person');
 const get = (req, res) => {
   if (req.params.id) {
     return res.json(await getPerson(id));
@@ -389,13 +402,13 @@ const get = (req, res) => {
 
 Traditional/stateful ORMs offer a dialetic-generic, chainable object api for expressing underlying SQL - thus solving for database "lock-in" as well the inability of string queries compose easily. PureORM takes the approach that the tradeoff of developers having to learn the huge surface area of of a query builder, and having to map the complexity and nuance of SQL to it, are simply not worth the cost, and so is premised on not using a query building library. PureORM sees writing straight SQL heaviliy as a feature, not a defect needing solved, and not eclipsed by the composibility of a query builder.
 
-### Will I then have dozens of similar DAL functions, since strings aren't as composable as stateful ORM builder builder APIs?
+### Will I then have dozens of similar data access functions, since strings aren't as composable as stateful ORM builder builder APIs?
 
 There is still a lot of composibility possible with functions returning strings (someone create an Issue if you want to see examples used in the Kujo codebase), but in general yes, there is more repitition. Most of this remaining repitition is not something I think is a defect (though those obsessed with DRY would disagree). The only "defect" of this repitition is that there may be more than one similiar method (for example a "get" that does certain joins vs others), and differentiating the large query in a function name can be lengthy/annoying. In these cases where composing functions doesn't bring the number of similar functions methods to only one, rather than distilling these large queries into the function name (eg, getPersonWithJobsAndEmployers), I usually just opt for a small arbitrary hash at the end of the short name (eg, getXTW instead of getPersonWithJobsAndEmployers, getRJF instead of getPersonWithFriendsLocatedNearANewFriendRequest, etc).
 
 ### Does PureORM abstract away the database driver?
 
-No, the whole premise of PureORM is to offer a library to aid the use of writing SQL. The datebase driver is always available to you (at `orm.db`) if you wish to use it directly with no PureORM mappings, or just import it. In my experience, a small percentage of highly complex queries looking for sums or counts in my DAL use the database driver directly.
+No, the whole premise of PureORM is to offer a library to aid the use of writing SQL. The datebase driver is always available to you (at `orm.db`) if you wish to use it directly with no PureORM mappings, or just import it. In my experience, a small percentage of highly complex queries looking for sums or counts in my data access layer use the database driver directly.
 
 The only difference is how the SQL is invoked: `orm.one(query, {})` vs `orm.db.one(query, {})`
 
@@ -407,7 +420,7 @@ Yes, if you'd like to get the mapping while also passing through some select exp
 const getBloggerPayout = ({ id, startDate, endDate }) => {
   const query = `
     SELECT
-      ${Person.getSQLSelectClause()},
+      ${orm.tables.person.columns},
       COALESCE(SUM(article.blogger_payout), 0) as meta_amount
     FROM
       person
@@ -450,9 +463,9 @@ PureORM
 
 ```typescript
 function create(options: {
-  getBusinessObjects: () => Array<new() => PureORMEntity>;
+  getBusinessObjects: () => Array<new () => PureORMEntity>;
   db: DataBaseDriver;
- }): PureORM
+}): PureORM;
 ```
 
 The factory function for creating your ORM.
@@ -509,7 +522,7 @@ Built-in "basic" / generic crud functions
 - `delete(bo: PureORMEntity)`
 - `deleteMatching(bo: PureORMEntity)`
 
-These are just provided because they are so common and straight-forward. While the goal of this library is foster writing SQL in your DAL (which returns pure business objects) some CRUD operations are so common they are included in the ORM. Feel free to completely disregard if you want to write these in your DAL yourself.
+These are just provided because they are so common and straight-forward. While the goal of this library is foster writing SQL in your data access layer (which returns pure business objects) some CRUD operations are so common they are included in the ORM. Feel free to completely disregard if you want to write these in your data access layer yourself.
 
 ### Interfaces
 

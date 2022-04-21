@@ -24,7 +24,7 @@ const {
   getNewWith,
   getValueBySqlColumn,
   getId
-} = require('./bo');
+} = require('./business-object');
 
 module.exports.getPrimaryKey = getPrimaryKey;
 module.exports.getProperties = getProperties;

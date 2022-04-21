@@ -1,9 +1,9 @@
 const { create } = require('pure-orm');
-const Parcel = require('./bo/parcel');
-const ParcelLineItem = require('./bo/parcel-line-item');
-const LineItem = require('./bo/line-item');
-const Order = require('./bo/order');
-const Customer = require('./bo/customer');
+const Parcel = require('./business-objects/parcel');
+const ParcelLineItem = require('./business-objects/parcel-line-item');
+const LineItem = require('./business-objects/line-item');
+const Order = require('./business-objects/order');
+const Customer = require('./business-objects/customer');
 const getBusinessObjects = () => [
   Parcel,
   ParcelLineItem,

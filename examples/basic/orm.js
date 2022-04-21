@@ -1,7 +1,7 @@
 const { create } = require('../../src');
-const Article = require('./bo/article');
-const Person = require('./bo/person');
-const Tag = require('./bo/tag');
+const Article = require('./business-objects/article');
+const Person = require('./business-objects/person');
+const Tag = require('./business-objects/tag');
 module.exports = create({
   getBusinessObjects: () => [Article, Person, Tag],
   db: void 0

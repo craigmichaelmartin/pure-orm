@@ -1,4 +1,4 @@
-const Person = require('../bo/person');
+const Person = require('../business-objects/person');
 
 /*
  * The person data abstraction for the persistence mechinism.

@@ -1,9 +1,9 @@
 const { create } = require('pure-orm');
-const UtmSource = require('./bo/utm-source');
-const Order = require('./bo/order');
-const LineItem = require('./bo/line-item');
-const ProductVariant = require('./bo/product-variant');
-const Product = require('./bo/product');
+const UtmSource = require('./business-objects/utm-source');
+const Order = require('./business-objects/order');
+const LineItem = require('./business-objects/line-item');
+const ProductVariant = require('./business-objects/product-variant');
+const Product = require('./business-objects/product');
 
 const getBusinessObjects = () => [
   UtmSource,
