@@ -29,19 +29,19 @@ The name _**pure**ORM_ reflects both of these points - that it is _pure_ ORM (th
 
 #### Concepts
 
-A **Business Object** is a pure javascript object corresponding to a table.
+A **Model** is a pure javascript business object corresponding to a table.
 
+- In PureORM these pure business objects are referred to as "models".
 - They represent a row of the table data, but as pure javascript objects.
 - They are not connected to the database.
 - They are the subject of the app's business logic.
 - They will be full of userland business logic methods.
 - Their purity allows them to be easy to test/use.
-- These are also referred to as "models".
 
-A **Business Object Collection** is a group of business objects.
+A **Collection** is a pure business object with a reference to a group of models.
 
-- If your query returns records for multiple business objects, a Business Object Collection will be created and returned.
-- You can create a Business Object Collection class for your business objects (in cases where it is useful to have business methods on the collection entity, not just each model entity).
+- If your query returns records for multiple models, a Collection will be created and returned.
+- You can create the Collection class (in cases where it is useful to have business methods on the collection object, not just each model object).
 
 A **Data Access Layer** is a database-aware abstraction layer where native SQL is written.
 
@@ -54,9 +54,14 @@ Lets take a practical example to see all this in action. Lets fill in the backen
 
 Lets say we have a database with three tables: person, job, and employer. We want our rest server to return an payload like this for requests which the get method receive.
 
-```javascript
-// controllers/rest/person.js
-const get = (req, res) => {
+```typescript
+// app.ts
+import express, { Express, Request, Response } from 'express';
+
+const app: Express = express();
+const port = process.env.PORT;
+
+app.get('/rest/person', (req: Request, res: Response) => {
   const person = {
     id: 55,
     name: 'John Doe',
@@ -88,10 +93,29 @@ const get = (req, res) => {
     }
   };
   res.json(person);
-};
+});
+
+app.listen(port);
 ```
 
 Based on the tables, I know exactly how to query for this:
+
+**Person**
+| id | name |
+| --- | --- |
+| 55 | John Doe |
+
+**Employer**
+| id | name |
+| --- | --- |
+| 17 | Good Corp |
+| 26 | Better Corp |
+
+**Job**
+| id | personId | employerId | startDate | endDate |
+| --- | --- | --- | --- | ---|
+| 277 | 55 | 17 | 2020-01-01 | 2020-12-31 |
+| 278 | 55 | 26 | 2021-01-01 | 2021-12-31 |
 
 ```sql
 SELECT *
@@ -118,107 +142,135 @@ npm install --save pg-promise
 
 ### Step 2: Creating the Business Objects
 
-Let's create a `/business-objects` directory of business object classes for our database tables. These classes need to implement a static getter for `tableName` and `sqlColumnsData` to denote the database table and columns.
+Let's create a `/models` directory of business object classes for our database tables. These classes need to implement a static getter for `tableName` and `sqlColumnsData` to denote the database table and columns.
 
-```javascript
-// business-objects/person.js
-class Person {
-  static get tableName() {
-    return 'person';
+```typescript
+// models/person.ts
+import { IModel, ICollection, IColumns } from 'pure-orm';
+
+export const tableName: string = 'person';
+
+export const columns: IColumns = ['id', 'name'];
+
+export class Person implements IModel {
+  id: number;
+  name: string;
+  constructor(props) {
+    this.id = props.id;
+    this.name = props.name;
   }
-  static get sqlColumnsData() {
-    return ['id', 'name'];
-  }
-  // any other business methods...
+  // any business methods...
 }
-module.exports = Person;
+
+export const personEntity = { tableName, columns, Model: Person };
 ```
 
-```javascript
-// business-objects/job.js
-const Person = require('./person');
-const Employer = require('./employer');
+```typescript
+// models/job.ts
+import { IModel, ICollection, IColumns } from 'pure-orm';
+import { Person } from './person';
+import { Employer } from './employer';
 
-class Job {
-  static get tableName() {
-    return 'job';
+export const tableName: string = 'job';
+
+export const columns: IColumns = [
+  'id',
+  { column: 'person_id', references: Person },
+  { column: 'employer_id', references: Employer },
+  'start_date',
+  'end_date'
+];
+
+export class Job implements IModel {
+  id: number;
+  personId: number;
+  person?: Person;
+  employerId: number;
+  employer: Employer;
+  startDate: Date;
+  endDate: Date;
+  constructor(props) {
+    this.id = props.id;
+    this.personId = props.personId;
+    this.person = props.person;
+    this.employerId = props.employerId;
+    this.employer = props.employer;
+    this.startDate = props.startDate;
+    this.endDate = props.endDate;
   }
-  static get sqlColumnsData() {
-    return [
-      'id',
-      { column: 'person_id', references: Person },
-      { column: 'employer_id', references: Employer },
-      'start_date',
-      'end_date'
-    ];
-  }
-  // any other business methods...
+  // any business methods...
 }
-module.exports = Job;
+
+export const JobEntity = { tableName, columns, Model: Job };
 ```
 
-```javascript
-// business-objects/employer.js
-class Employer {
-  static get tableName() {
-    return 'employer';
+```typescript
+// models/employer.ts
+import { IModel, ICollection, IColumns } from 'pure-orm';
+
+export const tableName: string = 'employer';
+
+export const columns: IColumns = ['id', 'name'];
+
+export class Employer implements IModel {
+  id: number;
+  name: string;
+  constructor(props: IEmployerProps) {
+    this.id = props.id;
+    this.name = props.name;
   }
-  static get sqlColumnsData {
-    return ['id', 'name'];
-  }
-  // any other business methods...
+  // any business methods...
 }
-module.exports = Employer;
+
+export const EmployerEntity = { tableName, columns, Model: Employer };
 ```
 
-We've not got our three business object classes. To review, each business object class has:
-
-- A static `tableName` getter to denote which table results this class is for.
-- A static `sqlColumnsData` getter to enumerate the table columns.
+We've not got our three entities that relate our table data to our business objects.
 
 ### Step 3: Creating our ORM
 
 First we create our database driver:
 
-```javascript
-// ./factories/db.js
-const pgPromise = require('pg-promise');
+```typescript
+// ./factories/db.ts
+import pgPromise from 'pg-promise';
 const pgp = pgPromise();
-module.exports = pgp({
+const connectionObject = {
   host: process.env.DB_HOSTNAME,
   port: process.env.DB_PORT,
   database: process.env.DB_NAME,
   user: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD
-});
+};
+export const db = pgp(connectionObject);
 ```
 
 We can now create our ORM, which layers atop the database driver to do the object relational mapping of raw sql row data to nest objects. (Besides using the `db` instance directly, the orm also offers access to the db directly (`orm.db`) for anytime this object relational mapping isn't desired.
 
-```javascript
-// factories/orm.js
-const { create } = require('pure-orm');
-const db = require('./db');
-const Person = require('../business-objects/person');
-const Job = require('../business-objects/job');
-const Employer = require('../business-objects/employer');
-
+```typescript
+// factories/orm.ts
+import { create, PureORM } from '../../src/index';
+import { db } from './db';
+import { personEntity } from '../models/person';
+import { jobEntity } from '../models/job';
+import { employerEntity } from '../models/employer';
 const orm = create({
-  db,
-  getBusinessObjects: () => [Person, Job, Employer]
+  getEntities: () => [personEntity, jobEntity, employerEntity],
+  db
 });
-module.exports = orm;
+export default orm;
 ```
 
 ### Step 4: Creating our Data Access Layer
 
 Let's now create a data access directory with a person file for data access operations related to a person.
 
-```javascript
-// data-access/person.js
-const orm = require('../factories/orm');
+```typescript
+// data-access/person.ts
+import orm from '../factories/orm';
+import { Person } from '../models/person';
 
-const getPerson({ id }) {
+export const getPerson = (id: number): Person => {
   const query = `
     SELECT
       ${orm.tables.person.columns},
@@ -230,18 +282,21 @@ const getPerson({ id }) {
     WHERE id = $(id)
   `;
   return orm.one(query, { id });
-}
-module.exports = getPerson;
+};
 ```
 
 Some things to note:
 
-- Our data access function returns a single Person business object which is properly structured from the many relational row records!
-- Our query is executed with a `one` method. The ORM methods for `one`, `oneOrNone`, `many`, `any` ensure their count against the number of generated top level business objects - not the number of relational row records the sql expression returns!
+- Our data access function returns a single Person model which is properly structured from the many relational row records!
+- Our query is executed with a `one` method. The ORM methods for `one`, `oneOrNone`, `many`, `any` ensure their count against the number of generated top level models - not the number of relational row records the sql expression returns!
 - Rather than manually specifying our columns in the sql select expression, we used the orm's getter for columns. This is purely a convenience method which namespaces each column with the table name prefix to ensure column names don't collide (for example, the person, job, and employer `id`s would collide if not namespaced, as would person and employer `name`s). You are welcome to do this by hand instead of using this convenience if you don't mind the tedium:
-  ```javascript
-  // data-access/person.js
-  const getPerson = ({ id }) => {
+
+  ```typescript
+  // data-access/person.ts
+  import orm from '../factories/orm';
+  import { Person } from '../models/person';
+
+  const getPerson(id) {
     // Example showing you can manually specify the select expression fields
     // instead of using the orm's columns getter.
     // Note: you must namespace the field with table name and hashtag.
@@ -262,7 +317,8 @@ Some things to note:
       WHERE id = $(id)
     `;
     return orm.one(query, { id });
-  };
+  }
+  module.exports = getPerson;
   ```
 
 ### Step 5: Writing the Controller Code
@@ -270,9 +326,14 @@ Some things to note:
 We can now return to our controller code, and use our person data access function.
 
 ```diff
-// controllers/rest/person.js
-+const { getPerson } = require('../../data-access/person');
-const renderProfile = (req, res) => {
+// app.ts
+import express, { Express, Request, Response } from 'express';
++import { getPerson } from './data-access/person';
+
+const app: Express = express();
+const port = process.env.PORT;
+
+app.get('/rest/person', (req: Request, res: Response) => {
 - const person = {
 -   id: 55,
 -   name: 'John Doe',
@@ -286,7 +347,7 @@ const renderProfile = (req, res) => {
 -         endDate: '2020-12-31',
 -         employer: {
 -           id: 17,
--           name: 'Good Corp',
+-           name: 'Good Corp'
 -         }
 -       },
 -       {
@@ -297,64 +358,80 @@ const renderProfile = (req, res) => {
 -         endDate: '2021-12-31',
 -         employer: {
 -           id: 26,
--           name: 'Better Corp',
+-           name: 'Better Corp'
 -         }
 -       }
 -     ]
 -   }
 - };
-+ const person = getPerson({ id: req.params.id });
-  res.render('profile.html', person);
++ const person = getPerson(req.params.id);
+  res.json(person);
+});
+
+app.listen(port);
 ```
 
 That's it! This controller code now works! The `getPerson` function returns a properly structured business object as we desire.
 
 ## FAQ
 
-### Can you show a more complex business object and collection?
+### Can you show the business objects of a more complex entity?
 
-```javascript
-// business-objects/library.js
-const Libraries = require('./libraries');
-class Library {
-  get BoCollection() {
-    return Libraries;
-  }
-  static get tableName() {
-    return 'library_v2';
-  }
-  static get displayName() {
-    // If we didn't provide this static field, in javascript an object
-    // referencing a library bo would use `libraryV2` as the property name.
-    return 'library';
-  }
-  static get sqlColumnsData() {
-    return [
-      'id',
-      'name',
-      { column: 'is_ala_member', property: 'isALAMember' },
-      { column: 'address', references: Address }
-    ];
+```typescript
+import { IModel, ICollection, IColumns } from '../../src/index';
+
+export const tableName: string = 'library_v2';
+
+export const columns: IColumns = [
+  'id',
+  'name',
+  { column: 'is_ala_member', property: 'isALAMember' },
+  { column: 'address_id', references: Address }
+];
+
+export const displayName = 'library';
+export const collectionDisplayName = 'libraries';
+
+interface ILibraryProps {
+  id: number;
+  name: string;
+  isALAMember: string;
+  addressId: number;
+  address: Address;
+}
+
+export class Library implements IModel {
+  id: number;
+  name: string;
+  constructor(props: ILibraryProps) {
+    this.id = props.id;
+    this.name = props.name;
+    this.isALAMember = props.isALAMember;
+    this.addressId = props.addressId;
+    this.address = props.address;
   }
   aBussinessObjectMethod() {}
   anotherBussinessObjectMethod() {}
 }
-```
 
-```javascript
-// business-objects/libraries.js
-class Library {
-  static get Bo() {
-    return require('./person'); // eslint-disable-line
-  }
-  static get displayName() {
-    // If we didn't provide this static field, in javascript an object
-    // referencing this collection would use `librarys` as the property name.
-    return 'libraries';
+export class Persons implements ICollection<Person> {
+  models: Array<Person>;
+  constructor({ models }: any) {
+    this.models = models;
+    return this;
   }
   aCollectionMethod() {}
   anotherCollectionMethod() {}
 }
+
+export const personEntity = {
+  tableName,
+  displayName,
+  collectionDisplayName,
+  columns,
+  Model: Person,
+  Collection: Persons
+};
 ```
 
 ### If I use PureORM do I have to re-invent all the super basic CRUD methods?
@@ -363,9 +440,8 @@ The goal of PureORM is to foster writing SQL and receiving pure business objects
 
 For example, rather than every entity needing data access operatons for get, create, etc method, you can use built-in orm functions.
 
-```javascript
-// controllers/rest/person.js
-const get = (req, res) => {
+```typescript
+app.get('/rest/person', (req: Request, res: Response) => {
   if (req.params.id) {
     return res.json(await orm.getMatching(new Person({ id })));
   }
@@ -382,10 +458,10 @@ const get = (req, res) => {
 
 At any point you can ditch these built-ins and write some SQL in a data access function.
 
-```javascript
-// controllers/rest/person.js
-const { getPerson, getPeopleWithName } = require('../../data-access/person');
-const get = (req, res) => {
+```typescript
+import { getPerson, getPeopleWithName } from '../../data-access/person';
+
+app.get('/rest/person', (req: Request, res: Response) => {
   if (req.params.id) {
     return res.json(await getPerson(id));
   }
@@ -463,7 +539,7 @@ PureORM
 
 ```typescript
 function create(options: {
-  getBusinessObjects: () => Array<new () => PureORMEntity>;
+  getEntities: () => Array<IEntity>;
   db: DataBaseDriver;
 }): PureORM;
 ```
@@ -472,7 +548,7 @@ The factory function for creating your ORM.
 
 **Parameters**
 
-- `getBusinessObjects: () => Array<PureORMEntity>` - A function which returns an array of all the business object classes (where each business object must implement `PureORMEntity`).
+- `getEntities: () => Array<IEntity>` - A function which returns an array of all the business object class entity configuration objects.
 - `db: <DataBaseDriverInstance>` - A database driver instance.
 
 **Return Value**
@@ -485,19 +561,20 @@ Your `PureORM` instance.
 
 ```typescript
 interface PureORM {
-  one(query: string, params: object);
-  oneOrNone(query: string, params: object);
-  many(query: string, params: object);
-  any(query: string, params: object);
-  none(query: string, params: object);
-  getMatching(bo: PureORMEntity);
-  getOneOrNoneMatching(bo: PureORMEntity);
-  getAnyMatching(bo: PureORMEntity);
-  getAllMatching(bo: PureORMEntity);
-  create(bo: PureORMEntity);
-  update(bo: PureORMEntity);
-  delete(bo: PureORMEntity);
-  deleteMatching(bo: PureORMEntity);
+  one: (query: string, params: object) => PureORMModel;
+  oneOrNone: (query: string, params: object) => PureORMModel | void;
+  many: (query: string, params: object) => Array<PureORMModel>;
+  any: (query: string, params: object) => Array<PureORMModel> | void;
+  none: (query: string, params: object) => void;
+  getMatching: (bo: PureORMModel) => PureORMModel;
+  getOneOrNoneMatching: (bo: PureORMModel) => PureORMModel | void;
+  getAnyMatching: (bo: PureORMModel) => Array<PureORMModel> | void;
+  getAllMatching: (bo: PureORMModel) => Array<PureORMModel>;
+  create: (bo: PureORMModel) => PureORMModel;
+  update: (bo: PureORMModel) => PureORMModel;
+  delete: (bo: PureORMModel) => void;
+  deleteMatching: (bo: PureORMModel) => void;
+  tables: Array<new () => PureORMModel>;
 }
 ```
 
@@ -509,45 +586,20 @@ It has the following query methods:
 - `any(query: string, params: object)` - executes a query and returns a BoCollection.
 - `none(query: string, params: object)` - executes a query and returns null.
 
-(Note these orm query methods ensure their count against the number of generated top level business objects are created - not the number of relational rows returned from the database driver! Thus, for example, `one` understands that there may be multiple result rows (which a database driver's `one` query method would throw at) but which correctly nest into one PureORMEntity.)
+(Note these orm query methods ensure their count against the number of generated top level business objects are created - not the number of relational rows returned from the database driver! Thus, for example, `one` understands that there may be multiple result rows (which a database driver's `one` query method would throw at) but which correctly nest into one PureORMModel.)
 
 Built-in "basic" / generic crud functions
 
-- `getMatching(bo: PureORMEntity)`
-- `getOneOrNoneMatching(bo: PureORMEntity)`
-- `getAnyMatching(bo: PureORMEntity)`
-- `getAllMatching(bo: PureORMEntity)`
-- `create(bo: PureORMEntity)`
-- `update(bo: PureORMEntity)`
-- `delete(bo: PureORMEntity)`
-- `deleteMatching(bo: PureORMEntity)`
+- `getMatching: (bo: PureORMModel) => PureORMModel`
+- `getOneOrNoneMatching: (bo: PureORMModel) => PureORMModel | void`
+- `getAnyMatching: (bo: PureORMModel) => Array<PureORMModel> | void`
+- `getAllMatching: (bo: PureORMModel) => Array<PureORMModel>`
+- `create: (bo: PureORMModel) => PureORMModel`
+- `update: (bo: PureORMModel) => PureORMModel`
+- `delete: (bo: PureORMModel) => void`
+- `deleteMatching: (bo: PureORMModel) => void`
 
 These are just provided because they are so common and straight-forward. While the goal of this library is foster writing SQL in your data access layer (which returns pure business objects) some CRUD operations are so common they are included in the ORM. Feel free to completely disregard if you want to write these in your data access layer yourself.
-
-### Interfaces
-
-#### `PureORMEntity`
-
-An interface which your business object classes need to implement.
-
-- `static get tableName(): string` - Returns the string table name which the business object associates with from the database.
-- `static get sqlColumnsData(): Array<string|ColumnData>` - Returns an array of the database column data. The type is either:
-  - `ColumnData {column, property?, references?, primaryKey?}`
-    - `column: string` - The sql column name
-    - `propery: string` - The javascript property name for this column (defaults to camelCase of `column`)
-    - `references: PureORMEntity` - The relationship to another PureORMEntity (defaults to null)
-    - `primaryKey: boolean` - Is this column (part of) the primary key (defaults to false)
-  - `string` - If a string, it is applied as the `column` value, with all others defaulted.
-  - (Note: if there is no primary key, `id` is defaulted)
-- `get BoCollection()?: BoCollection` - (Optional) returns the business object collection class constructor.
-- `static get displayName()?: string` - (Optional) returns the string display name of the business object (defaults to camelcase of tableName)
-
-#### `PureORMCollection`
-
-An interface which your collection business object classes need to implement.
-
-- `static get Bo(): PureORMEntity` - Returns the individual (singular) business object class constructor.
-- `get displayName()?: string` - (Optional) returns the string display name of the business object collection (defaults to PureORMEntity displayName with an "s")
 
 ## Current Status
 
