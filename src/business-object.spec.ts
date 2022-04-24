@@ -1,4 +1,5 @@
 /* eslint-disable max-len */
+export {};
 const { createOneFromDatabase, createFromDatabase } = require('pure-orm');
 const { getBusinessObjects: getBusinessObjectsA } = require('../examples/order/orm');
 const { getBusinessObjects: getBusinessObjectsB } = require('../examples/blog/orm');
@@ -27,7 +28,6 @@ test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with
   const order = createOneFromDatabase(one, getBusinessObjectsA);
   expect(Array.isArray(order)).toBe(false);
   expect(order.id).toEqual(3866);
-  debugger;
   expect(order.utmSource.id).toEqual(6);
   expect(order.lineItems.models.length).toEqual(6);
 

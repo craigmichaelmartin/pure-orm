@@ -1,4 +1,4 @@
-const {
+import {
   createOneFromDatabase,
   createOneOrNoneFromDatabase,
   createManyFromDatabase,
@@ -7,12 +7,38 @@ const {
   getSqlInsertParts,
   getTableName,
   getColumns,
-  getDisplayName
-} = require('./business-object');
+  getDisplayName,
+  Entity,
+  EntityConstructor,
+} from './business-object';
 
-module.exports.create = ({ getBusinessObjects, db, logError }) => {
-  const defaultErrorHandler = err => {
-    if (!err.name === 'QueryResultError') {
+interface PureORM {
+  one: (query: string, params: object) => Entity;
+  oneOrNone: (query: string, params: object) => Entity | void;
+  many: (query: string, params: object) => Array<Entity>;
+  any: (query: string, params: object) => Array<Entity> | void;
+  none: (query: string, params: object) => void;
+  getMatching: (bo: Entity) => Entity;
+  getOneOrNoneMatching: (bo: Entity) => Entity | void;
+  getAnyMatching: (bo: Entity) => Array<Entity> | void;
+  getAllMatching: (bo: Entity) => Array<Entity>;
+  create: (bo: Entity) => Entity;
+  update: (bo: Entity) => Entity;
+  delete: (bo: Entity) => void;
+  deleteMatching: (bo: Entity) => void;
+  tables: Array<EntityConstructor>;
+}
+
+
+interface CreateOptions{
+  getBusinessObjects: () => Array<EntityConstructor>;
+  db: any;
+  logError: (err: Error) => void;
+}
+
+export const create = ({ getBusinessObjects, db, logError }: CreateOptions): PureORM => {
+  const defaultErrorHandler = (err: Error) => {
+    if (!(err.name === 'QueryResultError')) {
       logError(err);
     }
     throw err;
@@ -22,35 +48,35 @@ module.exports.create = ({ getBusinessObjects, db, logError }) => {
   /* Query functions --------------------------------------------------------*/
   /* ------------------------------------------------------------------------*/
 
-  const one = (query, values, errorHandler = defaultErrorHandler) => {
+  const one = (query: string, values: object, errorHandler = defaultErrorHandler) => {
     return db
       .many(query, values)
-      .then(rows => createOneFromDatabase(rows, getBusinessObjects))
+      .then((rows: any) => createOneFromDatabase(rows, getBusinessObjects))
       .catch(errorHandler);
   };
 
-  const oneOrNone = (query, values, errorHandler = defaultErrorHandler) => {
+  const oneOrNone = (query: string, values: object, errorHandler = defaultErrorHandler) => {
     return db
       .any(query, values)
-      .then(rows => createOneOrNoneFromDatabase(rows, getBusinessObjects))
+      .then((rows: any) => createOneOrNoneFromDatabase(rows, getBusinessObjects))
       .catch(errorHandler);
   };
 
-  const many = (query, values, errorHandler = defaultErrorHandler) => {
+  const many = (query: string, values: object, errorHandler = defaultErrorHandler) => {
     return db
       .any(query, values)
-      .then(rows => createManyFromDatabase(rows, getBusinessObjects))
+      .then((rows: any) => createManyFromDatabase(rows, getBusinessObjects))
       .catch(errorHandler);
   };
 
-  const any = (query, values, errorHandler = defaultErrorHandler) => {
+  const any = (query: string, values: object, errorHandler = defaultErrorHandler) => {
     return db
       .any(query, values)
-      .then(rows => createFromDatabase(rows, getBusinessObjects))
+      .then((rows: any) => createFromDatabase(rows, getBusinessObjects))
       .catch(errorHandler);
   };
 
-  const none = (query, values, errorHandler = defaultErrorHandler) => {
+  const none = (query: string, values: object, errorHandler = defaultErrorHandler) => {
     return db
       .none(query, values)
       .then(() => null)
@@ -62,7 +88,7 @@ module.exports.create = ({ getBusinessObjects, db, logError }) => {
   /* ------------------------------------------------------------------------*/
 
   // Standard create
-  const create = bo => {
+  const create = (bo: any) => {
     const { columns, values, valuesVar } = getSqlInsertParts(bo);
     const query = `
       INSERT INTO "${getTableName(bo)}" ( ${columns} )
@@ -73,7 +99,7 @@ module.exports.create = ({ getBusinessObjects, db, logError }) => {
   };
 
   // Standard update
-  const update = (bo, { on = 'id' } = {}) => {
+  const update = (bo: any, { on = 'id' } = {}) => {
     const { clause, idVar, values } = getSqlUpdateParts(bo, on);
     const query = `
       UPDATE "${getTableName(bo)}"
@@ -85,16 +111,16 @@ module.exports.create = ({ getBusinessObjects, db, logError }) => {
   };
 
   // Standard delete
-  const _delete = bo => {
+  const _delete = (bo: any) => {
     const id = bo.id;
     const query = `
       DELETE FROM "${getTableName(bo)}"
-      WHERE "${getTableName(bo)}".id = ${id}
+      WHERE "${getTableName(bo)}".id = $(id)
     `;
-    return none(query);
+    return none(query, { id });
   };
 
-  const deleteMatching = bo => {
+  const deleteMatching = (bo: any) => {
     const { whereClause, values } = bo.getMatchingParts();
     const query = `
       DELETE FROM "${getTableName(bo)}"
@@ -103,7 +129,7 @@ module.exports.create = ({ getBusinessObjects, db, logError }) => {
     return none(query, values);
   };
 
-  const getMatching = bo => {
+  const getMatching = (bo: any) => {
     const { whereClause, values } = bo.getMatchingParts();
     const query = `
       SELECT ${getColumns(bo)}
@@ -113,7 +139,7 @@ module.exports.create = ({ getBusinessObjects, db, logError }) => {
     return one(query, values);
   };
 
-  const getOneOrNoneMatching = bo => {
+  const getOneOrNoneMatching = (bo: any) => {
     const { whereClause, values } = bo.getMatchingParts();
     const query = `
       SELECT ${getColumns(bo)}
@@ -123,7 +149,7 @@ module.exports.create = ({ getBusinessObjects, db, logError }) => {
     return oneOrNone(query, values);
   };
 
-  const getAnyMatching = bo => {
+  const getAnyMatching = (bo: any) => {
     const { whereClause, values } = bo.getMatchingParts();
     const query = `
       SELECT ${getColumns(bo)}
@@ -133,7 +159,7 @@ module.exports.create = ({ getBusinessObjects, db, logError }) => {
     return any(query, values);
   };
 
-  const getAllMatching = bo => {
+  const getAllMatching = (bo: any) => {
     const { whereClause, values } = bo.getMatchingParts();
     const query = `
       SELECT ${getColumns(bo)}
@@ -159,7 +185,7 @@ module.exports.create = ({ getBusinessObjects, db, logError }) => {
     getOneOrNoneMatching,
     getAnyMatching,
     getAllMatching,
-    tables: getBusinessObjects().reduce((accum, Bo) => {
+    tables: getBusinessObjects().reduce((accum: any, Bo: EntityConstructor) => {
       accum[getDisplayName(Bo)] = getColumns(Bo);
       return accum;
     }, {})

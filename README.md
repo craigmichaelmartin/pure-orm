@@ -485,19 +485,20 @@ Your `PureORM` instance.
 
 ```typescript
 interface PureORM {
-  one(query: string, params: object);
-  oneOrNone(query: string, params: object);
-  many(query: string, params: object);
-  any(query: string, params: object);
-  none(query: string, params: object);
-  getMatching(bo: PureORMEntity);
-  getOneOrNoneMatching(bo: PureORMEntity);
-  getAnyMatching(bo: PureORMEntity);
-  getAllMatching(bo: PureORMEntity);
-  create(bo: PureORMEntity);
-  update(bo: PureORMEntity);
-  delete(bo: PureORMEntity);
-  deleteMatching(bo: PureORMEntity);
+  one: (query: string, params: object) => PureORMEntity;
+  oneOrNone: (query: string, params: object) => PureORMEntity | void;
+  many: (query: string, params: object) => Array<PureORMEntity>;
+  any: (query: string, params: object) => Array<PureORMEntity> | void;
+  none: (query: string, params: object) => void;
+  getMatching: (bo: PureORMEntity) => PureORMEntity;
+  getOneOrNoneMatching: (bo: PureORMEntity) => PureORMEntity | void;
+  getAnyMatching: (bo: PureORMEntity) => Array<PureORMEntity> | void;
+  getAllMatching: (bo: PureORMEntity) => Array<PureORMEntity>;
+  create: (bo: PureORMEntity) => PureORMEntity;
+  update: (bo: PureORMEntity) => PureORMEntity;
+  delete: (bo: PureORMEntity) => void;
+  deleteMatching: (bo: PureORMEntity) => void;
+  tables: Array<new () => PureORMEntity>;
 }
 ```
 
@@ -513,14 +514,14 @@ It has the following query methods:
 
 Built-in "basic" / generic crud functions
 
-- `getMatching(bo: PureORMEntity)`
-- `getOneOrNoneMatching(bo: PureORMEntity)`
-- `getAnyMatching(bo: PureORMEntity)`
-- `getAllMatching(bo: PureORMEntity)`
-- `create(bo: PureORMEntity)`
-- `update(bo: PureORMEntity)`
-- `delete(bo: PureORMEntity)`
-- `deleteMatching(bo: PureORMEntity)`
+- `getMatching: (bo: PureORMEntity) => PureORMEntity`
+- `getOneOrNoneMatching: (bo: PureORMEntity) => PureORMEntity | void`
+- `getAnyMatching: (bo: PureORMEntity) => Array<PureORMEntity> | void`
+- `getAllMatching: (bo: PureORMEntity) => Array<PureORMEntity>`
+- `create: (bo: PureORMEntity) => PureORMEntity`
+- `update: (bo: PureORMEntity) => PureORMEntity`
+- `delete: (bo: PureORMEntity) => void`
+- `deleteMatching: (bo: PureORMEntity) => void`
 
 These are just provided because they are so common and straight-forward. While the goal of this library is foster writing SQL in your data access layer (which returns pure business objects) some CRUD operations are so common they are included in the ORM. Feel free to completely disregard if you want to write these in your data access layer yourself.
 
