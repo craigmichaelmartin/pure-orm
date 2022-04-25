@@ -12,17 +12,13 @@ export declare abstract class Entity {
     readonly BoCollection: EntityCollectionConstructor;
     [key: string]: any;
 }
-export declare type EntityConstructor = (new (props: object) => Entity) & typeof Entity & {
-    new (props: object): Entity;
-};
+export declare type EntityConstructor = (new (props: object) => Entity) & Omit<typeof Entity, never>;
 export declare abstract class EntityCollection {
     static readonly Bo: EntityConstructor;
     static readonly displayName?: string;
     abstract models: Array<Entity>;
 }
-export declare type EntityCollectionConstructor = (new (props: object) => EntityCollection) & typeof EntityCollection & {
-    new (props: object): EntityCollection;
-};
+export declare type EntityCollectionConstructor = (new (props: object) => Entity) & Omit<typeof Entity, never>;
 export declare const getPrimaryKey: (Bo: EntityConstructor) => Array<string>;
 export declare const getProperties: (Bo: EntityConstructor) => Array<string>;
 export declare const getSqlColumns: (Bo: EntityConstructor) => Array<string>;
@@ -35,7 +31,7 @@ export declare const getColumns: (Bo: EntityConstructor) => string;
 export declare const getId: (bo: Entity) => string;
 export declare const nestClump: (clump: Array<Array<Entity>>) => object;
 export declare const clumpIntoGroups: (processed: Array<Array<Entity>>) => Array<Array<Array<Entity>>>;
-export declare const mapToBos: (objectified: any, getBusinessObjects: () => Array<EntityConstructor>) => any[];
+export declare const mapToBos: (objectified: any, getBusinessObjects: () => Array<EntityConstructor>) => Entity[];
 export declare const objectifyDatabaseResult: (result: object) => any;
 export declare const createFromDatabase: (_result: Array<object> | object, getBusinessObjects: () => Array<EntityConstructor>) => any;
 export declare const createOneFromDatabase: (_result: any, getBusinessObjects: () => Array<EntityConstructor>) => any;

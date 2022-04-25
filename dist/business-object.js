@@ -2,28 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getValueBySqlColumn = exports.getNewWith = exports.getMatchingPartsObject = exports.getMatchingParts = exports.getSqlUpdateParts = exports.getSqlInsertParts = exports.createManyFromDatabase = exports.createOneOrNoneFromDatabase = exports.createOneFromDatabase = exports.createFromDatabase = exports.objectifyDatabaseResult = exports.mapToBos = exports.clumpIntoGroups = exports.nestClump = exports.getId = exports.getColumns = exports.getPrefixedColumnNames = exports.getCollectionDisplayName = exports.getTableName = exports.getDisplayName = exports.getReferences = exports.getSqlColumns = exports.getProperties = exports.getPrimaryKey = exports.EntityCollection = exports.Entity = void 0;
 const camelCase = require('camelcase');
-function isDefined(argument) {
-    return argument !== undefined;
-}
 class Entity {
 }
 exports.Entity = Entity;
-// export type ImplementsEntity = new (...args: never) => YourAbstractClass
-/*
-export type EntityConstructor = new (props: object) => Entity & typeof Entity;
-export type EntityConstructor = typeof Entity;
-export type EntityConstructor = new (props: object) => Entity;
-export interface EntityConstructor {
-  readonly tableName: string;
-  readonly sqlColumnsData: Array<ColumnData>;
-  readonly displayName?: string;
-};
-export interface Entity {
-  constructor: EntityConstructor;
-  readonly BoCollection?: EntityCollection;
-  [key:string]: any;
-}
-*/
 class EntityCollection {
 }
 exports.EntityCollection = EntityCollection;
