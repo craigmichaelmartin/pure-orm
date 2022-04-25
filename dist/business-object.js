@@ -8,6 +8,7 @@ function isDefined(argument) {
 class Entity {
 }
 exports.Entity = Entity;
+// export type ImplementsEntity = new (...args: never) => YourAbstractClass
 /*
 export type EntityConstructor = new (props: object) => Entity & typeof Entity;
 export type EntityConstructor = typeof Entity;
@@ -27,8 +28,9 @@ class EntityCollection {
 }
 exports.EntityCollection = EntityCollection;
 const getPrimaryKey = (Bo) => {
-    const primaryKey = Bo.sqlColumnsData.map((x) => x.primaryKey).filter(Boolean);
-    return primaryKey.length > 0 ? primaryKey : ['id'];
+    const pkColumnsData = Bo.sqlColumnsData.filter((x) => x.primaryKey);
+    const primaryKeys = pkColumnsData.map((x) => x.column);
+    return primaryKeys.length > 0 ? primaryKeys : ['id'];
 };
 exports.getPrimaryKey = getPrimaryKey;
 const getProperties = (Bo) => {
@@ -48,7 +50,7 @@ const getReferences = (Bo) => {
 };
 exports.getReferences = getReferences;
 const getDisplayName = (Bo) => {
-    return camelCase(Bo.tableName);
+    return Bo.displayName || camelCase(Bo.tableName);
 };
 exports.getDisplayName = getDisplayName;
 const getTableName = (bo) => {
@@ -56,7 +58,7 @@ const getTableName = (bo) => {
 };
 exports.getTableName = getTableName;
 const getCollectionDisplayName = (bo) => {
-    return bo.BoCollection.displayName
+    return (bo.BoCollection).displayName
         || `${(0, exports.getDisplayName)(bo.constructor)}s`;
 };
 exports.getCollectionDisplayName = getCollectionDisplayName;
@@ -90,7 +92,7 @@ const nestClump = (clump) => {
     clump = clump.map((x) => Object.values(x));
     const root = clump[0][0];
     clump = clump.map((row) => row.filter((item, index) => index !== 0));
-    const built = { [root.constructor.displayName]: root };
+    const built = { [(0, exports.getDisplayName)(root.constructor)]: root };
     let nodes = [root];
     // Wowzer is this both CPU and Memory inefficient
     clump.forEach((array) => {
@@ -147,10 +149,12 @@ const nestClump = (clump) => {
                 // nodeAlreadySeen, early return so we don't create it (parcel) on
                 // the nodePointingToIt (parcel_event), since it (parcel) has been
                 // shown to be the parent (of parcel_events).
-                const ec = bo[(0, exports.getCollectionDisplayName)(nodePointingToIt)];
-                if (ec && ec.models.find((m) => m === nodePointingToIt)) {
-                    nodes = [bo, ...nodes];
-                    return;
+                if (nodePointingToIt) {
+                    const ec = bo[(0, exports.getCollectionDisplayName)(nodePointingToIt)];
+                    if (ec && ec.models.find((m) => m === nodePointingToIt)) {
+                        nodes = [bo, ...nodes];
+                        return;
+                    }
                 }
             }
             if (nodePointingToIt) {
@@ -203,7 +207,7 @@ const clumpIntoGroups = (processed) => {
     const rootBo = processed[0][0].constructor;
     const clumps = processed.reduce((accum, item) => {
         const id = (0, exports.getPrimaryKey)(rootBo)
-            .map((key) => item.find((x) => x.constructor === rootBo)[key])
+            .map((key) => { var _a; return (_a = item.find((x) => x.constructor === rootBo)) === null || _a === void 0 ? void 0 : _a[key]; })
             .join('@');
         if (accum.has(id)) {
             accum.set(id, [...accum.get(id), item]);

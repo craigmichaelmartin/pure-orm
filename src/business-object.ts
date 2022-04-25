@@ -1,54 +1,34 @@
 const camelCase = require('camelcase');
 
-function isDefined<T>(argument: T | undefined): argument is T {
-    return argument !== undefined
-}
-
 export interface ColumnDataObject {
   column: string;
   property?: string;
   references?: EntityConstructor;
   primaryKey?: boolean;
 }
-
 export type ColumnData = ColumnDataObject & string;
 
 export abstract class Entity {
   static readonly tableName: string;
   static readonly sqlColumnsData: Array<ColumnData>;
   static readonly displayName?: string;
-  readonly BoCollection?: EntityCollection;
+  readonly BoCollection!: EntityCollectionConstructor;
   [key:string]: any;
 }
-export type EntityConstructor = Entity & (new (props: object) => Entity) & typeof Entity & { new (props: object): Entity };
-
-
-
-/*
-export type EntityConstructor = new (props: object) => Entity & typeof Entity;
-export type EntityConstructor = typeof Entity;
-export type EntityConstructor = new (props: object) => Entity;
-export interface EntityConstructor {
-  readonly tableName: string;
-  readonly sqlColumnsData: Array<ColumnData>;
-  readonly displayName?: string;
-};
-export interface Entity {
-  constructor: EntityConstructor;
-  readonly BoCollection?: EntityCollection;
-  [key:string]: any;
-}
-*/
+export type EntityConstructor = (new (props: object) => Entity) & Omit<typeof Entity, never>;
 
 export abstract class EntityCollection {
   static readonly Bo: EntityConstructor;
-  static readonly displayName: string;
+  static readonly displayName?: string;
   abstract models: Array<Entity>;
 }
+export type EntityCollectionConstructor = (new (props: object) => Entity) & Omit<typeof Entity, never>;
+
 
 export const getPrimaryKey = (Bo: EntityConstructor): Array<string> => {
-  const primaryKey = Bo.sqlColumnsData.map((x: ColumnData) => x.primaryKey).filter(Boolean);
-  return primaryKey.length > 0 ? primaryKey : ['id'];
+  const pkColumnsData = Bo.sqlColumnsData.filter((x: ColumnData) => x.primaryKey);
+  const primaryKeys = pkColumnsData.map((x: ColumnData) => x.column);
+  return primaryKeys.length > 0 ? primaryKeys : ['id'];
 };
 
 export const getProperties = (Bo: EntityConstructor): Array<string> => {
@@ -72,7 +52,7 @@ export const getReferences = (Bo: EntityConstructor): object => {
 };
 
 export const getDisplayName = (Bo: EntityConstructor): string => {
-  return camelCase(Bo.tableName);
+  return Bo.displayName || camelCase(Bo.tableName);
 };
 
 export const getTableName = (bo: Entity): string => {
@@ -80,7 +60,7 @@ export const getTableName = (bo: Entity): string => {
 };
 
 export const getCollectionDisplayName = (bo: Entity): string => {
-  return (bo.BoCollection as EntityCollection).displayName
+  return (bo.BoCollection).displayName
     || `${getDisplayName(bo.constructor as EntityConstructor)}s`;
 };
 
@@ -113,7 +93,7 @@ export const getId = (bo: Entity): string => {
  * Out:
  *  Article {id: 32, ArticleTags articleTags: [ArticleTag {id: 54}, ArticleTag {id: 55}]
  */
-export const nestClump = (clump: Array<Array<Entity>>): Entity => {
+export const nestClump = (clump: Array<Array<Entity>>): object => {
   clump = clump.map((x: Array<Entity>) => Object.values(x));
   const root = clump[0][0];
   clump = clump.map(
@@ -121,7 +101,7 @@ export const nestClump = (clump: Array<Array<Entity>>): Entity => {
       (item: Entity, index: number) => index !== 0
     )
   );
-  const built = { [root.constructor.displayName]: root };
+  const built = { [getDisplayName(root.constructor as EntityConstructor)]: root };
 
   let nodes = [root];
 
@@ -137,7 +117,7 @@ export const nestClump = (clump: Array<Array<Entity>>): Entity => {
       const nodePointingToIt = nodes.find(node => {
         const indexes = Object.values(getReferences(node.constructor as EntityConstructor))
           .map((x: EntityConstructor, i: number) => (x === bo.constructor ? i : null))
-          .filter((x: EntityConstructor | null, i) => x != null) as Array<number>;
+          .filter((x: number | null, i) => x != null) as Array<number>;
         if (!indexes.length) {
           return false;
         }
@@ -185,10 +165,12 @@ export const nestClump = (clump: Array<Array<Entity>>): Entity => {
         // nodeAlreadySeen, early return so we don't create it (parcel) on
         // the nodePointingToIt (parcel_event), since it (parcel) has been
         // shown to be the parent (of parcel_events).
-        const ec = bo[getCollectionDisplayName(nodePointingToIt) as keyof typeof bo];
-        if (ec && ec.models.find((m: Entity) => m === nodePointingToIt)) {
-          nodes = [bo, ...nodes];
-          return;
+        if (nodePointingToIt) {
+          const ec = bo[getCollectionDisplayName(nodePointingToIt) as keyof typeof bo];
+          if (ec && ec.models.find((m: Entity) => m === nodePointingToIt)) {
+            nodes = [bo, ...nodes];
+            return;
+          }
         }
       }
       if (nodePointingToIt) {
@@ -239,7 +221,7 @@ export const clumpIntoGroups = (processed: Array<Array<Entity>>): Array<Array<Ar
   const rootBo = processed[0][0].constructor;
   const clumps = processed.reduce((accum: any, item: Array<Entity>) => {
     const id = getPrimaryKey(rootBo as EntityConstructor)
-      .map((key: string) => item.find((x: Entity) => x.constructor === rootBo)[key])
+      .map((key: string) => item.find((x: Entity) => x.constructor === rootBo)?.[key])
       .join('@');
     if (accum.has(id)) {
       accum.set(id, [...accum.get(id), item]);
