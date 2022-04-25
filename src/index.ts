@@ -1,6 +1,9 @@
-export { create } from './factory';
+export { create, CreateOptions, PureORM } from './factory';
 
 export {
+  Entity,
+  EntityConstructor,
+  EntityCollection,
   getPrimaryKey,
   getProperties,
   getSqlColumns,

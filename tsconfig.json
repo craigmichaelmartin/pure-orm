@@ -15,6 +15,7 @@
     "dist"
   ],
   "include": [
-    "src"
+    "src",
+    "examples"
   ]
 }

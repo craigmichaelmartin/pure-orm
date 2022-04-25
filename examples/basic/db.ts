@@ -1,6 +1,6 @@
 const pgPromise = require('pg-promise');
 const options = {
-  ...(process.env.DEBUG && { query: e => console.log(e.query) })
+  ...(process.env.DEBUG && { query: (e: any) => console.log(e.query) })
 };
 
 const pgp = pgPromise(options);

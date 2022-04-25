@@ -12,8 +12,8 @@ import {
   EntityConstructor,
 } from './business-object';
 
-interface PureORM {
-  one: (query: string, params: object) => Entity;
+export interface PureORM {
+  one: (query: string, params?: object) => Entity;
   oneOrNone: (query: string, params: object) => Entity | void;
   many: (query: string, params: object) => Array<Entity>;
   any: (query: string, params: object) => Array<Entity> | void;
@@ -26,20 +26,22 @@ interface PureORM {
   update: (bo: Entity) => Entity;
   delete: (bo: Entity) => void;
   deleteMatching: (bo: Entity) => void;
-  tables: Array<EntityConstructor>;
+  tables: { [key:string]: { [key: string]: string; }};
 }
 
 
-interface CreateOptions{
+export interface CreateOptions{
   getBusinessObjects: () => Array<EntityConstructor>;
   db: any;
-  logError: (err: Error) => void;
+  logError?: (err: Error) => void;
 }
 
 export const create = ({ getBusinessObjects, db, logError }: CreateOptions): PureORM => {
   const defaultErrorHandler = (err: Error) => {
     if (!(err.name === 'QueryResultError')) {
-      logError(err);
+      if (logError) {
+        logError(err);
+      }
     }
     throw err;
   };
@@ -48,35 +50,35 @@ export const create = ({ getBusinessObjects, db, logError }: CreateOptions): Pur
   /* Query functions --------------------------------------------------------*/
   /* ------------------------------------------------------------------------*/
 
-  const one = (query: string, values: object, errorHandler = defaultErrorHandler) => {
+  const one = (query: string, values?: object, errorHandler = defaultErrorHandler) => {
     return db
       .many(query, values)
       .then((rows: any) => createOneFromDatabase(rows, getBusinessObjects))
       .catch(errorHandler);
   };
 
-  const oneOrNone = (query: string, values: object, errorHandler = defaultErrorHandler) => {
+  const oneOrNone = (query: string, values?: object, errorHandler = defaultErrorHandler) => {
     return db
       .any(query, values)
       .then((rows: any) => createOneOrNoneFromDatabase(rows, getBusinessObjects))
       .catch(errorHandler);
   };
 
-  const many = (query: string, values: object, errorHandler = defaultErrorHandler) => {
+  const many = (query: string, values?: object, errorHandler = defaultErrorHandler) => {
     return db
       .any(query, values)
       .then((rows: any) => createManyFromDatabase(rows, getBusinessObjects))
       .catch(errorHandler);
   };
 
-  const any = (query: string, values: object, errorHandler = defaultErrorHandler) => {
+  const any = (query: string, values?: object, errorHandler = defaultErrorHandler) => {
     return db
       .any(query, values)
       .then((rows: any) => createFromDatabase(rows, getBusinessObjects))
       .catch(errorHandler);
   };
 
-  const none = (query: string, values: object, errorHandler = defaultErrorHandler) => {
+  const none = (query: string, values?: object, errorHandler = defaultErrorHandler) => {
     return db
       .none(query, values)
       .then(() => null)
