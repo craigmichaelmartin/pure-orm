@@ -131,16 +131,16 @@ export const nestClump = (clump: Array<Array<Entity>>): object => {
       });
       // For first obj type which is has an instance in nodes array,
       // get its index in nodes array
-      const indexOfOldestParent = array.reduce((answer: number, obj: Entity) => {
-        if (answer != 0) {
+      const indexOfOldestParent = array.reduce((answer: number | null, obj: Entity) => {
+        if (answer != null) {
           return answer;
         }
         const index = nodes.findIndex(n => n.constructor === obj.constructor);
         if (index !== -1) {
           return index;
         }
-        return 0;
-      }, 0);
+        return null;
+      }, null) || 0;
       const parentHeirarchy = [
         root,
         ...nodes.slice(0, indexOfOldestParent + 1).reverse()

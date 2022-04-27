@@ -15,7 +15,7 @@
     "format": "prettier --write  \"**/*.{js,json,md}\" \"!src/**/*.spec.js\" \"!coverage/**/*\"",
     "lint": "eslint .",
     "pub": "npm run test && npm run build && np",
-    "build": "mkdir -p dist && cp -R examples dist/examples && cp -r test-utils dist/test-utils && tsc"
+    "build": "rm -rf dist && mkdir -p dist && cp -R examples dist/examples && cp -r test-utils dist/test-utils && tsc"
   },
   "dependencies": {
     "@babel/core": "^7.17.9",
