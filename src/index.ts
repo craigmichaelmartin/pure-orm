@@ -1,9 +1,9 @@
 export { create, CreateOptions, PureORM } from './factory';
 
 export {
-  Entity,
-  EntityConstructor,
-  EntityCollection,
+  IEntity,
+  IEntityClass,
+  ICollection,
   getPrimaryKey,
   getProperties,
   getSqlColumns,
@@ -25,5 +25,4 @@ export {
   getMatchingPartsObject,
   getNewWith,
   getValueBySqlColumn,
-  getId
 } from './business-object';
