@@ -1,4 +1,4 @@
-const { create } = require('pure-orm');
+const { create } = require('../../src/index');
 const UtmSource = require('./business-objects/utm-source');
 const Order = require('./business-objects/order');
 const LineItem = require('./business-objects/line-item');

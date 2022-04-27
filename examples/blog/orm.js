@@ -1,4 +1,4 @@
-const { create } = require('pure-orm');
+const { create } = require('../../src/index');
 const Article = require('./business-objects/article');
 const Person = require('./business-objects/person');
 const ArticleTag = require('./business-objects/article_tag');

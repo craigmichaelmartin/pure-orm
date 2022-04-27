@@ -1,4 +1,4 @@
-const { create } = require('pure-orm');
+const { create } = require('../../src/index');
 const InventoryLevel = require('./business-objects/inventory-level');
 const ActualProductVariant = require('./business-objects/actual-product-variant');
 const ProductVariant = require('./business-objects/product-variant');

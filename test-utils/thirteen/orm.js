@@ -1,4 +1,4 @@
-const { create } = require('pure-orm');
+const { create } = require('../../src/index');
 const Member = require('./business-objects/member');
 const Recommendation = require('./business-objects/recommendation');
 const Brand = require('./business-objects/brand');

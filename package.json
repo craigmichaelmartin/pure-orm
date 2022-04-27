@@ -8,14 +8,14 @@
   },
   "scripts": {
     "test": "npm run test:unit && npm run test:format",
-    "test:unit": "tsc && jest",
+    "test:unit": "npm run build && jest",
     "test:unit:watch": "jest --watch",
     "test:unit:debug": "node --inspect-brk node_modules/.bin/jest --runInBand --verbose",
     "test:format": "prettier -l \"**/*.{js,json,md}\" \"!src/**/*.spec.js\" \"!coverage/**/*\"",
     "format": "prettier --write  \"**/*.{js,json,md}\" \"!src/**/*.spec.js\" \"!coverage/**/*\"",
     "lint": "eslint .",
-    "pub": "npm run test && tsc && np",
-    "tsc": "tsc"
+    "pub": "npm run test && npm run build && np",
+    "build": "mkdir -p dist && cp -R examples dist/examples && cp -r test-utils dist/test-utils && tsc"
   },
   "dependencies": {
     "@babel/core": "^7.17.9",

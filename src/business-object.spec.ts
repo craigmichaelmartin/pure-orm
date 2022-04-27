@@ -1,6 +1,6 @@
 /* eslint-disable max-len */
 export {};
-const { createOneFromDatabase, createFromDatabase } = require('pure-orm');
+const { createOneFromDatabase, createFromDatabase } = require('../src/index');
 const { getBusinessObjects: getBusinessObjectsA } = require('../examples/order/orm');
 const { getBusinessObjects: getBusinessObjectsB } = require('../examples/blog/orm');
 const { getBusinessObjects: getBusinessObjectsC } = require('../examples/order-more/orm');
