@@ -1,49 +1,53 @@
 const camelCase = require('camelcase');
 
-export interface ColumnDataObject {
+export interface IColumnData {
   column: string;
   property?: string;
-  references?: EntityConstructor;
+  references?: IEntityClass;
   primaryKey?: boolean;
 }
-export type ColumnData = ColumnDataObject & string;
+export type IColumn = IColumnData & string;
+type IColumns = Array<IColumn>;
 
-export abstract class Entity {
-  static readonly tableName: string;
-  static readonly sqlColumnsData: Array<ColumnData>;
-  static readonly displayName?: string;
-  readonly BoCollection!: EntityCollectionConstructor;
+export interface IEntity {
   [key:string]: any;
 }
-export type EntityConstructor = (new (props: object) => Entity) & Omit<typeof Entity, never>;
-
-export abstract class EntityCollection {
-  static readonly Bo: EntityConstructor;
-  static readonly displayName?: string;
-  abstract models: Array<Entity>;
+// IEntity used as a type refers to an instance of IEntity;
+// IEntityClass used as a type refers to the class itself 
+export type IEntityClass = (new (props: any) => IEntity);
+export interface ICollection<T> {
+  models: Array<T>;
 }
-export type EntityCollectionConstructor = (new (props: object) => Entity) & Omit<typeof Entity, never>;
+export interface IPureORMData<T> {
+  tableName: string;
+  displayName?: string;
+  collectionDisplayName?: string;
+  columns: IColumns;
+  entityClass: (new (props: any) => T)
+  collectionClass: (new ({models}: any) => ICollection<T>);
+}
+export type IPureORMDataArray<T> = Array<IPureORMData<T>>;
 
 
-export const getPrimaryKey = (Bo: EntityConstructor): Array<string> => {
-  const pkColumnsData = Bo.sqlColumnsData.filter((x: ColumnData) => x.primaryKey);
-  const primaryKeys = pkColumnsData.map((x: ColumnData) => x.column);
+export const getPrimaryKey = (data: IPureORMData<any>): Array<string> => {
+  const pkColumnsData = data.columns.filter((x: IColumn) => x.primaryKey);
+  const primaryKeys = pkColumnsData.map((x: IColumn) => x.column);
   return primaryKeys.length > 0 ? primaryKeys : ['id'];
 };
 
-export const getProperties = (Bo: EntityConstructor): Array<string> => {
-  return Bo.sqlColumnsData.map((x: ColumnData): string => x.property || camelCase(x.column || x));
+export const getProperties = (data: IPureORMData<any>): Array<string> => {
+  return data.columns.map((x: IColumn): string => x.property || camelCase(x.column || x));
 };
 
-export const getSqlColumns = (Bo: EntityConstructor): Array<string> => {
-  return Bo.sqlColumnsData.map((x: ColumnData): string => x.column || x);
+export const getSqlColumns = (data: IPureORMData<any>): Array<string> => {
+  return data.columns.map((x: IColumn): string => x.column || x);
 };
 
-export const getReferences = (Bo: EntityConstructor): object => {
-  return Bo.sqlColumnsData
-    .filter((x: ColumnData) => x.references)
+export const getReferences = (data: IPureORMData<any>): object => {
+  return data.columns
+    .filter((x: IColumn) => x.references)
     .reduce(
-      (accum: any, item: ColumnData) =>
+      (accum: any, item: IColumn) =>
         Object.assign({}, accum, {
           [item.property || camelCase(item.column || item)]: item.references
         }),
@@ -51,36 +55,118 @@ export const getReferences = (Bo: EntityConstructor): object => {
     );
 };
 
-export const getDisplayName = (Bo: EntityConstructor): string => {
-  return Bo.displayName || camelCase(Bo.tableName);
+export const getDisplayName = (data: IPureORMData<any>): string => {
+  return data.displayName || camelCase(data.tableName);
 };
 
-export const getTableName = (bo: Entity): string => {
-  return (bo.constructor as EntityConstructor).tableName;
+export const getPrefixedColumnNames = (data: IPureORMData<any>): Array<string> => {
+  return getSqlColumns(data).map((col: string) => `${data.tableName}#${col}`);
 };
 
-export const getCollectionDisplayName = (bo: Entity): string => {
-  return (bo.BoCollection).displayName
-    || `${getDisplayName(bo.constructor as EntityConstructor)}s`;
-};
-
-export const getPrefixedColumnNames = (Bo: EntityConstructor): Array<string> => {
-  return getSqlColumns(Bo).map((col: string) => `${Bo.tableName}#${col}`);
-};
-
-export const getColumns = (Bo: EntityConstructor): string => {
-  return getPrefixedColumnNames(Bo)
+export const getColumns = (data: IPureORMData<any>): string => {
+  return getPrefixedColumnNames(data)
     .map(
       (prefixed: string, index: number) =>
-        `"${Bo.tableName}".${getSqlColumns(Bo)[index]} as "${prefixed}"`
+        `"${data.tableName}".${getSqlColumns(data)[index]} as "${prefixed}"`
     )
     .join(', ');
 };
 
-// Returns unique identifier of bo (the values of the primary keys)
-export const getId = (bo: Entity): string => {
-  return getPrimaryKey(bo.constructor as EntityConstructor)
-    .map((key: string) => bo[key as keyof typeof bo])
+export const getPureORMDataByTableName = (
+  tableName: string,
+  getPureORMDataArray: () => IPureORMDataArray<any>
+): IPureORMData<any> => {
+  const pureORMData = getPureORMDataArray().find(data => data.tableName == tableName);
+  if (!pureORMData) {
+    throw new Error(`Could not find pureORMData for table ${tableName}`);
+  }
+  return pureORMData;
+};
+
+export const getPureORMDataByEntity = (
+  entity: IEntity,
+  getPureORMDataArray: () => IPureORMDataArray<any>
+): IPureORMData<any> => {
+  const pureORMData = getPureORMDataArray().find(data => data.entityClass == entity.constructor);
+  if (!pureORMData) {
+    throw new Error(`Could not find pureORMData for class ${entity.constructor}`);
+  }
+  return pureORMData;
+};
+
+export const getDisplayNameForEntity = (
+  entity: IEntity,
+  getPureORMDataArray: () => IPureORMDataArray<any>
+): string => {
+  const pureORMData = getPureORMDataByEntity(entity, getPureORMDataArray);
+  return getDisplayName(pureORMData);
+};
+
+export const getColumnsForEntity = (
+  entity: IEntity,
+  getPureORMDataArray: () => IPureORMDataArray<any>
+): string => {
+  const pureORMData = getPureORMDataByEntity(entity, getPureORMDataArray);
+  return getColumns(pureORMData);
+};
+
+export const getPropertiesForEntity = (
+  entity: IEntity,
+  getPureORMDataArray: () => IPureORMDataArray<any>
+): Array<string> => {
+  const pureORMData = getPureORMDataByEntity(entity, getPureORMDataArray);
+  return getProperties(pureORMData);
+};
+
+export const getSqlColumnsForEntity = (
+  entity: IEntity,
+  getPureORMDataArray: () => IPureORMDataArray<any>
+): Array<string> => {
+  const pureORMData = getPureORMDataByEntity(entity, getPureORMDataArray);
+  return getSqlColumns(pureORMData);
+};
+
+export const getPrimaryKeyForEntity = (
+  entity: IEntity,
+  getPureORMDataArray: () => IPureORMDataArray<any>
+): Array<string> => {
+  const pureORMData = getPureORMDataByEntity(entity, getPureORMDataArray);
+  return getPrimaryKey(pureORMData);
+};
+
+export const getTableNameForEntity = (
+  entity: IEntity,
+  getPureORMDataArray: () => IPureORMDataArray<any>
+): string => {
+  const pureORMData = getPureORMDataByEntity(entity, getPureORMDataArray);
+  return pureORMData.tableName;
+};
+
+export const getReferencesForEntity = (
+  entity: IEntity,
+  getPureORMDataArray: () => IPureORMDataArray<any>
+): object => {
+  const pureORMData = getPureORMDataByEntity(entity, getPureORMDataArray);
+  return getReferences(pureORMData);
+};
+
+export const getCollectionDisplayNameForEntity = (
+  entity: IEntity,
+  getPureORMDataArray: () => IPureORMDataArray<any>
+): string => {
+  const pureORMData = getPureORMDataByEntity(entity, getPureORMDataArray);
+  return pureORMData.collectionDisplayName
+    || `${getDisplayName(pureORMData)}s`;
+};
+
+// Returns unique identifier of entity (the values of the primary keys)
+export const getIdForEntity = (
+  entity: IEntity,
+  getPureORMDataArray: () => IPureORMDataArray<any>
+): string => {
+  const pureORMData = getPureORMDataByEntity(entity, getPureORMDataArray);
+  return getPrimaryKey(pureORMData)
+    .map((key: string) => entity[key as keyof typeof entity])
     .join('');
 };
 
@@ -93,37 +179,41 @@ export const getId = (bo: Entity): string => {
  * Out:
  *  Article {id: 32, ArticleTags articleTags: [ArticleTag {id: 54}, ArticleTag {id: 55}]
  */
-export const nestClump = (clump: Array<Array<Entity>>): object => {
-  clump = clump.map((x: Array<Entity>) => Object.values(x));
+export const nestClump = (
+  clump: Array<Array<IEntity>>,
+  getPureORMDataArray: () => IPureORMDataArray<any>
+): object => {
+  clump = clump.map((x: Array<IEntity>) => Object.values(x));
   const root = clump[0][0];
   clump = clump.map(
-    (row: Array<Entity>) => row.filter(
-      (item: Entity, index: number) => index !== 0
+    (row: Array<IEntity>) => row.filter(
+      (item: IEntity, index: number) => index !== 0
     )
   );
-  const built = { [getDisplayName(root.constructor as EntityConstructor)]: root };
+  const built = { [getDisplayNameForEntity(root, getPureORMDataArray)]: root };
 
   let nodes = [root];
 
   // Wowzer is this both CPU and Memory inefficient
-  clump.forEach((array: Array<Entity>) => {
-    array.forEach((_bo: Entity) => {
+  clump.forEach((array: Array<IEntity>) => {
+    array.forEach((_entity: IEntity) => {
       const nodeAlreadySeen = nodes.find(
-        (x: Entity) =>
-          x.constructor.name === _bo.constructor.name && getId(x) === getId(_bo)
+        (x: IEntity) =>
+          x.constructor.name === _entity.constructor.name
+          && getIdForEntity(x, getPureORMDataArray) === getIdForEntity(_entity, getPureORMDataArray)
       );
-      const bo = nodeAlreadySeen || _bo;
+      const entity = nodeAlreadySeen || _entity;
       const isNodeAlreadySeen = !!nodeAlreadySeen;
       const nodePointingToIt = nodes.find(node => {
-        const indexes = Object.values(getReferences(node.constructor as EntityConstructor))
-          .map((x: EntityConstructor, i: number) => (x === bo.constructor ? i : null))
+        const indexes = Object.values(getReferencesForEntity(node, getPureORMDataArray))
+          .map((x: IEntityClass, i: number) => (x === entity.constructor ? i : null))
           .filter((x: number | null, i) => x != null) as Array<number>;
         if (!indexes.length) {
           return false;
         }
         for (const index of indexes) {
-          const property = Object.keys(getReferences(node.constructor as EntityConstructor))[index];
-          if (node[property] === bo.id) {
+          const property = Object.keys(getReferencesForEntity(node, getPureORMDataArray))[index];
+          if (node[property] === entity.id) {
             return true;
           }
         }
@@ -131,7 +221,7 @@ export const nestClump = (clump: Array<Array<Entity>>): object => {
       });
       // For first obj type which is has an instance in nodes array,
       // get its index in nodes array
-      const indexOfOldestParent = array.reduce((answer: number | null, obj: Entity) => {
+      const indexOfOldestParent = array.reduce((answer: number | null, obj: IEntity) => {
         if (answer != null) {
           return answer;
         }
@@ -146,18 +236,18 @@ export const nestClump = (clump: Array<Array<Entity>>): object => {
         ...nodes.slice(0, indexOfOldestParent + 1).reverse()
       ];
       const nodeItPointsTo = parentHeirarchy.find(parent => {
-        const index = Object.values(getReferences(bo.constructor as EntityConstructor)).indexOf(
+        const index = Object.values(getReferencesForEntity(entity, getPureORMDataArray)).indexOf(
           parent.constructor
         );
         if (index === -1) {
           return false;
         }
-        const property = Object.keys(getReferences(bo.constructor as EntityConstructor))[index];
-        return bo[property as keyof typeof bo] === parent.id;
+        const property = Object.keys(getReferencesForEntity(entity, getPureORMDataArray))[index];
+        return entity[property as keyof typeof entity] === parent.id;
       });
       if (isNodeAlreadySeen) {
         if (nodeItPointsTo && !nodePointingToIt) {
-          nodes = [bo, ...nodes];
+          nodes = [entity, ...nodes];
           return;
         }
         // If the nodePointingToIt (eg, parcel_event) is part of an
@@ -166,32 +256,32 @@ export const nestClump = (clump: Array<Array<Entity>>): object => {
         // the nodePointingToIt (parcel_event), since it (parcel) has been
         // shown to be the parent (of parcel_events).
         if (nodePointingToIt) {
-          const ec = bo[getCollectionDisplayName(nodePointingToIt) as keyof typeof bo];
-          if (ec && ec.models.find((m: Entity) => m === nodePointingToIt)) {
-            nodes = [bo, ...nodes];
+          const ec = entity[getCollectionDisplayNameForEntity(nodePointingToIt, getPureORMDataArray) as keyof typeof entity];
+          if (ec && ec.models.find((m: IEntity) => m === nodePointingToIt)) {
+            nodes = [entity, ...nodes];
             return;
           }
         }
       }
       if (nodePointingToIt) {
-        nodePointingToIt[getDisplayName(bo.constructor as EntityConstructor)] = bo;
+        nodePointingToIt[getDisplayNameForEntity(entity, getPureORMDataArray)] = entity;
       } else if (nodeItPointsTo) {
-        let collection = nodeItPointsTo[getCollectionDisplayName(bo)];
+        let collection = nodeItPointsTo[getCollectionDisplayNameForEntity(entity, getPureORMDataArray)];
         if (collection) {
-          collection.models.push(bo);
+          collection.models.push(entity);
         } else {
-          nodeItPointsTo[getCollectionDisplayName(bo)] = new bo.BoCollection({
-            models: [bo]
+          nodeItPointsTo[getCollectionDisplayNameForEntity(entity, getPureORMDataArray)] = new entity.BoCollection({
+            models: [entity]
           });
         }
       } else {
-        if (!getId(bo)) {
+        if (!getIdForEntity(entity, getPureORMDataArray)) {
           // If the join is fruitless; todo: add a test for this path
           return;
         }
-        throw Error(`Could not find how this BO fits: ${JSON.stringify(bo)}`);
+        throw Error(`Could not find how this BO fits: ${JSON.stringify(entity)}`);
       }
-      nodes = [bo, ...nodes];
+      nodes = [entity, ...nodes];
     });
   });
 
@@ -217,11 +307,15 @@ export const nestClump = (clump: Array<Array<Entity>>): object => {
  *    ]
  *  ]
  */
-export const clumpIntoGroups = (processed: Array<Array<Entity>>): Array<Array<Array<Entity>>> => {
-  const rootBo = processed[0][0].constructor;
-  const clumps = processed.reduce((accum: any, item: Array<Entity>) => {
-    const id = getPrimaryKey(rootBo as EntityConstructor)
-      .map((key: string) => item.find((x: Entity) => x.constructor === rootBo)?.[key])
+export const clumpIntoGroups = (
+  processed: Array<Array<IEntity>>,
+  getPureORMDataArray: () => IPureORMDataArray<any>
+): Array<Array<Array<IEntity>>> => {
+  const root = processed[0][0];
+  const rootBo = root.constructor;
+  const clumps = processed.reduce((accum: any, item: Array<IEntity>) => {
+    const id = getPrimaryKeyForEntity(root, getPureORMDataArray)
+      .map((key: string) => item.find((x: IEntity) => x.constructor === rootBo)?.[key])
       .join('@');
     if (accum.has(id)) {
       accum.set(id, [...accum.get(id), item]);
@@ -233,22 +327,19 @@ export const clumpIntoGroups = (processed: Array<Array<Entity>>): Array<Array<Ar
   return [...clumps.values()];
 };
 
-export const mapToBos = (objectified: any, getBusinessObjects: () => Array<EntityConstructor>) => {
+export const mapToBos = (objectified: any, getPureORMDataArray: () => IPureORMDataArray<any>) => {
   return Object.keys(objectified).map(tableName => {
-    const Bo = getBusinessObjects().find((Bo: EntityConstructor) => Bo.tableName === tableName);
-    if (!Bo) {
-      throw Error(`No business object with table name "${tableName}"`);
-    }
+    const pureORMData = getPureORMDataByTableName(tableName, getPureORMDataArray);
     const propified = Object.keys(objectified[tableName]).reduce(
       (obj: any, column) => {
-        let propertyName = getProperties(Bo)[getSqlColumns(Bo).indexOf(column)];
+        let propertyName = getProperties(pureORMData)[getSqlColumns(pureORMData).indexOf(column)];
         if (!propertyName) {
           if (column.startsWith('meta_')) {
             propertyName = camelCase(column);
           } else {
             throw Error(
               `No property name for "${column}" in business object "${getDisplayName(
-                Bo
+                pureORMData
               )}". Non-spec'd columns must begin with "meta_".`
             );
           }
@@ -258,7 +349,7 @@ export const mapToBos = (objectified: any, getBusinessObjects: () => Array<Entit
       },
       {}
     );
-    return new Bo(propified);
+    return new pureORMData.entityClass(propified);
   });
 };
 
@@ -276,18 +367,18 @@ export const objectifyDatabaseResult = (result: object) => {
   }, {});
 };
 
-export const createFromDatabase = (_result: Array<object> | object, getBusinessObjects: () => Array<EntityConstructor>) => {
+export const createFromDatabase = (_result: Array<object> | object, getPureORMDataArray: () => IPureORMDataArray<any>) => {
   const result = Array.isArray(_result) ? _result : [_result];
   const objectified = result.map(objectifyDatabaseResult);
-  const boified = objectified.map((x: any) => mapToBos(x, getBusinessObjects));
-  const clumps = clumpIntoGroups(boified);
-  const nested = clumps.map(nestClump);
+  const boified = objectified.map((x: any) => mapToBos(x, getPureORMDataArray));
+  const clumps = clumpIntoGroups(boified, getPureORMDataArray);
+  const nested = clumps.map(x => nestClump(x, getPureORMDataArray));
   const models = nested.map(n => Object.values(n)[0]);
   return models.length ? new models[0].BoCollection({ models }) : void 0;
 };
 
-export const createOneFromDatabase = (_result: any, getBusinessObjects: () => Array<EntityConstructor>) => {
-  const collection = createFromDatabase(_result, getBusinessObjects);
+export const createOneFromDatabase = (_result: any, getPureORMDataArray: () => IPureORMDataArray<any>) => {
+  const collection = createFromDatabase(_result, getPureORMDataArray);
   if (!collection || collection.models.length === 0) {
     throw Error('Did not get one.');
   } else if (collection.models.length > 1) {
@@ -296,88 +387,88 @@ export const createOneFromDatabase = (_result: any, getBusinessObjects: () => Ar
   return collection.models[0];
 };
 
-export const createOneOrNoneFromDatabase = (_result: any, getBusinessObjects: () => Array<EntityConstructor>) => {
+export const createOneOrNoneFromDatabase = (_result: any, getPureORMDataArray: () => IPureORMDataArray<any>) => {
   if (!_result) {
     return _result;
   }
-  const collection = createFromDatabase(_result, getBusinessObjects);
+  const collection = createFromDatabase(_result, getPureORMDataArray);
   if (collection && collection.models.length > 1) {
     throw Error('Got more than one.');
   }
   return collection && collection.models[0];
 };
 
-export const createManyFromDatabase = (_result: any, getBusinessObjects: () => Array<EntityConstructor>) => {
-  const collection = createFromDatabase(_result, getBusinessObjects);
+export const createManyFromDatabase = (_result: any, getPureORMDataArray: () => IPureORMDataArray<any>) => {
+  const collection = createFromDatabase(_result, getPureORMDataArray);
   if (!collection || collection.models.length === 0) {
     throw Error('Did not get at least one.');
   }
   return collection;
 };
 
-export const getSqlInsertParts = (bo: Entity) => {
-  const columns = getSqlColumns(bo.constructor as EntityConstructor)
+export const getSqlInsertParts = (entity: IEntity, getPureORMDataArray: () => IPureORMDataArray<any>) => {
+  const columns = getSqlColumnsForEntity(entity, getPureORMDataArray)
     .filter(
-      (column: string, index: number) => bo[getProperties(bo.constructor as EntityConstructor)[index] as keyof typeof bo] !== void 0
+      (column: string, index: number) => entity[getPropertiesForEntity(entity, getPureORMDataArray)[index] as keyof typeof entity] !== void 0
     )
     .map((col: string) => `"${col}"`)
     .join(', ');
-  const values = getProperties(bo.constructor as EntityConstructor)
-    .map((property: string) => bo[property as keyof typeof bo])
+  const values = getPropertiesForEntity(entity, getPureORMDataArray)
+    .map((property: string) => entity[property as keyof typeof entity])
     .filter((value: any) => value !== void 0);
   const valuesVar = values.map((value: any, index: number) => `$${index + 1}`);
   return { columns, values, valuesVar };
 };
 
-export const getSqlUpdateParts = (bo: Entity, on = 'id') => {
-  const clauseArray = getSqlColumns(bo.constructor as EntityConstructor)
+export const getSqlUpdateParts = (entity: IEntity, getPureORMDataArray: () => IPureORMDataArray<any>, on = 'id') => {
+  const clauseArray = getSqlColumnsForEntity(entity, getPureORMDataArray)
     .filter(
-      (sqlColumn: string, index: number) => bo[getProperties(bo.constructor as EntityConstructor)[index] as keyof typeof bo] !== void 0
+      (sqlColumn: string, index: number) => entity[getPropertiesForEntity(entity, getPureORMDataArray)[index] as keyof typeof entity] !== void 0
     )
     .map((sqlColumn: string, index: number) => `"${sqlColumn}" = $${index + 1}`);
   const clause = clauseArray.join(', ');
   const idVar = `$${clauseArray.length + 1}`;
-  const _values = getProperties(bo.constructor as EntityConstructor)
-    .map((property: string) => bo[property as keyof typeof bo])
+  const _values = getPropertiesForEntity(entity, getPureORMDataArray)
+    .map((property: string) => entity[property as keyof typeof entity])
     .filter((value: any) => value !== void 0);
-  const values = [..._values, bo[on as keyof typeof bo]];
+  const values = [..._values, entity[on as keyof typeof entity]];
   return { clause, idVar, values };
 };
 
-export const getMatchingParts = (bo: Entity) => {
-  const whereClause = getProperties(bo.constructor as EntityConstructor)
+export const getMatchingParts = (entity: IEntity, getPureORMDataArray: () => IPureORMDataArray<any>) => {
+  const whereClause = getPropertiesForEntity(entity, getPureORMDataArray)
     .map((property: string, index: number) =>
-      bo[property as keyof typeof bo] != null
-        ? `"${(bo.constructor as EntityConstructor).tableName}"."${
-            getSqlColumns(bo.constructor as EntityConstructor)[index]
+      entity[property as keyof typeof entity] != null
+        ? `"${getTableNameForEntity(entity, getPureORMDataArray)}"."${
+            getSqlColumnsForEntity(entity, getPureORMDataArray)[index]
           }"`
         : null
     )
     .filter((x: string | null) => x != null)
     .map((x: string | null, i: number) => `${x} = $${i + 1}`)
     .join(' AND ');
-  const values = getProperties(bo.constructor as EntityConstructor)
-    .map((property: string) => (bo[property as keyof typeof bo] != null ? bo[property as keyof typeof bo] : null))
+  const values = getPropertiesForEntity(entity, getPureORMDataArray)
+    .map((property: string) => (entity[property as keyof typeof entity] != null ? entity[property as keyof typeof entity] : null))
     .filter((x: any) => x != null);
   return { whereClause, values };
 };
 
 // This one returns an object, which allows it to be more versatile.
 // To-do: make this one even better and use it instead of the one above.
-export const getMatchingPartsObject = (bo: Entity) => {
-  const whereClause = getProperties(bo.constructor as EntityConstructor)
+export const getMatchingPartsObject = (entity: IEntity, getPureORMDataArray: () => IPureORMDataArray<any>) => {
+  const whereClause = getPropertiesForEntity(entity, getPureORMDataArray)
     .map((property: string, index: number) =>
-      bo[property as keyof typeof bo] != null
-        ? `"${(bo.constructor as EntityConstructor).tableName}"."${
-            getSqlColumns(bo.constructor as EntityConstructor)[index]
+      entity[property as keyof typeof entity] != null
+        ? `"${getTableNameForEntity(entity, getPureORMDataArray)}"."${
+            getSqlColumnsForEntity(entity, getPureORMDataArray)[index]
           }"`
         : null
     )
     .filter((x: string | null) => x != null)
     .map((x: string | null, i: number) => `${x} = $(${i + 1})`)
     .join(' AND ');
-  const values = getProperties(bo.constructor as EntityConstructor)
-    .map((property: string) => (bo[property as keyof typeof bo] != null ? bo[property as keyof typeof bo] : null))
+  const values = getPropertiesForEntity(entity, getPureORMDataArray)
+    .map((property: string) => (entity[property as keyof typeof entity] != null ? entity[property as keyof typeof entity] : null))
     .filter((x: any) => x != null)
     .reduce(
       (accum: any, val: any, index: number) => Object.assign({}, accum, { [index + 1]: val }),
@@ -386,22 +477,22 @@ export const getMatchingPartsObject = (bo: Entity) => {
   return { whereClause, values };
 };
 
-export const getNewWith = (bo: Entity, sqlColumns: any, values: any) => {
-  const Constructor = bo.constructor as any;
-  const boKeys = sqlColumns.map(
+export const getNewWith = (entity: IEntity, sqlColumns: any, values: any) => {
+  const Constructor = entity.constructor as any;
+  const entityKeys = sqlColumns.map(
     (key: string) => getProperties(Constructor)[getSqlColumns(Constructor).indexOf(key)]
   );
-  const boData = boKeys.reduce((data: any, key: string, index: number) => {
+  const entityData = entityKeys.reduce((data: any, key: string, index: number) => {
     data[key] = values[index];
     return data;
   }, {});
-  return new Constructor(boData);
+  return new Constructor(entityData);
 };
 
-export const getValueBySqlColumn = (bo: Entity, sqlColumn: string) => {
-  return bo[
-    getProperties(bo.constructor as EntityConstructor)[
-      getSqlColumns(bo.constructor as EntityConstructor).indexOf(sqlColumn)
-    ] as keyof typeof bo
+export const getValueBySqlColumn = (entity: IEntity, sqlColumn: string, getPureORMDataArray: () => IPureORMDataArray<any>) => {
+  return entity[
+    getPropertiesForEntity(entity, getPureORMDataArray)[
+      getSqlColumnsForEntity(entity, getPureORMDataArray).indexOf(sqlColumn)
+    ] as keyof typeof entity
   ];
 };

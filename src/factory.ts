@@ -5,38 +5,40 @@ import {
   createFromDatabase,
   getSqlUpdateParts,
   getSqlInsertParts,
-  getTableName,
+  getTableNameForEntity,
+  getColumnsForEntity,
   getColumns,
   getDisplayName,
-  Entity,
-  EntityConstructor,
+  getMatchingParts,
+  IPureORMData,
+  IPureORMDataArray,
 } from './business-object';
 
 export interface PureORM {
-  one: (query: string, params?: object) => Entity;
-  oneOrNone: (query: string, params: object) => Entity | void;
-  many: (query: string, params: object) => Array<Entity>;
-  any: (query: string, params: object) => Array<Entity> | void;
+  one: <T>(query: string, params?: object) => T;
+  oneOrNone: <T>(query: string, params: object) => T | void;
+  many: <T>(query: string, params: object) => Array<T>;
+  any: <T>(query: string, params: object) => Array<T> | void;
   none: (query: string, params: object) => void;
-  getMatching: (bo: Entity) => Entity;
-  getOneOrNoneMatching: (bo: Entity) => Entity | void;
-  getAnyMatching: (bo: Entity) => Array<Entity> | void;
-  getAllMatching: (bo: Entity) => Array<Entity>;
-  create: (bo: Entity) => Entity;
-  update: (bo: Entity) => Entity;
-  delete: (bo: Entity) => void;
-  deleteMatching: (bo: Entity) => void;
+  getMatching: <T>(entity: T) => T;
+  getOneOrNoneMatching: <T>(entity: T) => T | void;
+  getAnyMatching: <T>(entity: T) => Array<T> | void;
+  getAllMatching: <T>(entity: T) => Array<T>;
+  create: <T>(entity: T) => T;
+  update: <T>(entity: T) => T;
+  delete: <T>(entity: T) => void;
+  deleteMatching: <T>(entity: T) => void;
   tables: { [key:string]: { [key: string]: string; }};
 }
 
 
 export interface CreateOptions{
-  getBusinessObjects: () => Array<EntityConstructor>;
+  getPureORMDataArray: () => IPureORMDataArray<any>;
   db: any;
   logError?: (err: Error) => void;
 }
 
-export const create = ({ getBusinessObjects, db, logError }: CreateOptions): PureORM => {
+export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): PureORM => {
   const defaultErrorHandler = (err: Error) => {
     if (!(err.name === 'QueryResultError')) {
       if (logError) {
@@ -50,31 +52,31 @@ export const create = ({ getBusinessObjects, db, logError }: CreateOptions): Pur
   /* Query functions --------------------------------------------------------*/
   /* ------------------------------------------------------------------------*/
 
-  const one = (query: string, values?: object, errorHandler = defaultErrorHandler) => {
+  const one = <T>(query: string, values?: object, errorHandler = defaultErrorHandler): T => {
     return db
       .many(query, values)
-      .then((rows: any) => createOneFromDatabase(rows, getBusinessObjects))
+      .then((rows: any) => createOneFromDatabase(rows, getPureORMDataArray))
       .catch(errorHandler);
   };
 
   const oneOrNone = (query: string, values?: object, errorHandler = defaultErrorHandler) => {
     return db
       .any(query, values)
-      .then((rows: any) => createOneOrNoneFromDatabase(rows, getBusinessObjects))
+      .then((rows: any) => createOneOrNoneFromDatabase(rows, getPureORMDataArray))
       .catch(errorHandler);
   };
 
   const many = (query: string, values?: object, errorHandler = defaultErrorHandler) => {
     return db
       .any(query, values)
-      .then((rows: any) => createManyFromDatabase(rows, getBusinessObjects))
+      .then((rows: any) => createManyFromDatabase(rows, getPureORMDataArray))
       .catch(errorHandler);
   };
 
   const any = (query: string, values?: object, errorHandler = defaultErrorHandler) => {
     return db
       .any(query, values)
-      .then((rows: any) => createFromDatabase(rows, getBusinessObjects))
+      .then((rows: any) => createFromDatabase(rows, getPureORMDataArray))
       .catch(errorHandler);
   };
 
@@ -90,82 +92,82 @@ export const create = ({ getBusinessObjects, db, logError }: CreateOptions): Pur
   /* ------------------------------------------------------------------------*/
 
   // Standard create
-  const create = (bo: any) => {
-    const { columns, values, valuesVar } = getSqlInsertParts(bo);
+  const create = <T>(entity: T) => {
+    const { columns, values, valuesVar } = getSqlInsertParts(entity, getPureORMDataArray);
     const query = `
-      INSERT INTO "${getTableName(bo)}" ( ${columns} )
+      INSERT INTO "${getTableNameForEntity(entity, getPureORMDataArray)}" ( ${columns} )
       VALUES ( ${valuesVar} )
-      RETURNING ${getColumns(bo)};
+      RETURNING ${getColumnsForEntity(entity, getPureORMDataArray)};
     `;
-    return one(query, values);
+    return one(query, values) as T;
   };
 
   // Standard update
-  const update = (bo: any, { on = 'id' } = {}) => {
-    const { clause, idVar, values } = getSqlUpdateParts(bo, on);
+  const update = <T>(entity: T, { on = 'id' } = {}) => {
+    const { clause, idVar, values } = getSqlUpdateParts(entity, getPureORMDataArray, on);
     const query = `
-      UPDATE "${getTableName(bo)}"
+      UPDATE "${getTableNameForEntity(entity, getPureORMDataArray)}"
       SET ${clause}
-      WHERE "${getTableName(bo)}".${on} = ${idVar}
-      RETURNING ${getColumns(bo)};
+      WHERE "${getTableNameForEntity(entity, getPureORMDataArray)}".${on} = ${idVar}
+      RETURNING ${getColumnsForEntity(entity, getPureORMDataArray)};
     `;
-    return one(query, values);
+    return one(query, values) as T;
   };
 
   // Standard delete
-  const _delete = (bo: any) => {
-    const id = bo.id;
+  const _delete = <T>(entity: T) => {
+    const id = (entity as any).id;
     const query = `
-      DELETE FROM "${getTableName(bo)}"
-      WHERE "${getTableName(bo)}".id = $(id)
+      DELETE FROM "${getTableNameForEntity(entity, getPureORMDataArray)}"
+      WHERE "${getTableNameForEntity(entity, getPureORMDataArray)}".id = $(id)
     `;
     return none(query, { id });
   };
 
-  const deleteMatching = (bo: any) => {
-    const { whereClause, values } = bo.getMatchingParts();
+  const deleteMatching = <T>(entity: T) => {
+    const { whereClause, values } = getMatchingParts(entity, getPureORMDataArray);
     const query = `
-      DELETE FROM "${getTableName(bo)}"
+      DELETE FROM "${getTableNameForEntity(entity, getPureORMDataArray)}"
       WHERE ${whereClause};
     `;
     return none(query, values);
   };
 
-  const getMatching = (bo: any) => {
-    const { whereClause, values } = bo.getMatchingParts();
+  const getMatching = <T>(entity: T) => {
+    const { whereClause, values } = getMatchingParts(entity, getPureORMDataArray);
     const query = `
-      SELECT ${getColumns(bo)}
-      FROM "${getTableName(bo)}"
+      SELECT ${getColumnsForEntity(entity, getPureORMDataArray)}
+      FROM "${getTableNameForEntity(entity, getPureORMDataArray)}"
       WHERE ${whereClause};
     `;
-    return one(query, values);
+    return one(query, values) as T;
   };
 
-  const getOneOrNoneMatching = (bo: any) => {
-    const { whereClause, values } = bo.getMatchingParts();
+  const getOneOrNoneMatching = <T>(entity: T) => {
+    const { whereClause, values } = getMatchingParts(entity, getPureORMDataArray);
     const query = `
-      SELECT ${getColumns(bo)}
-      FROM "${getTableName(bo)}"
+      SELECT ${getColumnsForEntity(entity, getPureORMDataArray)}
+      FROM "${getTableNameForEntity(entity, getPureORMDataArray)}"
       WHERE ${whereClause};
     `;
     return oneOrNone(query, values);
   };
 
-  const getAnyMatching = (bo: any) => {
-    const { whereClause, values } = bo.getMatchingParts();
+  const getAnyMatching = <T>(entity: T) => {
+    const { whereClause, values } = getMatchingParts(entity, getPureORMDataArray);
     const query = `
-      SELECT ${getColumns(bo)}
-      FROM "${getTableName(bo)}"
+      SELECT ${getColumnsForEntity(entity, getPureORMDataArray)}
+      FROM "${getTableNameForEntity(entity, getPureORMDataArray)}"
       WHERE ${whereClause};
     `;
     return any(query, values);
   };
 
-  const getAllMatching = (bo: any) => {
-    const { whereClause, values } = bo.getMatchingParts();
+  const getAllMatching = <T>(entity: T) => {
+    const { whereClause, values } = getMatchingParts(entity, getPureORMDataArray);
     const query = `
-      SELECT ${getColumns(bo)}
-      FROM "${getTableName(bo)}"
+      SELECT ${getColumnsForEntity(entity, getPureORMDataArray)}
+      FROM "${getTableNameForEntity(entity, getPureORMDataArray)}"
       WHERE ${whereClause};
     `;
     return many(query, values);
@@ -187,8 +189,8 @@ export const create = ({ getBusinessObjects, db, logError }: CreateOptions): Pur
     getOneOrNoneMatching,
     getAnyMatching,
     getAllMatching,
-    tables: getBusinessObjects().reduce((accum: any, Bo: EntityConstructor) => {
-      accum[getDisplayName(Bo)] = getColumns(Bo);
+    tables: getPureORMDataArray().reduce((accum: any, data: IPureORMData<any>) => {
+      accum[getDisplayName(data)] = getColumns(data);
       return accum;
     }, {})
   };
