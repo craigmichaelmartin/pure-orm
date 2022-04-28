@@ -1,21 +1,31 @@
-const Shipments = require('./shipments');
+import { IEntity, ICollection, IColumns } from '../../../src/index';
 
-class Shipment {
-  constructor(props) {
-    Object.assign(this, props);
-  }
+export const tableName: string = 'shipment';
 
-  get BoCollection() {
-    return Shipments;
-  }
+export const columns: IColumns = ['id', 'inventory_location_id', 'sellable_date'];
 
-  static get tableName() {
-    return 'shipment';
-  }
+export class Shipment implements IEntity {
+  id: number;
+  inventoryLocationId: number;
+  sellableDate: Date;
 
-  static get sqlColumnsData() {
-    return ['id', 'inventory_location_id', 'sellable_date'];
+  constructor(props: any) {
+    this.id = props.id;
+    this.inventoryLocationId = props.inventoryLocationId;
+    this.sellableDate = props.sellableDate;
   }
 }
 
-module.exports = Shipment;
+export class Shipments implements ICollection<Shipment> {
+  models: Array<Shipment>;
+  constructor({ models }: any) {
+    this.models = models;
+  }
+}
+
+export const shipmentConfiguration = {
+  tableName,
+  columns,
+  entityClass: Shipment,
+  collectionClass: Shipments,
+}

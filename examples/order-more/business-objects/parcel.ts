@@ -19,7 +19,7 @@ export class Parcels implements ICollection<Parcel> {
   }
 }
 
-export const orderConfiguration = {
+export const parcelConfiguration = {
   tableName,
   columns,
   entityClass: Parcel,

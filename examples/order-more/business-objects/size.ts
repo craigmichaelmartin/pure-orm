@@ -1,21 +1,31 @@
-const Sizes = require('./sizes');
+import { IEntity, ICollection, IColumns } from '../../../src/index';
 
-class Size {
-  constructor(props) {
-    Object.assign(this, props);
-  }
+export const tableName: string = 'size';
 
-  get BoCollection() {
-    return Sizes;
-  }
+export const columns: IColumns = [ 'id', 'value', 'label' ];
 
-  static get tableName() {
-    return 'size';
-  }
+export class Size implements IEntity {
+  id: number;
+  value: string;
+  label: string;
 
-  static get sqlColumnsData() {
-    return ['id', 'value', 'label'];
+  constructor(props: any) {
+    this.id = props.id;
+    this.value = props.value;
+    this.label = props.label;
   }
 }
 
-module.exports = Size;
+export class Sizes implements ICollection<Size> {
+  models: Array<Size>;
+  constructor({ models }: any) {
+    this.models = models;
+  }
+}
+
+export const sizeConfiguration = {
+  tableName,
+  columns,
+  entityClass: Size,
+  collectionClass: Sizes,
+}

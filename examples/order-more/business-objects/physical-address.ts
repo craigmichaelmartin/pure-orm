@@ -1,33 +1,59 @@
-const PhysicalAddresses = require('./physical-addresses');
+import { IEntity, ICollection, IColumns } from '../../../src/index';
 
-class PhysicalAddress {
-  constructor(props) {
-    Object.assign(this, props);
-  }
+export const tableName: string = 'physical_address';
 
-  get BoCollection() {
-    return PhysicalAddresses;
-  }
+export const columns: IColumns = [
+  'id',
+  'address1',
+  'address2',
+  'city',
+  'province',
+  'zip',
+  'country',
+  'province_code',
+  'country_code',
+  'latitude',
+  'longitude'
+];
 
-  static get tableName() {
-    return 'physical_address';
-  }
+export class PhysicalAddress implements IEntity {
+  id: number;
+  address1: string;
+  address2: string;
+  city: string;
+  province: string;
+  zip: string;
+  country: string;
+  provinceCode: string;
+  countryCode: string;
+  latitude: string;
+  longitude: string;
 
-  static get sqlColumnsData() {
-    return [
-      'id',
-      'address1',
-      'address2',
-      'city',
-      'province',
-      'zip',
-      'country',
-      'province_code',
-      'country_code',
-      'latitude',
-      'longitude'
-    ];
+  constructor(props: any) {
+    this.id = props.id;
+    this.address1 = props.address1;
+    this.address2 = props.address2;
+    this.city = props.city;
+    this.province = props.province;
+    this.zip = props.zip;
+    this.country = props.country;
+    this.provinceCode = props.provinceCode;
+    this.countryCode = props.countryCode;
+    this.latitude = props.latitude;
+    this.longitude = props.longitude;
   }
 }
 
-module.exports = PhysicalAddress;
+export class PhysicalAddresses implements ICollection<PhysicalAddress> {
+  models: Array<PhysicalAddress>;
+  constructor({ models }: any) {
+    this.models = models;
+  }
+}
+
+export const physicalAddressConfiguration = {
+  tableName,
+  columns,
+  entityClass: PhysicalAddress,
+  collectionClass: PhysicalAddresses,
+}

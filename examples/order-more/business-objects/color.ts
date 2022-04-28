@@ -27,7 +27,7 @@ export class Colors implements ICollection<Color> {
   }
 }
 
-export const orderConfiguration = {
+export const colorConfiguration = {
   tableName,
   columns,
   entityClass: Color,

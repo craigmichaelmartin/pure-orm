@@ -1,6 +1,6 @@
 import { IEntity, ICollection, IColumns } from '../../../src/index';
 
-export const tableName: string = 'actual_product_variant';
+export const tableName: string = 'customer';
 
 export const columns: IColumns = [ 'id', 'email' ];
 
@@ -21,7 +21,7 @@ export class Customers implements ICollection<Customer> {
   }
 }
 
-export const orderConfiguration = {
+export const customerConfiguration = {
   tableName,
   columns,
   entityClass: Customer,

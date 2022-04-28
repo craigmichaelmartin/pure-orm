@@ -23,7 +23,7 @@ export class Genders implements ICollection<Gender> {
   }
 }
 
-export const orderConfiguration = {
+export const genderConfiguration = {
   tableName,
   columns,
   entityClass: Gender,

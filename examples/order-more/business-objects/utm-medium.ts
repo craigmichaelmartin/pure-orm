@@ -1,15 +1,31 @@
-class UtmMedium {
-  constructor(props) {
-    Object.assign(this, props);
-  }
+import { IEntity, ICollection, IColumns } from '../../../src/index';
 
-  static get tableName() {
-    return 'utm_medium';
-  }
+export const tableName: string = 'utm_medium';
 
-  static get sqlColumnsData() {
-    return ['id', 'value', 'label'];
+export const columns: IColumns = [ 'id', 'value', 'label' ];
+
+export class UtmMedium implements IEntity {
+  id: number;
+  value: string;
+  label: string;
+
+  constructor(props: any) {
+    this.id = props.id;
+    this.value = props.value;
+    this.label = props.label;
   }
 }
 
-module.exports = UtmMedium;
+export class UtmMediums implements ICollection<UtmMedium> {
+  models: Array<UtmMedium>;
+  constructor({ models }: any) {
+    this.models = models;
+  }
+}
+
+export const utmMediumConfiguration = {
+  tableName,
+  columns,
+  entityClass: UtmMedium,
+  collectionClass: UtmMediums,
+}

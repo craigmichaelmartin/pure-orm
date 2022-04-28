@@ -1,29 +1,47 @@
-const ShipmentActualProductVariants = require('./shipment-actual-product-variants');
-const ActualProductVariant = require('./actual-product-variant');
-const Shipment = require('./shipment');
+import { ActualProductVariant } from './actual-product-variant';
+import { Shipment } from './shipment';
+import { IEntity, ICollection, IColumns } from '../../../src/index';
 
-class ShipmentActualProductVariant {
-  constructor(props) {
-    Object.assign(this, props);
-  }
+export const tableName: string = 'shipment_actual_product_variant';
 
-  get BoCollection() {
-    return ShipmentActualProductVariants;
-  }
+export const columns: IColumns = [
+  'id',
+  { column: 'shipment_id', references: Shipment },
+  { column: 'actual_product_variant_id', references: ActualProductVariant },
+  'quantity',
+  'updated_date'
+];
 
-  static get tableName() {
-    return 'shipment_actual_product_variant';
-  }
+export class ShipmentActualProductVariant implements IEntity {
+  id: number;
+  shipmentId: number;
+  shipment?: Shipment;
+  actualProductVariantId: number;
+  actualProductVariant?: ActualProductVariant;
+  quantity: number;
+  updatedDate: Date;
 
-  static get sqlColumnsData() {
-    return [
-      'id',
-      { column: 'shipment_id', references: Shipment },
-      { column: 'actual_product_variant_id', references: ActualProductVariant },
-      'quantity',
-      'updated_date'
-    ];
+  constructor(props: any) {
+    this.id = props.id;
+    this.shipmentId = props.shipmentId;
+    this.shipment = props.shipment;
+    this.actualProductVariantId = props.actualProductVariantId;
+    this.actualProductVariant = props.actualProductVariant;
+    this.quantity = props.quantity;
+    this.updatedDate = props.updatedDate;
   }
 }
 
-module.exports = ShipmentActualProductVariant;
+export class ShipmentActualProductVariants implements ICollection<ShipmentActualProductVariant> {
+  models: Array<ShipmentActualProductVariant>;
+  constructor({ models }: any) {
+    this.models = models;
+  }
+}
+
+export const shipmentActualProductVariantConfiguration = {
+  tableName,
+  columns,
+  entityClass: ShipmentActualProductVariant,
+  collectionClass: ShipmentActualProductVariants,
+}

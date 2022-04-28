@@ -1,28 +1,44 @@
-const ProductVariantImages = require('./product-variant-images');
-const ProductVariant = require('./product-variant');
+import { IEntity, ICollection, IColumns } from '../../../src/index';
+import { ProductVariant } from './product-variant';
 
-class ProductVariantImage {
-  constructor(props) {
-    Object.assign(this, props);
-  }
+export const tableName: string = 'product_variant_image';
 
-  get BoCollection() {
-    return ProductVariantImages;
-  }
+export const columns: IColumns = [
+  'id',
+  { column: 'product_variant_id', references: ProductVariant },
+  'image_url_full',
+  'image_url_preview',
+  'is_primary'
+];
 
-  static get tableName() {
-    return 'product_variant_image';
-  }
+export class ProductVariantImage implements IEntity {
+  id: number;
+  productVariantId: number;
+  productVariant?: ProductVariant;
+  imageUrlFull: string;
+  imageUrlPreview: string;
+  isPrimary: boolean;
 
-  static get sqlColumnsData() {
-    return [
-      'id',
-      { column: 'product_variant_id', references: ProductVariant },
-      'image_url_full',
-      'image_url_preview',
-      'is_primary'
-    ];
+  constructor(props: any) {
+    this.id = props.id;
+    this.productVariantId = props.productVariantId;
+    this.productVariant = props.productVariant;
+    this.imageUrlFull = props.imageUrlFull;
+    this.imageUrlPreview = props.imageUrlPreview;
+    this.isPrimary = props.isPrimary;
   }
 }
 
-module.exports = ProductVariantImage;
+export class ProductVariantImages implements ICollection<ProductVariantImage> {
+  models: Array<ProductVariantImage>;
+  constructor({ models }: any) {
+    this.models = models;
+  }
+}
+
+export const productVariantImageConfiguration = {
+  tableName,
+  columns,
+  entityClass: ProductVariantImage,
+  collectionClass: ProductVariantImages,
+}
