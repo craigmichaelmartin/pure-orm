@@ -50,7 +50,7 @@ export class Article implements IEntity {
   }
 }
 
-export class Articles implements ICollection<Person> {
+export class Articles implements ICollection<Article> {
   models: Array<Article>;
   constructor({ models }: any) {
     this.models = models;

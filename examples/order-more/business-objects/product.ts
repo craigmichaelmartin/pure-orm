@@ -1,5 +1,4 @@
 import { IEntity, ICollection, IColumns } from '../../../src/index';
-import { Vendor } from './vendor';
 
 export const tableName: string = 'product';
 
@@ -19,7 +18,6 @@ export const columns: IColumns = [
 export class Product implements IEntity {
   id: number;
   vendorId: number;
-  vendor?: Vendor;
   shopifyId: number;
   value: string;
   label: string;
@@ -32,7 +30,6 @@ export class Product implements IEntity {
   constructor(props: any) {
     this.id = props.id;
     this.vendorId = props.vendorId;
-    this.vendor = props.vendor;
     this.shopifyId = props.shopifyId;
     this.value = props.value;
     this.label = props.label;

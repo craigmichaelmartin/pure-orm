@@ -1,15 +1,36 @@
-class Tag {
-  constructor(props) {
-    Object.assign(this, props);
-  }
+import { IEntity, ICollection, IColumns } from '../../../src/index';
+import { Person } from './person';
 
-  static get tableName() {
-    return 'tag';
-  }
+export const tableName = 'tag';
 
-  static get sqlColumnsData() {
-    return ['id', 'name', 'slug'];
+export const columns: IColumns = [
+  'id',
+  'name',
+  'slug'
+];
+
+export class Tag implements IEntity {
+  id: number;
+  name: string;
+  slug: string;
+
+  constructor(props: any) {
+    this.id = props.id;
+    this.name = props.name;
+    this.slug = props.slug;
   }
 }
 
-module.exports = Tag;
+export class Tags implements ICollection<Tag> {
+  models: Array<Tag>;
+  constructor({ models }: any) {
+    this.models = models;
+  }
+}
+
+export const tagConfiguration = {
+  tableName,
+  columns,
+  entityClass: Tag,
+  collectionClass: Tags,
+};
