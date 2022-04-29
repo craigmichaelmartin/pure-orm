@@ -2,8 +2,8 @@ export {
   create,
   CreateOptions,
   PureORM,
-  IEntity,
-  IEntityClass,
+  IModel,
+  IModelClass,
   ICollection,
   IColumns,
 } from './factory';

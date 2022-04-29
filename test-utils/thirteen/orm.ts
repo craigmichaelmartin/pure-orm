@@ -1,12 +1,12 @@
 import { create } from '../../src/index';
-import { memberConfiguration } from './entities/member';
-import { recommendationConfiguration } from './entities/recommendation';
-import { brandConfiguration } from './entities/brand';
-import { productConfiguration } from './entities/product';
-import { categoryConfiguration } from './entities/category';
-import { passionConfiguration } from './entities/passion';
-import { recommendationAudienceConfiguration } from './entities/recommendation-audience';
-import { audienceConfiguration } from './entities/audience';
+import { memberConfiguration } from './models/member';
+import { recommendationConfiguration } from './models/recommendation';
+import { brandConfiguration } from './models/brand';
+import { productConfiguration } from './models/product';
+import { categoryConfiguration } from './models/category';
+import { passionConfiguration } from './models/passion';
+import { recommendationAudienceConfiguration } from './models/recommendation-audience';
+import { audienceConfiguration } from './models/audience';
 const orm = create({
   getPureORMDataArray: () => [
     memberConfiguration,

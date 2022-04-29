@@ -29,19 +29,19 @@ The name _**pure**ORM_ reflects both of these points - that it is _pure_ ORM (th
 
 #### Concepts
 
-A **Business Object** is a pure javascript object corresponding to a table.
+A **Model** is a pure javascript business object corresponding to a table.
 
+- In PureORM these pure business objects are referred to as "models".
 - They represent a row of the table data, but as pure javascript objects.
 - They are not connected to the database.
 - They are the subject of the app's business logic.
 - They will be full of userland business logic methods.
 - Their purity allows them to be easy to test/use.
-- These are also referred to as "models".
 
-A **Business Object Collection** is a group of business objects.
+A **Collection** is a pure business object with a reference to a group of models.
 
-- If your query returns records for multiple business objects, a Business Object Collection will be created and returned.
-- You can create a Business Object Collection class for your business objects (in cases where it is useful to have business methods on the collection entity, not just each model entity).
+- If your query returns records for multiple models, a Collection will be created and returned.
+- You can create the Collection class (in cases where it is useful to have business methods on the collection object, not just each model object).
 
 A **Data Access Layer** is a database-aware abstraction layer where native SQL is written.
 
@@ -118,10 +118,10 @@ npm install --save pg-promise
 
 ### Step 2: Creating the Business Objects
 
-Let's create a `/entities` directory of business object classes for our database tables. These classes need to implement a static getter for `tableName` and `sqlColumnsData` to denote the database table and columns.
+Let's create a `/models` directory of business object classes for our database tables. These classes need to implement a static getter for `tableName` and `sqlColumnsData` to denote the database table and columns.
 
 ```javascript
-// entities/person.js
+// models/person.js
 class Person {
   static get tableName() {
     return 'person';
@@ -135,7 +135,7 @@ module.exports = Person;
 ```
 
 ```javascript
-// entities/job.js
+// models/job.js
 const Person = require('./person');
 const Employer = require('./employer');
 
@@ -158,7 +158,7 @@ module.exports = Job;
 ```
 
 ```javascript
-// entities/employer.js
+// models/employer.js
 class Employer {
   static get tableName() {
     return 'employer';
@@ -199,9 +199,9 @@ We can now create our ORM, which layers atop the database driver to do the objec
 // factories/orm.js
 const { create } = require('pure-orm');
 const db = require('./db');
-const Person = require('../entities/person');
-const Job = require('../entities/job');
-const Employer = require('../entities/employer');
+const Person = require('../models/person');
+const Job = require('../models/job');
+const Employer = require('../models/employer');
 
 const orm = create({
   db,
@@ -236,8 +236,8 @@ module.exports = getPerson;
 
 Some things to note:
 
-- Our data access function returns a single Person business object which is properly structured from the many relational row records!
-- Our query is executed with a `one` method. The ORM methods for `one`, `oneOrNone`, `many`, `any` ensure their count against the number of generated top level business objects - not the number of relational row records the sql expression returns!
+- Our data access function returns a single Person model which is properly structured from the many relational row records!
+- Our query is executed with a `one` method. The ORM methods for `one`, `oneOrNone`, `many`, `any` ensure their count against the number of generated top level models - not the number of relational row records the sql expression returns!
 - Rather than manually specifying our columns in the sql select expression, we used the orm's getter for columns. This is purely a convenience method which namespaces each column with the table name prefix to ensure column names don't collide (for example, the person, job, and employer `id`s would collide if not namespaced, as would person and employer `name`s). You are welcome to do this by hand instead of using this convenience if you don't mind the tedium:
   ```javascript
   // data-access/person.js
@@ -314,7 +314,7 @@ That's it! This controller code now works! The `getPerson` function returns a pr
 ### Can you show a more complex business object and collection?
 
 ```javascript
-// entities/library.js
+// models/library.js
 const Libraries = require('./libraries');
 class Library {
   get BoCollection() {
@@ -342,7 +342,7 @@ class Library {
 ```
 
 ```javascript
-// entities/libraries.js
+// models/libraries.js
 class Library {
   static get Bo() {
     return require('./person'); // eslint-disable-line
@@ -463,7 +463,7 @@ PureORM
 
 ```typescript
 function create(options: {
-  getBusinessObjects: () => Array<new () => PureORMEntity>;
+  getBusinessObjects: () => Array<new () => PureORMModel>;
   db: DataBaseDriver;
 }): PureORM;
 ```
@@ -472,7 +472,7 @@ The factory function for creating your ORM.
 
 **Parameters**
 
-- `getBusinessObjects: () => Array<PureORMEntity>` - A function which returns an array of all the business object classes (where each business object must implement `PureORMEntity`).
+- `getBusinessObjects: () => Array<PureORMModel>` - A function which returns an array of all the business object classes (where each business object must implement `PureORMModel`).
 - `db: <DataBaseDriverInstance>` - A database driver instance.
 
 **Return Value**
@@ -485,20 +485,20 @@ Your `PureORM` instance.
 
 ```typescript
 interface PureORM {
-  one: (query: string, params: object) => PureORMEntity;
-  oneOrNone: (query: string, params: object) => PureORMEntity | void;
-  many: (query: string, params: object) => Array<PureORMEntity>;
-  any: (query: string, params: object) => Array<PureORMEntity> | void;
+  one: (query: string, params: object) => PureORMModel;
+  oneOrNone: (query: string, params: object) => PureORMModel | void;
+  many: (query: string, params: object) => Array<PureORMModel>;
+  any: (query: string, params: object) => Array<PureORMModel> | void;
   none: (query: string, params: object) => void;
-  getMatching: (bo: PureORMEntity) => PureORMEntity;
-  getOneOrNoneMatching: (bo: PureORMEntity) => PureORMEntity | void;
-  getAnyMatching: (bo: PureORMEntity) => Array<PureORMEntity> | void;
-  getAllMatching: (bo: PureORMEntity) => Array<PureORMEntity>;
-  create: (bo: PureORMEntity) => PureORMEntity;
-  update: (bo: PureORMEntity) => PureORMEntity;
-  delete: (bo: PureORMEntity) => void;
-  deleteMatching: (bo: PureORMEntity) => void;
-  tables: Array<new () => PureORMEntity>;
+  getMatching: (bo: PureORMModel) => PureORMModel;
+  getOneOrNoneMatching: (bo: PureORMModel) => PureORMModel | void;
+  getAnyMatching: (bo: PureORMModel) => Array<PureORMModel> | void;
+  getAllMatching: (bo: PureORMModel) => Array<PureORMModel>;
+  create: (bo: PureORMModel) => PureORMModel;
+  update: (bo: PureORMModel) => PureORMModel;
+  delete: (bo: PureORMModel) => void;
+  deleteMatching: (bo: PureORMModel) => void;
+  tables: Array<new () => PureORMModel>;
 }
 ```
 
@@ -510,24 +510,24 @@ It has the following query methods:
 - `any(query: string, params: object)` - executes a query and returns a BoCollection.
 - `none(query: string, params: object)` - executes a query and returns null.
 
-(Note these orm query methods ensure their count against the number of generated top level business objects are created - not the number of relational rows returned from the database driver! Thus, for example, `one` understands that there may be multiple result rows (which a database driver's `one` query method would throw at) but which correctly nest into one PureORMEntity.)
+(Note these orm query methods ensure their count against the number of generated top level business objects are created - not the number of relational rows returned from the database driver! Thus, for example, `one` understands that there may be multiple result rows (which a database driver's `one` query method would throw at) but which correctly nest into one PureORMModel.)
 
 Built-in "basic" / generic crud functions
 
-- `getMatching: (bo: PureORMEntity) => PureORMEntity`
-- `getOneOrNoneMatching: (bo: PureORMEntity) => PureORMEntity | void`
-- `getAnyMatching: (bo: PureORMEntity) => Array<PureORMEntity> | void`
-- `getAllMatching: (bo: PureORMEntity) => Array<PureORMEntity>`
-- `create: (bo: PureORMEntity) => PureORMEntity`
-- `update: (bo: PureORMEntity) => PureORMEntity`
-- `delete: (bo: PureORMEntity) => void`
-- `deleteMatching: (bo: PureORMEntity) => void`
+- `getMatching: (bo: PureORMModel) => PureORMModel`
+- `getOneOrNoneMatching: (bo: PureORMModel) => PureORMModel | void`
+- `getAnyMatching: (bo: PureORMModel) => Array<PureORMModel> | void`
+- `getAllMatching: (bo: PureORMModel) => Array<PureORMModel>`
+- `create: (bo: PureORMModel) => PureORMModel`
+- `update: (bo: PureORMModel) => PureORMModel`
+- `delete: (bo: PureORMModel) => void`
+- `deleteMatching: (bo: PureORMModel) => void`
 
 These are just provided because they are so common and straight-forward. While the goal of this library is foster writing SQL in your data access layer (which returns pure business objects) some CRUD operations are so common they are included in the ORM. Feel free to completely disregard if you want to write these in your data access layer yourself.
 
 ### Interfaces
 
-#### `PureORMEntity`
+#### `PureORMModel`
 
 An interface which your business object classes need to implement.
 
@@ -536,7 +536,7 @@ An interface which your business object classes need to implement.
   - `ColumnData {column, property?, references?, primaryKey?}`
     - `column: string` - The sql column name
     - `propery: string` - The javascript property name for this column (defaults to camelCase of `column`)
-    - `references: PureORMEntity` - The relationship to another PureORMEntity (defaults to null)
+    - `references: PureORMModel` - The relationship to another PureORMModel (defaults to null)
     - `primaryKey: boolean` - Is this column (part of) the primary key (defaults to false)
   - `string` - If a string, it is applied as the `column` value, with all others defaulted.
   - (Note: if there is no primary key, `id` is defaulted)
@@ -547,8 +547,8 @@ An interface which your business object classes need to implement.
 
 An interface which your collection business object classes need to implement.
 
-- `static get Bo(): PureORMEntity` - Returns the individual (singular) business object class constructor.
-- `get displayName()?: string` - (Optional) returns the string display name of the business object collection (defaults to PureORMEntity displayName with an "s")
+- `static get Bo(): PureORMModel` - Returns the individual (singular) business object class constructor.
+- `get displayName()?: string` - (Optional) returns the string display name of the business object collection (defaults to PureORMModel displayName with an "s")
 
 ## Current Status
 

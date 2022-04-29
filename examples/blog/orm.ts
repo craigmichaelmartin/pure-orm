@@ -1,8 +1,8 @@
 const { create } = require('../../src/index');
-const { articleConfiguration } = require('./entities/article');
-const { personConfiguration } = require('./entities/person');
-const { articleTagConfiguration } = require('./entities/article_tag');
-const { tagConfiguration } = require('./entities/tag');
+const { articleConfiguration } = require('./models/article');
+const { personConfiguration } = require('./models/person');
+const { articleTagConfiguration } = require('./models/article_tag');
+const { tagConfiguration } = require('./models/tag');
 
 const orm = create({
   getPureORMDataArray: () => [

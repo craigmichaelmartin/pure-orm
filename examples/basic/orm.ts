@@ -1,5 +1,5 @@
 import { create, PureORM } from '../../src/index';
-import { personConfiguration } from './entities/person';
+import { personConfiguration } from './models/person';
 const orm = create({
   getPureORMDataArray: () => [ personConfiguration ],
   db: {},
