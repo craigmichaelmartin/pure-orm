@@ -15,7 +15,7 @@
     "format": "prettier --write  \"**/*.{js,json,md}\" \"!src/**/*.spec.js\" \"!coverage/**/*\"",
     "lint": "eslint .",
     "pub": "npm run test && npm run build && np",
-    "build": "rm -rf dist && mkdir -p dist && cp -R examples dist/examples && cp -r test-utils dist/test-utils && tsc"
+    "build": "rm -rf dist && mkdir -p dist && cp -r test-utils dist/test-utils && tsc"
   },
   "dependencies": {
     "@babel/core": "^7.17.9",
@@ -26,9 +26,12 @@
     "camelcase": "^5.0.0"
   },
   "devDependencies": {
+    "@types/express": "^4.17.13",
     "eslint": "^2.8.0",
+    "express": "^4.18.1",
     "jest": "^24.8.0",
     "np": "^5.0.1",
+    "pg-promise": "^10.11.1",
     "prettier": "^1.9.2",
     "typescript": "^4.6.3"
   },

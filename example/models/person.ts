@@ -1,28 +1,25 @@
-import { IModel, ICollection, IColumns } from '../../../src/index';
+import { IModel, ICollection, IColumns } from '../../src/index';
 
 export const tableName: string = 'person';
 
-export const columns: IColumns = ['id', 'first_name', 'last_name', 'email'];
+export const columns: IColumns = ['id', 'name'];
 
 interface IPersonProps {
   id: number;
-  firstName: string;
-  lastName: string;
-  email: string;
+  name: string;
 }
 
 export class Person implements IModel {
   id: number;
-  firstName: string;
-  lastName: string;
-  email: string;
-
+  name: string;
   constructor(props: IPersonProps) {
     this.id = props.id;
-    this.firstName = props.firstName;
-    this.lastName = props.lastName;
-    this.email = props.email;
+    this.name = props.name;
   }
+  sayHello() {
+    console.log(`${this.name} says hi!`);
+  }
+  // any other business methods...
 }
 
 export class Persons implements ICollection<Person> {
@@ -31,6 +28,10 @@ export class Persons implements ICollection<Person> {
     this.models = models;
     return this;
   }
+  introductions() {
+    this.models.forEach(person => person.sayHello());
+  }
+  // any other business methods...
 }
 
 export const personEntity = {
