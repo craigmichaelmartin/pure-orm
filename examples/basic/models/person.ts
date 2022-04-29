@@ -33,7 +33,7 @@ export class Persons implements ICollection<Person> {
   }
 }
 
-export const personConfiguration = {
+export const personEntity = {
   tableName,
   columns,
   Model: Person,

@@ -28,7 +28,7 @@ export class Tags implements ICollection<Tag> {
   }
 }
 
-export const tagConfiguration = {
+export const tagEntity = {
   tableName,
   columns,
   Model: Tag,

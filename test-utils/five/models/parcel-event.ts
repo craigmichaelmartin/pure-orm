@@ -33,7 +33,7 @@ export class ParcelEvents implements ICollection<ParcelEvent> {
   }
 }
 
-export const parcelEventConfiguration = {
+export const parcelEventEntity = {
   tableName,
   columns,
   Model: ParcelEvent,

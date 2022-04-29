@@ -21,7 +21,7 @@ export class Members implements ICollection<Member> {
   }
 }
 
-export const memberConfiguration = {
+export const memberEntity = {
   tableName,
   columns,
   Model: Member,

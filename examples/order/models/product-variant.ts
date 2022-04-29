@@ -60,7 +60,7 @@ export class ProductVariants implements ICollection<ProductVariant> {
   }
 }
 
-export const productVariantConfiguration = {
+export const productVariantEntity = {
   tableName,
   columns,
   Model: ProductVariant,

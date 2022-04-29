@@ -39,7 +39,7 @@ export class ShipmentActualProductVariants implements ICollection<ShipmentActual
   }
 }
 
-export const shipmentActualProductVariantConfiguration = {
+export const shipmentActualProductVariantEntity = {
   tableName,
   columns,
   Model: ShipmentActualProductVariant,

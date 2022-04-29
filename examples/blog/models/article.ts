@@ -57,7 +57,7 @@ export class Articles implements ICollection<Article> {
   }
 }
 
-export const articleConfiguration = {
+export const articleEntity = {
   tableName,
   columns,
   Model: Article,

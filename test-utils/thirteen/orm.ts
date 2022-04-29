@@ -1,22 +1,22 @@
 import { create } from '../../src/index';
-import { memberConfiguration } from './models/member';
-import { recommendationConfiguration } from './models/recommendation';
-import { brandConfiguration } from './models/brand';
-import { productConfiguration } from './models/product';
-import { categoryConfiguration } from './models/category';
-import { passionConfiguration } from './models/passion';
-import { recommendationAudienceConfiguration } from './models/recommendation-audience';
-import { audienceConfiguration } from './models/audience';
+import { memberEntity } from './models/member';
+import { recommendationEntity } from './models/recommendation';
+import { brandEntity } from './models/brand';
+import { productEntity } from './models/product';
+import { categoryEntity } from './models/category';
+import { passionEntity } from './models/passion';
+import { recommendationAudienceEntity } from './models/recommendation-audience';
+import { audienceEntity } from './models/audience';
 const orm = create({
-  getPureORMDataArray: () => [
-    memberConfiguration,
-    recommendationConfiguration,
-    brandConfiguration,
-    productConfiguration,
-    categoryConfiguration,
-    passionConfiguration,
-    recommendationAudienceConfiguration,
-    audienceConfiguration
+  getEntities: () => [
+    memberEntity,
+    recommendationEntity,
+    brandEntity,
+    productEntity,
+    categoryEntity,
+    passionEntity,
+    recommendationAudienceEntity,
+    audienceEntity
   ],
   db: void 0
 });

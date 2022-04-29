@@ -23,7 +23,7 @@ export class Sizes implements ICollection<Size> {
   }
 }
 
-export const sizeConfiguration = {
+export const sizeEntity = {
   tableName,
   columns,
   Model: Size,

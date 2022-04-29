@@ -51,7 +51,7 @@ export class PhysicalAddresses implements ICollection<PhysicalAddress> {
   }
 }
 
-export const physicalAddressConfiguration = {
+export const physicalAddressEntity = {
   tableName,
   columns,
   Model: PhysicalAddress,

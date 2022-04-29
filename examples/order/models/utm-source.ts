@@ -30,7 +30,7 @@ export class UtmSources implements ICollection<UtmSource> {
   }
 }
 
-export const utmSourceConfiguration = {
+export const utmSourceEntity = {
   tableName,
   columns,
   Model: UtmSource,

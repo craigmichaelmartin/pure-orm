@@ -23,7 +23,7 @@ export class Shipments implements ICollection<Shipment> {
   }
 }
 
-export const shipmentConfiguration = {
+export const shipmentEntity = {
   tableName,
   columns,
   Model: Shipment,

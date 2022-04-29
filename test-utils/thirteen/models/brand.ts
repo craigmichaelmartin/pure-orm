@@ -21,7 +21,7 @@ export class Brands implements ICollection<Brand> {
   }
 }
 
-export const brandConfiguration = {
+export const brandEntity = {
   tableName,
   columns,
   Model: Brand,

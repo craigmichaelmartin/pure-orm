@@ -58,7 +58,7 @@ export class LineItems implements ICollection<LineItem> {
   }
 }
 
-export const lineItemConfiguration = {
+export const lineItemEntity = {
   tableName,
   columns,
   Model: LineItem,

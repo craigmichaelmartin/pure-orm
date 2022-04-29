@@ -46,7 +46,7 @@ export class InventoryLevels implements ICollection<InventoryLevel> {
   }
 }
 
-export const inventoryLevelConfiguration = {
+export const inventoryLevelEntity = {
   tableName,
   columns,
   Model: InventoryLevel,

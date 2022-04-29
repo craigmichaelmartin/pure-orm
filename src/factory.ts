@@ -27,7 +27,7 @@ export type IModelClass = (new (props: any) => IModel);
 export interface ICollection<T> {
   models: Array<T>;
 }
-export interface IPureORMData<T> {
+export interface IEntity<T> {
   tableName: string;
   displayName?: string;
   collectionDisplayName?: string;
@@ -35,9 +35,9 @@ export interface IPureORMData<T> {
   Model: (new (props: any) => T)
   Collection: (new ({models}: any) => ICollection<T>);
 }
-export type IPureORMDataArray<T> = Array<IPureORMData<T>>;
+export type IEntities<T> = Array<IEntity<T>>;
 
-export interface IPureORMInternalData<T> {
+export interface IEntityInternal<T> {
   tableName: string;
   displayName: string;
   collectionDisplayName: string;
@@ -52,7 +52,7 @@ export interface IPureORMInternalData<T> {
   selectColumnsClause: string;
   getPkId: (model: IModel) => string;
 }
-export type IPureORMInternalDataArray<T> = Array<IPureORMInternalData<T>>;
+export type IEntitiesInternal<T> = Array<IEntityInternal<T>>;
 
 export interface PureORM {
   nestClump: (clump: Array<Array<IModel>>) => object;
@@ -86,14 +86,14 @@ export interface PureORM {
 }
 
 export interface CreateOptions{
-  getPureORMDataArray: () => IPureORMDataArray<any>;
+  getEntities: () => IEntities<any>;
   db: any;
   logError?: (err: Error) => void;
 }
 
-export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): PureORM => {
+export const create = ({ getEntities, db, logError }: CreateOptions): PureORM => {
 
-  const pureORMDataArray: IPureORMInternalDataArray<any> = getPureORMDataArray().map((d: IPureORMData<any>) => {
+  const entities: IEntitiesInternal<any> = getEntities().map((d: IEntity<any>) => {
     const tableName = d.tableName;
     const displayName = d.displayName || camelCase(d.tableName);
     const collectionDisplayName = d.collectionDisplayName || `${displayName}s`;
@@ -163,20 +163,20 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
     };
   });
 
-  const getPureORMDataByTableName = (tableName: string): IPureORMInternalData<any> => {
-    const pureORMData = pureORMDataArray.find(data => data.tableName == tableName);
-    if (!pureORMData) {
-      throw new Error(`Could not find pureORMData for table ${tableName}`);
+  const getEntityByTableName = (tableName: string): IEntityInternal<any> => {
+    const entity = entities.find(data => data.tableName == tableName);
+    if (!entity) {
+      throw new Error(`Could not find entity for table ${tableName}`);
     }
-    return pureORMData;
+    return entity;
   };
 
-  const getPureORMDataByModel = (model: IModel): IPureORMInternalData<any> => {
-    const pureORMData = pureORMDataArray.find(data => data.Model == model.constructor);
-    if (!pureORMData) {
-      throw new Error(`Could not find pureORMData for class ${model.constructor}`);
+  const getEntityByModel = (model: IModel): IEntityInternal<any> => {
+    const entity = entities.find(data => data.Model == model.constructor);
+    if (!entity) {
+      throw new Error(`Could not find entity for class ${model.constructor}`);
     }
-    return pureORMData;
+    return entity;
   };
 
   const defaultErrorHandler = (err: Error) => {
@@ -205,7 +205,7 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
         (item: IModel, index: number) => index !== 0
       )
     );
-    const built = { [getPureORMDataByModel(root).displayName]: root };
+    const built = { [getEntityByModel(root).displayName]: root };
 
     let nodes = [root];
 
@@ -215,19 +215,19 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
         const nodeAlreadySeen = nodes.find(
           (x: IModel) =>
             x.constructor.name === _model.constructor.name
-            && getPureORMDataByModel(x).getPkId(x) === getPureORMDataByModel(_model).getPkId(_model)
+            && getEntityByModel(x).getPkId(x) === getEntityByModel(_model).getPkId(_model)
         );
         const model = nodeAlreadySeen || _model;
         const isNodeAlreadySeen = !!nodeAlreadySeen;
         const nodePointingToIt = nodes.find(node => {
-          const indexes = Object.values(getPureORMDataByModel(node).references)
+          const indexes = Object.values(getEntityByModel(node).references)
             .map((x: IModelClass, i: number) => (x === model.constructor ? i : null))
             .filter((x: number | null, i) => x != null) as Array<number>;
           if (!indexes.length) {
             return false;
           }
           for (const index of indexes) {
-            const property = Object.keys(getPureORMDataByModel(node).references)[index];
+            const property = Object.keys(getEntityByModel(node).references)[index];
             if (node[property] === model.id) {
               return true;
             }
@@ -251,13 +251,13 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
           ...nodes.slice(0, indexOfOldestParent + 1).reverse()
         ];
         const nodeItPointsTo = parentHeirarchy.find(parent => {
-          const index = Object.values(getPureORMDataByModel(model).references).indexOf(
+          const index = Object.values(getEntityByModel(model).references).indexOf(
             parent.constructor
           );
           if (index === -1) {
             return false;
           }
-          const property = Object.keys(getPureORMDataByModel(model).references)[index];
+          const property = Object.keys(getEntityByModel(model).references)[index];
           return model[property as keyof typeof model] === parent.id;
         });
         if (isNodeAlreadySeen) {
@@ -271,7 +271,7 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
           // the nodePointingToIt (parcel_event), since it (parcel) has been
           // shown to be the parent (of parcel_events).
           if (nodePointingToIt) {
-            const ec = model[getPureORMDataByModel(nodePointingToIt).collectionDisplayName as keyof typeof model];
+            const ec = model[getEntityByModel(nodePointingToIt).collectionDisplayName as keyof typeof model];
             if (ec && ec.models.find((m: IModel) => m === nodePointingToIt)) {
               nodes = [model, ...nodes];
               return;
@@ -279,25 +279,25 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
           }
         }
         if (nodePointingToIt) {
-          nodePointingToIt[getPureORMDataByModel(model).displayName] = model;
+          nodePointingToIt[getEntityByModel(model).displayName] = model;
         } else if (nodeItPointsTo) {
-          let collection = nodeItPointsTo[getPureORMDataByModel(model).collectionDisplayName];
+          let collection = nodeItPointsTo[getEntityByModel(model).collectionDisplayName];
           if (collection) {
             collection.models.push(model);
           } else {
-            const Collection = getPureORMDataByModel(model).Collection;
-            nodeItPointsTo[getPureORMDataByModel(model).collectionDisplayName] = new Collection({
+            const Collection = getEntityByModel(model).Collection;
+            nodeItPointsTo[getEntityByModel(model).collectionDisplayName] = new Collection({
               models: [model]
             });
           }
         } else {
-          if (!getPureORMDataByModel(model).getPkId(model)) {
+          if (!getEntityByModel(model).getPkId(model)) {
             // If the join is fruitless; todo: add a test for this path
             return;
           }
           throw Error(`Could not find how this BO fits: ${
             JSON.stringify(model)
-          } ${getPureORMDataByModel(model).tableName}`)
+          } ${getEntityByModel(model).tableName}`)
         }
         nodes = [model, ...nodes];
       });
@@ -329,7 +329,7 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
     const root = processed[0][0];
     const rootBo = root.constructor;
     const clumps = processed.reduce((accum: any, item: Array<IModel>) => {
-      const id = getPureORMDataByModel(root).primaryKeys
+      const id = getEntityByModel(root).primaryKeys
         .map((key: string) => item.find((x: IModel) => x.constructor === rootBo)?.[key])
         .join('@');
       if (accum.has(id)) {
@@ -344,17 +344,17 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
 
   const mapToBos = (objectified: any) => {
     return Object.keys(objectified).map(tableName => {
-      const pureORMData = getPureORMDataByTableName(tableName);
+      const entity = getEntityByTableName(tableName);
       const propified = Object.keys(objectified[tableName]).reduce(
         (obj: any, column) => {
-          let propertyName = pureORMData.propertyNames[pureORMData.columnNames.indexOf(column)];
+          let propertyName = entity.propertyNames[entity.columnNames.indexOf(column)];
           if (!propertyName) {
             if (column.startsWith('meta_')) {
               propertyName = camelCase(column);
             } else {
               throw Error(
                 `No property name for "${column}" in business object "${
-                  pureORMData.displayName
+                  entity.displayName
                 }". Non-spec'd columns must begin with "meta_".`
               );
             }
@@ -364,7 +364,7 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
         },
         {}
       );
-      return new pureORMData.Model(propified);
+      return new entity.Model(propified);
     });
   };
 
@@ -389,7 +389,7 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
     const clumps = clumpIntoGroups(boified);
     const nested = clumps.map(nestClump);
     const models = nested.map(n => Object.values(n)[0]);
-    const Collection = getPureORMDataByModel(models[0]).Collection;
+    const Collection = getEntityByModel(models[0]).Collection;
     return models.length ? new Collection({ models }) : void 0;
   };
 
@@ -423,13 +423,13 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
   };
 
   const getSqlInsertParts = (model: IModel) => {
-    const columns = getPureORMDataByModel(model).columnNames
+    const columns = getEntityByModel(model).columnNames
       .filter(
-        (column: string, index: number) => model[getPureORMDataByModel(model).propertyNames[index] as keyof typeof model] !== void 0
+        (column: string, index: number) => model[getEntityByModel(model).propertyNames[index] as keyof typeof model] !== void 0
       )
       .map((col: string) => `"${col}"`)
       .join(', ');
-    const values = getPureORMDataByModel(model).propertyNames
+    const values = getEntityByModel(model).propertyNames
       .map((property: string) => model[property as keyof typeof model])
       .filter((value: any) => value !== void 0);
     const valuesVar = values.map((value: any, index: number) => `$${index + 1}`);
@@ -437,14 +437,14 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
   };
 
   const getSqlUpdateParts = (model: IModel, on = 'id') => {
-    const clauseArray = getPureORMDataByModel(model).columnNames
+    const clauseArray = getEntityByModel(model).columnNames
       .filter(
-        (sqlColumn: string, index: number) => model[getPureORMDataByModel(model).propertyNames[index] as keyof typeof model] !== void 0
+        (sqlColumn: string, index: number) => model[getEntityByModel(model).propertyNames[index] as keyof typeof model] !== void 0
       )
       .map((sqlColumn: string, index: number) => `"${sqlColumn}" = $${index + 1}`);
     const clause = clauseArray.join(', ');
     const idVar = `$${clauseArray.length + 1}`;
-    const _values = getPureORMDataByModel(model).propertyNames
+    const _values = getEntityByModel(model).propertyNames
       .map((property: string) => model[property as keyof typeof model])
       .filter((value: any) => value !== void 0);
     const values = [..._values, model[on as keyof typeof model]];
@@ -452,18 +452,18 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
   };
 
   const getMatchingParts = (model: IModel) => {
-    const whereClause = getPureORMDataByModel(model).propertyNames
+    const whereClause = getEntityByModel(model).propertyNames
       .map((property: string, index: number) =>
         model[property as keyof typeof model] != null
-          ? `"${getPureORMDataByModel(model).tableName}"."${
-              getPureORMDataByModel(model).columnNames[index]
+          ? `"${getEntityByModel(model).tableName}"."${
+              getEntityByModel(model).columnNames[index]
             }"`
           : null
       )
       .filter((x: string | null) => x != null)
       .map((x: string | null, i: number) => `${x} = $${i + 1}`)
       .join(' AND ');
-    const values = getPureORMDataByModel(model).propertyNames
+    const values = getEntityByModel(model).propertyNames
       .map((property: string) => (model[property as keyof typeof model] != null ? model[property as keyof typeof model] : null))
       .filter((x: any) => x != null);
     return { whereClause, values };
@@ -472,18 +472,18 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
   // This one returns an object, which allows it to be more versatile.
   // To-do: make this one even better and use it instead of the one above.
   const getMatchingPartsObject = (model: IModel) => {
-    const whereClause = getPureORMDataByModel(model).propertyNames
+    const whereClause = getEntityByModel(model).propertyNames
       .map((property: string, index: number) =>
         model[property as keyof typeof model] != null
-          ? `"${getPureORMDataByModel(model).tableName}"."${
-              getPureORMDataByModel(model).columnNames[index]
+          ? `"${getEntityByModel(model).tableName}"."${
+              getEntityByModel(model).columnNames[index]
             }"`
           : null
       )
       .filter((x: string | null) => x != null)
       .map((x: string | null, i: number) => `${x} = $(${i + 1})`)
       .join(' AND ');
-    const values = getPureORMDataByModel(model).propertyNames
+    const values = getEntityByModel(model).propertyNames
       .map((property: string) => (model[property as keyof typeof model] != null ? model[property as keyof typeof model] : null))
       .filter((x: any) => x != null)
       .reduce(
@@ -496,8 +496,8 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
   const getNewWith = (model: IModel, sqlColumns: any, values: any) => {
     const Constructor = model.constructor as any;
     const modelKeys = sqlColumns.map(
-      (key: string) => getPureORMDataByModel(model).propertyNames[
-        getPureORMDataByModel(model).columnNames.indexOf(key)
+      (key: string) => getEntityByModel(model).propertyNames[
+        getEntityByModel(model).columnNames.indexOf(key)
       ]
     );
     const modelData = modelKeys.reduce((data: any, key: string, index: number) => {
@@ -509,8 +509,8 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
 
   const getValueBySqlColumn = (model: IModel, sqlColumn: string) => {
     return model[
-      getPureORMDataByModel(model).propertyNames[
-        getPureORMDataByModel(model).columnNames.indexOf(sqlColumn)
+      getEntityByModel(model).propertyNames[
+        getEntityByModel(model).columnNames.indexOf(sqlColumn)
       ] as keyof typeof model
     ];
   };
@@ -561,9 +561,9 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
   const create = <T>(model: T) => {
     const { columns, values, valuesVar } = getSqlInsertParts(model);
     const query = `
-      INSERT INTO "${getPureORMDataByModel(model).tableName}" ( ${columns} )
+      INSERT INTO "${getEntityByModel(model).tableName}" ( ${columns} )
       VALUES ( ${valuesVar} )
-      RETURNING ${getPureORMDataByModel(model).selectColumnsClause};
+      RETURNING ${getEntityByModel(model).selectColumnsClause};
     `;
     return one(query, values) as T;
   };
@@ -572,10 +572,10 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
   const update = <T>(model: T, { on = 'id' } = {}) => {
     const { clause, idVar, values } = getSqlUpdateParts(model, on);
     const query = `
-      UPDATE "${getPureORMDataByModel(model).tableName}"
+      UPDATE "${getEntityByModel(model).tableName}"
       SET ${clause}
-      WHERE "${getPureORMDataByModel(model).tableName}".${on} = ${idVar}
-      RETURNING ${getPureORMDataByModel(model).selectColumnsClause};
+      WHERE "${getEntityByModel(model).tableName}".${on} = ${idVar}
+      RETURNING ${getEntityByModel(model).selectColumnsClause};
     `;
     return one(query, values) as T;
   };
@@ -584,8 +584,8 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
   const _delete = <T>(model: T) => {
     const id = (model as any).id;
     const query = `
-      DELETE FROM "${getPureORMDataByModel(model).tableName}"
-      WHERE "${getPureORMDataByModel(model).tableName}".id = $(id)
+      DELETE FROM "${getEntityByModel(model).tableName}"
+      WHERE "${getEntityByModel(model).tableName}".id = $(id)
     `;
     return none(query, { id });
   };
@@ -593,7 +593,7 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
   const deleteMatching = <T>(model: T) => {
     const { whereClause, values } = getMatchingParts(model);
     const query = `
-      DELETE FROM "${getPureORMDataByModel(model).tableName}"
+      DELETE FROM "${getEntityByModel(model).tableName}"
       WHERE ${whereClause};
     `;
     return none(query, values);
@@ -602,8 +602,8 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
   const getMatching = <T>(model: T) => {
     const { whereClause, values } = getMatchingParts(model);
     const query = `
-      SELECT ${getPureORMDataByModel(model).selectColumnsClause}
-      FROM "${getPureORMDataByModel(model).tableName}"
+      SELECT ${getEntityByModel(model).selectColumnsClause}
+      FROM "${getEntityByModel(model).tableName}"
       WHERE ${whereClause};
     `;
     return one(query, values) as T;
@@ -612,8 +612,8 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
   const getOneOrNoneMatching = <T>(model: T) => {
     const { whereClause, values } = getMatchingParts(model);
     const query = `
-      SELECT ${getPureORMDataByModel(model).selectColumnsClause}
-      FROM "${getPureORMDataByModel(model).tableName}"
+      SELECT ${getEntityByModel(model).selectColumnsClause}
+      FROM "${getEntityByModel(model).tableName}"
       WHERE ${whereClause};
     `;
     return oneOrNone(query, values);
@@ -622,8 +622,8 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
   const getAnyMatching = <T>(model: T) => {
     const { whereClause, values } = getMatchingParts(model);
     const query = `
-      SELECT ${getPureORMDataByModel(model).selectColumnsClause}
-      FROM "${getPureORMDataByModel(model).tableName}"
+      SELECT ${getEntityByModel(model).selectColumnsClause}
+      FROM "${getEntityByModel(model).tableName}"
       WHERE ${whereClause};
     `;
     return any(query, values);
@@ -632,8 +632,8 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
   const getAllMatching = <T>(model: T) => {
     const { whereClause, values } = getMatchingParts(model);
     const query = `
-      SELECT ${getPureORMDataByModel(model).selectColumnsClause}
-      FROM "${getPureORMDataByModel(model).tableName}"
+      SELECT ${getEntityByModel(model).selectColumnsClause}
+      FROM "${getEntityByModel(model).tableName}"
       WHERE ${whereClause};
     `;
     return many(query, values);
@@ -670,7 +670,7 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
     getOneOrNoneMatching,
     getAnyMatching,
     getAllMatching,
-    tables: pureORMDataArray.reduce((accum: any, data: IPureORMInternalData<any>) => {
+    tables: entities.reduce((accum: any, data: IEntityInternal<any>) => {
       accum[data.displayName] = data.selectColumnsClause;
       return accum;
     }, {})

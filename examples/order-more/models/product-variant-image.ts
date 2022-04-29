@@ -36,7 +36,7 @@ export class ProductVariantImages implements ICollection<ProductVariantImage> {
   }
 }
 
-export const productVariantImageConfiguration = {
+export const productVariantImageEntity = {
   tableName,
   columns,
   Model: ProductVariantImage,

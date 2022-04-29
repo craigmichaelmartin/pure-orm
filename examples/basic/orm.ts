@@ -1,7 +1,7 @@
 import { create, PureORM } from '../../src/index';
-import { personConfiguration } from './models/person';
+import { personEntity } from './models/person';
 const orm = create({
-  getPureORMDataArray: () => [ personConfiguration ],
+  getEntities: () => [ personEntity ],
   db: {},
 });
 export default orm;

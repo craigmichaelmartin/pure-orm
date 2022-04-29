@@ -30,7 +30,7 @@ export class FeatureSwitches implements ICollection<FeatureSwitch> {
   }
 }
 
-export const featureSwitchConfiguration = {
+export const featureSwitchEntity = {
   tableName,
   columns,
   Model: FeatureSwitch,

@@ -52,7 +52,7 @@ export class Recommendations implements ICollection<Recommendation> {
   }
 }
 
-export const recommendationConfiguration = {
+export const recommendationEntity = {
   tableName,
   columns,
   Model: Recommendation,

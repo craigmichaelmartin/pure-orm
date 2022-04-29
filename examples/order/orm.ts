@@ -1,17 +1,17 @@
 import { create } from '../../src/index';
-import { utmSourceConfiguration } from './models/utm-source';
-import { orderConfiguration } from './models/order';
-import { lineItemConfiguration } from './models/line-item';
-import { productVariantConfiguration } from './models/product-variant';
-import { productConfiguration } from './models/product';
+import { utmSourceEntity } from './models/utm-source';
+import { orderEntity } from './models/order';
+import { lineItemEntity } from './models/line-item';
+import { productVariantEntity } from './models/product-variant';
+import { productEntity } from './models/product';
 
 const orm = create({
-  getPureORMDataArray: () => [
-    utmSourceConfiguration,
-    orderConfiguration,
-    lineItemConfiguration,
-    productVariantConfiguration,
-    productConfiguration
+  getEntities: () => [
+    utmSourceEntity,
+    orderEntity,
+    lineItemEntity,
+    productVariantEntity,
+    productEntity
   ],
   db: void 0
 });

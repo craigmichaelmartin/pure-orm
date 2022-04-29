@@ -33,7 +33,7 @@ export class ParcelLineItems implements ICollection<ParcelLineItem> {
   }
 }
 
-export const parcelLineItemConfiguration = {
+export const parcelLineItemEntity = {
   tableName,
   columns,
   Model: ParcelLineItem,

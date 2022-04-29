@@ -1,47 +1,47 @@
 import { create } from '../../src/index';
-import { inventoryLevelConfiguration } from './models/inventory-level';
-import { actualProductVariantConfiguration } from './models/actual-product-variant';
-import { productVariantConfiguration } from './models/product-variant';
-import { productVariantImageConfiguration } from './models/product-variant-image';
-import { productConfiguration } from './models/product';
-import { sizeConfiguration } from './models/size';
-import { colorConfiguration } from './models/color';
-import { genderConfiguration } from './models/gender';
-import { shipmentConfiguration } from './models/shipment';
-import { shipmentActualProductVariantConfiguration } from './models/shipment-actual-product-variant';
-import { refundConfiguration } from './models/refund';
-import { orderConfiguration } from './models/order';
-import { lineItemConfiguration } from './models/line-item';
-import { customerConfiguration } from './models/customer';
-import { physicalAddressConfiguration } from './models/physical-address';
-import { utmSourceConfiguration } from './models/utm-source';
-import { utmMediumConfiguration } from './models/utm-medium';
-import { parcelLineItemConfiguration } from './models/parcel-line-item';
-import { parcelConfiguration } from './models/parcel';
-import { parcelEventConfiguration } from './models/parcel-event';
+import { inventoryLevelEntity } from './models/inventory-level';
+import { actualProductVariantEntity } from './models/actual-product-variant';
+import { productVariantEntity } from './models/product-variant';
+import { productVariantImageEntity } from './models/product-variant-image';
+import { productEntity } from './models/product';
+import { sizeEntity } from './models/size';
+import { colorEntity } from './models/color';
+import { genderEntity } from './models/gender';
+import { shipmentEntity } from './models/shipment';
+import { shipmentActualProductVariantEntity } from './models/shipment-actual-product-variant';
+import { refundEntity } from './models/refund';
+import { orderEntity } from './models/order';
+import { lineItemEntity } from './models/line-item';
+import { customerEntity } from './models/customer';
+import { physicalAddressEntity } from './models/physical-address';
+import { utmSourceEntity } from './models/utm-source';
+import { utmMediumEntity } from './models/utm-medium';
+import { parcelLineItemEntity } from './models/parcel-line-item';
+import { parcelEntity } from './models/parcel';
+import { parcelEventEntity } from './models/parcel-event';
 
 const orm = create({
-  getPureORMDataArray: () => [
-    inventoryLevelConfiguration,
-    actualProductVariantConfiguration,
-    productVariantConfiguration,
-    productVariantImageConfiguration,
-    productConfiguration,
-    sizeConfiguration,
-    colorConfiguration,
-    genderConfiguration,
-    shipmentConfiguration,
-    shipmentActualProductVariantConfiguration,
-    refundConfiguration,
-    orderConfiguration,
-    lineItemConfiguration,
-    customerConfiguration,
-    physicalAddressConfiguration,
-    utmSourceConfiguration,
-    utmMediumConfiguration,
-    parcelLineItemConfiguration,
-    parcelConfiguration,
-    parcelEventConfiguration,
+  getEntities: () => [
+    inventoryLevelEntity,
+    actualProductVariantEntity,
+    productVariantEntity,
+    productVariantImageEntity,
+    productEntity,
+    sizeEntity,
+    colorEntity,
+    genderEntity,
+    shipmentEntity,
+    shipmentActualProductVariantEntity,
+    refundEntity,
+    orderEntity,
+    lineItemEntity,
+    customerEntity,
+    physicalAddressEntity,
+    utmSourceEntity,
+    utmMediumEntity,
+    parcelLineItemEntity,
+    parcelEntity,
+    parcelEventEntity,
   ],
   db: void 0
 });

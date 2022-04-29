@@ -33,7 +33,7 @@ export class ArticleTags implements ICollection<ArticleTag> {
   }
 }
 
-export const articleTagConfiguration = {
+export const articleTagEntity = {
   tableName,
   columns,
   Model: ArticleTag,

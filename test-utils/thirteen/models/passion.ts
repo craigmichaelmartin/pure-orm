@@ -21,7 +21,7 @@ export class Passions implements ICollection<Passion> {
   }
 }
 
-export const passionConfiguration = {
+export const passionEntity = {
   tableName,
   columns,
   Model: Passion,

@@ -21,7 +21,7 @@ export class Customers implements ICollection<Customer> {
   }
 }
 
-export const customerConfiguration = {
+export const customerEntity = {
   tableName,
   columns,
   Model: Customer,

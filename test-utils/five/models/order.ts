@@ -24,7 +24,7 @@ export class Orders implements ICollection<Order> {
   }
 }
 
-export const orderConfiguration = {
+export const orderEntity = {
   tableName,
   columns,
   Model: Order,

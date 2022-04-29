@@ -1,16 +1,16 @@
 import { create } from'../../src/index';
-import { orderConfiguration } from './models/order';
-import { lineItemConfiguration } from './models/line-item';
-import { parcelLineItemConfiguration } from './models/parcel-line-item';
-import { parcelConfiguration } from './models/parcel';
-import { parcelEventConfiguration } from './models/parcel-event';
+import { orderEntity } from './models/order';
+import { lineItemEntity } from './models/line-item';
+import { parcelLineItemEntity } from './models/parcel-line-item';
+import { parcelEntity } from './models/parcel';
+import { parcelEventEntity } from './models/parcel-event';
 const orm = create({
-  getPureORMDataArray: () => [
-    orderConfiguration,
-    lineItemConfiguration,
-    parcelLineItemConfiguration,
-    parcelConfiguration,
-    parcelEventConfiguration
+  getEntities: () => [
+    orderEntity,
+    lineItemEntity,
+    parcelLineItemEntity,
+    parcelEntity,
+    parcelEventEntity
   ],
   db: void 0
 });

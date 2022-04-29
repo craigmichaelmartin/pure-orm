@@ -27,7 +27,7 @@ export class Products implements ICollection<Product> {
   }
 }
 
-export const productConfiguration = {
+export const productEntity = {
   tableName,
   columns,
   Model: Product,

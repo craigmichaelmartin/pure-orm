@@ -21,7 +21,7 @@ export class Categories implements ICollection<Category> {
   }
 }
 
-export const categoryConfiguration = {
+export const categoryEntity = {
   tableName,
   columns,
   Model: Category,

@@ -33,7 +33,7 @@ export class RecommendationAudiences implements ICollection<RecommendationAudien
   }
 }
 
-export const recommendationAudienceConfiguration = {
+export const recommendationAudienceEntity = {
   tableName,
   columns,
   Model: RecommendationAudience,

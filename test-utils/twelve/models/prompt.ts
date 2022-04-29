@@ -32,7 +32,7 @@ export class Prompts implements ICollection<Prompt> {
   }
 }
 
-export const promptConfiguration = {
+export const promptEntity = {
   tableName,
   columns,
   Model: Prompt,

@@ -48,7 +48,7 @@ export class Refunds implements ICollection<Refund> {
   }
 }
 
-export const refundConfiguration = {
+export const refundEntity = {
   tableName,
   columns,
   Model: Refund,

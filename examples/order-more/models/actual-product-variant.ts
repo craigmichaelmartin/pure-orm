@@ -21,7 +21,7 @@ export class ActualProductVariants implements ICollection<ActualProductVariant> 
   }
 }
 
-export const actualProductVariantConfiguration = {
+export const actualProductVariantEntity = {
   tableName,
   columns,
   Model: ActualProductVariant,

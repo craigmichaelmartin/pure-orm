@@ -23,7 +23,7 @@ export class UtmMediums implements ICollection<UtmMedium> {
   }
 }
 
-export const utmMediumConfiguration = {
+export const utmMediumEntity = {
   tableName,
   columns,
   Model: UtmMedium,

@@ -21,7 +21,7 @@ export class Audiences implements ICollection<Audience> {
   }
 }
 
-export const audienceConfiguration = {
+export const audienceEntity = {
   tableName,
   columns,
   Model: Audience,
