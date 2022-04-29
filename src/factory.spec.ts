@@ -1,14 +1,14 @@
 /* eslint-disable max-len */
-import orm from '../examples/order/orm';
-import ormA from '../examples/order/orm';
-import ormB from '../examples/blog/orm';
-import ormC from '../examples/order-more/orm';
+import orm from '../test-utils/order/orm';
+import ormA from '../test-utils/order/orm';
+import ormB from '../test-utils/blog/orm';
+import ormC from '../test-utils/order-more/orm';
 import ormD from '../test-utils/nine/orm';
 import ormE from '../test-utils/five/orm';
 import ormF from '../test-utils/six/orm';
 import ormG from '../test-utils/twelve/orm';
 import ormH from '../test-utils/thirteen/orm';
-import { Articles } from '../examples/blog/models/article';
+import { Articles } from '../test-utils/blog/models/article';
 const two = require('../test-utils/two/results');
 const three = require('../test-utils/three/results');
 const one = require('../test-utils/one/results.json');
