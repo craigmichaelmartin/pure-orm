@@ -6,7 +6,4 @@ export {
   IEntityClass,
   ICollection,
   IColumns,
-  getPrimaryKey,
-  getReferences,
-  getPrefixedColumnNames,
 } from './factory';
