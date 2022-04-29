@@ -100,6 +100,23 @@ app.listen(port);
 
 Based on the tables, I know exactly how to query for this:
 
+**Person**
+| id | name |
+| --- | --- |
+| 55 | John Doe |
+
+**Employer**
+| id | name |
+| --- | --- |
+| 17 | Good Corp |
+| 26 | Better Corp |
+
+**Job**
+| id | personId | employerId | startDate | endDate |
+| --- | --- | --- | --- | ---|
+| 277 | 55 | 17 | 2020-01-01 | 2020-12-31 |
+| 278 | 55 | 26 | 2021-01-01 | 2021-12-31 |
+
 ```sql
 SELECT *
 FROM person
