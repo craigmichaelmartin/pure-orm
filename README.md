@@ -146,7 +146,7 @@ Let's create a `/models` directory of business object classes for our database t
 
 ```typescript
 // models/person.ts
-import { IModel, ICollection, IColumns } from 'pure-orm';
+import { IModel, ICollection, IColumns, IEntity } from 'pure-orm';
 
 export const tableName: string = 'person';
 
@@ -162,12 +162,12 @@ export class Person implements IModel {
   // any business methods...
 }
 
-export const personEntity = { tableName, columns, Model: Person };
+export const personEntity: IEntity = { tableName, columns, Model: Person };
 ```
 
 ```typescript
 // models/job.ts
-import { IModel, ICollection, IColumns } from 'pure-orm';
+import { IModel, ICollection, IColumns, IEntity } from 'pure-orm';
 import { Person } from './person';
 import { Employer } from './employer';
 
@@ -201,12 +201,12 @@ export class Job implements IModel {
   // any business methods...
 }
 
-export const JobEntity = { tableName, columns, Model: Job };
+export const JobEntity: IEntity = { tableName, columns, Model: Job };
 ```
 
 ```typescript
 // models/employer.ts
-import { IModel, ICollection, IColumns } from 'pure-orm';
+import { IModel, ICollection, IColumns, IEntity } from 'pure-orm';
 
 export const tableName: string = 'employer';
 
@@ -222,7 +222,7 @@ export class Employer implements IModel {
   // any business methods...
 }
 
-export const EmployerEntity = { tableName, columns, Model: Employer };
+export const EmployerEntity: IEntity = { tableName, columns, Model: Employer };
 ```
 
 We've not got our three entities that relate our table data to our business objects.
@@ -378,7 +378,7 @@ That's it! This controller code now works! The `getPerson` function returns a pr
 ### Can you show the business objects of a more complex entity?
 
 ```typescript
-import { IModel, ICollection, IColumns } from '../../src/index';
+import { IModel, ICollection, IColumns, IEntity } from '../../src/index';
 
 export const tableName: string = 'library_v2';
 
@@ -424,7 +424,7 @@ export class Persons implements ICollection<Person> {
   anotherCollectionMethod() {}
 }
 
-export const personEntity = {
+export const personEntity: IEntity = {
   tableName,
   displayName,
   collectionDisplayName,
