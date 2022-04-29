@@ -6,17 +6,20 @@ export const columns: IColumns = [
   'id',
   'value',
   'label',
+  'internal'
 ];
 
 export class UtmSource implements IEntity {
   id: number;
   value: string;
   label: string;
+  internal: string;
 
   constructor(props: any) {
     this.id = props.id;
     this.value = props.value;
     this.label = props.label;
+    this.internal = props.internal;
   }
 }
 

@@ -4,6 +4,7 @@ import { IEntity, ICollection, IColumns } from '../../../src/index';
 export const tableName: string = 'prompt';
 
 export const columns: IColumns = [
+  'id',
   { column: 'for_member_id', references: Member },
   { column: 'from_member_id', references: Member }
 ];

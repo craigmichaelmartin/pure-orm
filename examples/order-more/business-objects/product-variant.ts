@@ -27,7 +27,7 @@ export const columns: IColumns = [
 
 export class ProductVariant implements IEntity {
   id: number;
-  product_id: number;
+  productId: number;
   product?: Product;
   actualProductVariantId: number;
   actualProductVariant?: ActualProductVariant;
@@ -49,11 +49,11 @@ export class ProductVariant implements IEntity {
 
   constructor(props: any) {
     this.id = props.id;
-    this.product_id = props.productId;
+    this.productId = props.productId;
     this.product = props.product;
     this.actualProductVariantId = props.actualProductVariantId;
     this.actualProductVariant = props.actualProductVariant;
-    this.colorId = props.color;
+    this.colorId = props.colorId;
     this.color = props.color;
     this.genderId = props.genderId;
     this.gender = props.gender;

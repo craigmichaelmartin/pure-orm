@@ -361,7 +361,8 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
           if (collection) {
             collection.models.push(entity);
           } else {
-            nodeItPointsTo[getCollectionDisplayNameForEntity(entity, pureORMDataArray)] = new entity.BoCollection({
+            const Collection = getPureORMDataByEntity(entity, pureORMDataArray).collectionClass;
+            nodeItPointsTo[getCollectionDisplayNameForEntity(entity, pureORMDataArray)] = new Collection({
               models: [entity]
             });
           }
@@ -370,7 +371,9 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
             // If the join is fruitless; todo: add a test for this path
             return;
           }
-          throw Error(`Could not find how this BO fits: ${JSON.stringify(entity)}`);
+          throw Error(`Could not find how this BO fits: ${
+            JSON.stringify(entity)
+          } ${getPureORMDataByEntity(entity, pureORMDataArray).tableName}`)
         }
         nodes = [entity, ...nodes];
       });
@@ -462,7 +465,8 @@ export const create = ({ getPureORMDataArray, db, logError }: CreateOptions): Pu
     const clumps = clumpIntoGroups(boified);
     const nested = clumps.map(nestClump);
     const models = nested.map(n => Object.values(n)[0]);
-    return models.length ? new models[0].BoCollection({ models }) : void 0;
+    const Collection = getPureORMDataByEntity(models[0], pureORMDataArray).collectionClass;
+    return models.length ? new Collection({ models }) : void 0;
   };
 
   const createOneFromDatabase = (_result: any) => {

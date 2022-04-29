@@ -1,28 +1,28 @@
 import { IEntity, ICollection, IColumns } from '../../../src/index';
 import { Article } from './article';
-import { Person } from './person';
+import { Tag } from './tag';
 
 export const tableName = 'article_tag';
 
 export const columns: IColumns = [
   'id',
   { column: 'article_id', references: Article },
-  { column: 'person', references: Person },
+  { column: 'tag_id', references: Tag },
 ];
 
 export class ArticleTag implements IEntity {
   id: number;
   articleId: number;
   article?: Article;
-  personId: number;
-  person?: Person;
+  tagId: number;
+  tag?: Tag;
 
   constructor(props: any) {
     this.id = props.id;
     this.articleId = props.articleId;
     this.article = props.article;
-    this.personId = props.personId;
-    this.person = props.person;
+    this.tagId = props.tagId;
+    this.tag = props.tag;
   }
 }
 
@@ -36,6 +36,6 @@ export class ArticleTags implements ICollection<ArticleTag> {
 export const articleTagConfiguration = {
   tableName,
   columns,
-  entityClass: Article,
+  entityClass: ArticleTag,
   collectionClass: ArticleTags,
 };
