@@ -1,5 +1,5 @@
 import { create } from '../../src/index';
-import { featureSwitchConfiguration } from './business-objects/feature-switch';
+import { featureSwitchConfiguration } from './entities/feature-switch';
 const orm = create({
   getPureORMDataArray: () => [ featureSwitchConfiguration ],
   db: void 0

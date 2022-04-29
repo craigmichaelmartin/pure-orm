@@ -1,24 +1,24 @@
 import { create } from '../../src/index';
-import { inventoryLevelConfiguration } from './business-objects/inventory-level';
-import { actualProductVariantConfiguration } from './business-objects/actual-product-variant';
-import { productVariantConfiguration } from './business-objects/product-variant';
-import { productVariantImageConfiguration } from './business-objects/product-variant-image';
-import { productConfiguration } from './business-objects/product';
-import { sizeConfiguration } from './business-objects/size';
-import { colorConfiguration } from './business-objects/color';
-import { genderConfiguration } from './business-objects/gender';
-import { shipmentConfiguration } from './business-objects/shipment';
-import { shipmentActualProductVariantConfiguration } from './business-objects/shipment-actual-product-variant';
-import { refundConfiguration } from './business-objects/refund';
-import { orderConfiguration } from './business-objects/order';
-import { lineItemConfiguration } from './business-objects/line-item';
-import { customerConfiguration } from './business-objects/customer';
-import { physicalAddressConfiguration } from './business-objects/physical-address';
-import { utmSourceConfiguration } from './business-objects/utm-source';
-import { utmMediumConfiguration } from './business-objects/utm-medium';
-import { parcelLineItemConfiguration } from './business-objects/parcel-line-item';
-import { parcelConfiguration } from './business-objects/parcel';
-import { parcelEventConfiguration } from './business-objects/parcel-event';
+import { inventoryLevelConfiguration } from './entities/inventory-level';
+import { actualProductVariantConfiguration } from './entities/actual-product-variant';
+import { productVariantConfiguration } from './entities/product-variant';
+import { productVariantImageConfiguration } from './entities/product-variant-image';
+import { productConfiguration } from './entities/product';
+import { sizeConfiguration } from './entities/size';
+import { colorConfiguration } from './entities/color';
+import { genderConfiguration } from './entities/gender';
+import { shipmentConfiguration } from './entities/shipment';
+import { shipmentActualProductVariantConfiguration } from './entities/shipment-actual-product-variant';
+import { refundConfiguration } from './entities/refund';
+import { orderConfiguration } from './entities/order';
+import { lineItemConfiguration } from './entities/line-item';
+import { customerConfiguration } from './entities/customer';
+import { physicalAddressConfiguration } from './entities/physical-address';
+import { utmSourceConfiguration } from './entities/utm-source';
+import { utmMediumConfiguration } from './entities/utm-medium';
+import { parcelLineItemConfiguration } from './entities/parcel-line-item';
+import { parcelConfiguration } from './entities/parcel';
+import { parcelEventConfiguration } from './entities/parcel-event';
 
 const orm = create({
   getPureORMDataArray: () => [

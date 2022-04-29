@@ -118,10 +118,10 @@ npm install --save pg-promise
 
 ### Step 2: Creating the Business Objects
 
-Let's create a `/business-objects` directory of business object classes for our database tables. These classes need to implement a static getter for `tableName` and `sqlColumnsData` to denote the database table and columns.
+Let's create a `/entities` directory of business object classes for our database tables. These classes need to implement a static getter for `tableName` and `sqlColumnsData` to denote the database table and columns.
 
 ```javascript
-// business-objects/person.js
+// entities/person.js
 class Person {
   static get tableName() {
     return 'person';
@@ -135,7 +135,7 @@ module.exports = Person;
 ```
 
 ```javascript
-// business-objects/job.js
+// entities/job.js
 const Person = require('./person');
 const Employer = require('./employer');
 
@@ -158,7 +158,7 @@ module.exports = Job;
 ```
 
 ```javascript
-// business-objects/employer.js
+// entities/employer.js
 class Employer {
   static get tableName() {
     return 'employer';
@@ -199,9 +199,9 @@ We can now create our ORM, which layers atop the database driver to do the objec
 // factories/orm.js
 const { create } = require('pure-orm');
 const db = require('./db');
-const Person = require('../business-objects/person');
-const Job = require('../business-objects/job');
-const Employer = require('../business-objects/employer');
+const Person = require('../entities/person');
+const Job = require('../entities/job');
+const Employer = require('../entities/employer');
 
 const orm = create({
   db,
@@ -314,7 +314,7 @@ That's it! This controller code now works! The `getPerson` function returns a pr
 ### Can you show a more complex business object and collection?
 
 ```javascript
-// business-objects/library.js
+// entities/library.js
 const Libraries = require('./libraries');
 class Library {
   get BoCollection() {
@@ -342,7 +342,7 @@ class Library {
 ```
 
 ```javascript
-// business-objects/libraries.js
+// entities/libraries.js
 class Library {
   static get Bo() {
     return require('./person'); // eslint-disable-line

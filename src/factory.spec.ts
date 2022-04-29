@@ -8,7 +8,7 @@ import ormE from '../test-utils/five/orm';
 import ormF from '../test-utils/six/orm';
 import ormG from '../test-utils/twelve/orm';
 import ormH from '../test-utils/thirteen/orm';
-import { Articles } from '../examples/blog/business-objects/article';
+import { Articles } from '../examples/blog/entities/article';
 const two = require('../test-utils/two/results');
 const three = require('../test-utils/three/results');
 const one = require('../test-utils/one/results.json');

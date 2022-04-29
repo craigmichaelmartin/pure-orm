@@ -1,9 +1,9 @@
 import { create } from '../../src/index';
-import { parcelConfiguration } from './business-objects/parcel';
-import { parcelLineItemConfiguration } from './business-objects/parcel-line-item';
-import { lineItemConfiguration } from './business-objects/line-item';
-import { orderConfiguration } from './business-objects/order';
-import { customerConfiguration } from './business-objects/customer';
+import { parcelConfiguration } from './entities/parcel';
+import { parcelLineItemConfiguration } from './entities/parcel-line-item';
+import { lineItemConfiguration } from './entities/line-item';
+import { orderConfiguration } from './entities/order';
+import { customerConfiguration } from './entities/customer';
 const orm = create({
   getPureORMDataArray: () => [
     parcelConfiguration,
