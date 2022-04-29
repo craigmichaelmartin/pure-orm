@@ -1,5 +1,5 @@
 /* eslint-disable max-len */
-const orm = require('../examples/order/orm');
+import orm from '../examples/order/orm';
 
 test('orm.tables', () => {
   expect(Object.keys(orm.tables).length).toEqual(5);

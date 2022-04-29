@@ -1,6 +1,7 @@
-export { create, CreateOptions, PureORM } from './factory';
-
 export {
+  create,
+  CreateOptions,
+  PureORM,
   IEntity,
   IEntityClass,
   ICollection,
@@ -8,18 +9,4 @@ export {
   getPrimaryKey,
   getReferences,
   getPrefixedColumnNames,
-  nestClump,
-  clumpIntoGroups,
-  mapToBos,
-  objectifyDatabaseResult,
-  createFromDatabase,
-  createOneFromDatabase,
-  createOneOrNoneFromDatabase,
-  createManyFromDatabase,
-  getSqlInsertParts,
-  getSqlUpdateParts,
-  getMatchingParts,
-  getMatchingPartsObject,
-  getNewWith,
-  getValueBySqlColumn,
-} from './business-object';
+} from './factory';

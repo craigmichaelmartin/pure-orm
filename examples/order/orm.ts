@@ -15,3 +15,4 @@ const orm = create({
   ],
   db: void 0
 });
+export default orm;
