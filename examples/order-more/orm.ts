@@ -20,7 +20,7 @@ import { parcelLineItemConfiguration } from './business-objects/parcel-line-item
 import { parcelConfiguration } from './business-objects/parcel';
 import { parcelEventConfiguration } from './business-objects/parcel-event';
 
-export const orm = create({
+const orm = create({
   getPureORMDataArray: () => [
     inventoryLevelConfiguration,
     actualProductVariantConfiguration,
@@ -45,3 +45,4 @@ export const orm = create({
   ],
   db: void 0
 });
+export default orm;

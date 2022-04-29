@@ -4,7 +4,7 @@ const { personConfiguration } = require('./business-objects/person');
 const { articleTagConfiguration } = require('./business-objects/article_tag');
 const { tagConfiguration } = require('./business-objects/tag');
 
-export const orm = create({
+const orm = create({
   getPureORMDataArray: () => [
     articleConfiguration,
     personConfiguration,
@@ -13,3 +13,4 @@ export const orm = create({
   ],
   db: void 0
 });
+export default orm;
