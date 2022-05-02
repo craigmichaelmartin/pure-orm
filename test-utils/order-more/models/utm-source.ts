@@ -2,7 +2,7 @@ import { IModel, ICollection, IColumns } from '../../../src/index';
 
 export const tableName: string = 'utm_source';
 
-export const columns: IColumns = [ 'id', 'value', 'label', 'internal' ];
+export const columns: IColumns = ['id', 'value', 'label', 'internal'];
 
 export class UtmSource implements IModel {
   id: number;
@@ -29,5 +29,5 @@ export const utmSourceEntity = {
   tableName,
   columns,
   Model: UtmSource,
-  Collection: UtmSources,
-}
+  Collection: UtmSources
+};

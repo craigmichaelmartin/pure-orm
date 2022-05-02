@@ -2,7 +2,7 @@ import { IModel, ICollection, IColumns } from '../../../src/index';
 
 export const tableName: string = 'size';
 
-export const columns: IColumns = [ 'id', 'value', 'label' ];
+export const columns: IColumns = ['id', 'value', 'label'];
 
 export class Size implements IModel {
   id: number;
@@ -27,5 +27,5 @@ export const sizeEntity = {
   tableName,
   columns,
   Model: Size,
-  Collection: Sizes,
-}
+  Collection: Sizes
+};

@@ -2,7 +2,13 @@ import { IModel, ICollection, IColumns } from '../../../src/index';
 
 export const tableName: string = 'color';
 
-export const columns: IColumns = ['id', 'value', 'label', 'position', 'image_url'];
+export const columns: IColumns = [
+  'id',
+  'value',
+  'label',
+  'position',
+  'image_url'
+];
 
 export class Color implements IModel {
   id: number;
@@ -31,5 +37,5 @@ export const colorEntity = {
   tableName,
   columns,
   Model: Color,
-  Collection: Colors,
-}
+  Collection: Colors
+};

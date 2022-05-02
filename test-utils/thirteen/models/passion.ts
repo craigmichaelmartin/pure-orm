@@ -2,9 +2,7 @@ import { IModel, ICollection, IColumns } from '../../../src/index';
 
 export const tableName: string = 'passion';
 
-export const columns: IColumns = [
-  'id',
-];
+export const columns: IColumns = ['id'];
 
 export class Passion implements IModel {
   id: number;
@@ -25,5 +23,5 @@ export const passionEntity = {
   tableName,
   columns,
   Model: Passion,
-  Collection: Passions,
-}
+  Collection: Passions
+};

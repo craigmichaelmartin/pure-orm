@@ -29,7 +29,7 @@ export class Persons implements ICollection<Person> {
     return this;
   }
   introductions() {
-    this.models.forEach(person => person.sayHello());
+    this.models.forEach((person) => person.sayHello());
   }
   // any other business methods...
 }
@@ -38,5 +38,5 @@ export const personEntity = {
   tableName,
   columns,
   Model: Person,
-  Collection: Persons,
-}
+  Collection: Persons
+};

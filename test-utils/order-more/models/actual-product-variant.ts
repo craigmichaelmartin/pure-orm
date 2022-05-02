@@ -2,7 +2,7 @@ import { IModel, ICollection, IColumns } from '../../../src/index';
 
 export const tableName: string = 'actual_product_variant';
 
-export const columns: IColumns = [ 'id', 'sku' ];
+export const columns: IColumns = ['id', 'sku'];
 
 export class ActualProductVariant implements IModel {
   id: number;
@@ -14,7 +14,9 @@ export class ActualProductVariant implements IModel {
   }
 }
 
-export class ActualProductVariants implements ICollection<ActualProductVariant> {
+export class ActualProductVariants
+  implements ICollection<ActualProductVariant>
+{
   models: Array<ActualProductVariant>;
   constructor({ models }: any) {
     this.models = models;
@@ -25,5 +27,5 @@ export const actualProductVariantEntity = {
   tableName,
   columns,
   Model: ActualProductVariant,
-  Collection: ActualProductVariants,
-}
+  Collection: ActualProductVariants
+};

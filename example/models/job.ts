@@ -55,5 +55,5 @@ export const jobEntity = {
   tableName,
   columns,
   Model: Job,
-  Collection: Jobs,
-}
+  Collection: Jobs
+};

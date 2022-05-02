@@ -56,5 +56,5 @@ export const recommendationEntity = {
   tableName,
   columns,
   Model: Recommendation,
-  Collection: Recommendations,
-}
+  Collection: Recommendations
+};

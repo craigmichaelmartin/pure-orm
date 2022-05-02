@@ -50,5 +50,5 @@ export const inventoryLevelEntity = {
   tableName,
   columns,
   Model: InventoryLevel,
-  Collection: InventoryLevels,
-}
+  Collection: InventoryLevels
+};

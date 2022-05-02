@@ -82,5 +82,5 @@ export const productVariantEntity = {
   tableName,
   columns,
   Model: ProductVariant,
-  Collection: ProductVariants,
-}
+  Collection: ProductVariants
+};

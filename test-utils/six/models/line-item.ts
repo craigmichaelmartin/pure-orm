@@ -5,7 +5,7 @@ export const tableName: string = 'line_item';
 
 export const columns: IColumns = [
   'id',
-  { column: 'order_id', references: Order },
+  { column: 'order_id', references: Order }
 ];
 
 export class LineItem implements IModel {
@@ -31,5 +31,5 @@ export const lineItemEntity = {
   tableName,
   columns,
   Model: LineItem,
-  Collection: LineItems,
-}
+  Collection: LineItems
+};

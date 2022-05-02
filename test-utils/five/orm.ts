@@ -1,4 +1,4 @@
-import { create } from'../../src/index';
+import { create } from '../../src/index';
 import { orderEntity } from './models/order';
 import { lineItemEntity } from './models/line-item';
 import { parcelLineItemEntity } from './models/parcel-line-item';

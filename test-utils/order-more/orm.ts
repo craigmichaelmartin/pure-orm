@@ -41,7 +41,7 @@ const orm = create({
     utmMediumEntity,
     parcelLineItemEntity,
     parcelEntity,
-    parcelEventEntity,
+    parcelEventEntity
   ],
   db: void 0
 });

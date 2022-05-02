@@ -26,7 +26,9 @@ export class RecommendationAudience implements IModel {
   }
 }
 
-export class RecommendationAudiences implements ICollection<RecommendationAudience> {
+export class RecommendationAudiences
+  implements ICollection<RecommendationAudience>
+{
   models: Array<RecommendationAudience>;
   constructor({ models }: any) {
     this.models = models;
@@ -37,5 +39,5 @@ export const recommendationAudienceEntity = {
   tableName,
   columns,
   Model: RecommendationAudience,
-  Collection: RecommendationAudiences,
-}
+  Collection: RecommendationAudiences
+};

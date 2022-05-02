@@ -34,5 +34,5 @@ export const featureSwitchEntity = {
   tableName,
   columns,
   Model: FeatureSwitch,
-  Collection: FeatureSwitches,
-}
+  Collection: FeatureSwitches
+};

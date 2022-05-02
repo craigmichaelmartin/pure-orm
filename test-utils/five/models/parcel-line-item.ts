@@ -37,5 +37,5 @@ export const parcelLineItemEntity = {
   tableName,
   columns,
   Model: ParcelLineItem,
-  Collection: ParcelLineItems,
-}
+  Collection: ParcelLineItems
+};

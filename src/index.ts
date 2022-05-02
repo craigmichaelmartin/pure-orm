@@ -4,5 +4,5 @@ export {
   IModel,
   IModelClass,
   ICollection,
-  IColumns,
+  IColumns
 } from './factory';

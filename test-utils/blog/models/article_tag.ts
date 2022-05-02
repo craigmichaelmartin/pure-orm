@@ -7,7 +7,7 @@ export const tableName = 'article_tag';
 export const columns: IColumns = [
   'id',
   { column: 'article_id', references: Article },
-  { column: 'tag_id', references: Tag },
+  { column: 'tag_id', references: Tag }
 ];
 
 export class ArticleTag implements IModel {
@@ -37,5 +37,5 @@ export const articleTagEntity = {
   tableName,
   columns,
   Model: ArticleTag,
-  Collection: ArticleTags,
+  Collection: ArticleTags
 };

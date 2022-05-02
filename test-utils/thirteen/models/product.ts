@@ -5,7 +5,7 @@ export const tableName: string = 'product';
 
 export const columns: IColumns = [
   'id',
-  { column: 'brand_id', references: Brand },
+  { column: 'brand_id', references: Brand }
 ];
 
 export class Product implements IModel {
@@ -31,5 +31,5 @@ export const productEntity = {
   tableName,
   columns,
   Model: Product,
-  Collection: Products,
-}
+  Collection: Products
+};

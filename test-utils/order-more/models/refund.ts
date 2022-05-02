@@ -52,5 +52,5 @@ export const refundEntity = {
   tableName,
   columns,
   Model: Refund,
-  Collection: Refunds,
-}
+  Collection: Refunds
+};

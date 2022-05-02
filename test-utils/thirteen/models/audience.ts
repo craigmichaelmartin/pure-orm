@@ -2,9 +2,7 @@ import { IModel, ICollection, IColumns } from '../../../src/index';
 
 export const tableName: string = 'audience';
 
-export const columns: IColumns = [
-  'id',
-];
+export const columns: IColumns = ['id'];
 
 export class Audience implements IModel {
   id: number;
@@ -25,5 +23,5 @@ export const audienceEntity = {
   tableName,
   columns,
   Model: Audience,
-  Collection: Audiences,
-}
+  Collection: Audiences
+};

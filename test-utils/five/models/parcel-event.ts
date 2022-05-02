@@ -37,5 +37,5 @@ export const parcelEventEntity = {
   tableName,
   columns,
   Model: ParcelEvent,
-  Collection: ParcelEvents,
-}
+  Collection: ParcelEvents
+};

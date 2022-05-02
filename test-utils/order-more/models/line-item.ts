@@ -62,5 +62,5 @@ export const lineItemEntity = {
   tableName,
   columns,
   Model: LineItem,
-  Collection: LineItems,
-}
+  Collection: LineItems
+};

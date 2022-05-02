@@ -40,5 +40,5 @@ export const productVariantImageEntity = {
   tableName,
   columns,
   Model: ProductVariantImage,
-  Collection: ProductVariantImages,
-}
+  Collection: ProductVariantImages
+};

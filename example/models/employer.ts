@@ -32,5 +32,5 @@ export const employerEntity = {
   tableName,
   columns,
   Model: Employer,
-  Collection: Employers,
-}
+  Collection: Employers
+};

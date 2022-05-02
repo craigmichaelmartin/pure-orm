@@ -52,5 +52,5 @@ export const productEntity = {
   tableName,
   columns,
   Model: Product,
-  Collection: Products,
-}
+  Collection: Products
+};

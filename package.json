@@ -11,8 +11,8 @@
     "test:unit": "npm run build && jest",
     "test:unit:watch": "jest --watch",
     "test:unit:debug": "node --inspect-brk node_modules/.bin/jest --runInBand --verbose",
-    "test:format": "prettier -l \"**/*.{js,json,md}\" \"!src/**/*.spec.js\" \"!coverage/**/*\"",
-    "format": "prettier --write  \"**/*.{js,json,md}\" \"!src/**/*.spec.js\" \"!coverage/**/*\"",
+    "test:format": "prettier -l \"**/*.{ts,js,json,md}\" \"!coverage/**/*\"",
+    "format": "prettier --write  \"**/*.{ts,js,json,md}\" \"!coverage/**/*\"",
     "lint": "eslint .",
     "pub": "npm run test && npm run build && np",
     "build": "rm -rf dist && mkdir -p dist && cp -r test-utils dist/test-utils && tsc"
@@ -32,7 +32,7 @@
     "jest": "^24.8.0",
     "np": "^5.0.1",
     "pg-promise": "^10.11.1",
-    "prettier": "^1.9.2",
+    "prettier": "^2.6.2",
     "typescript": "^4.6.3"
   },
   "jest": {

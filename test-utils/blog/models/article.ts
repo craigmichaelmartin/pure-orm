@@ -61,5 +61,5 @@ export const articleEntity = {
   tableName,
   columns,
   Model: Article,
-  Collection: Articles,
+  Collection: Articles
 };

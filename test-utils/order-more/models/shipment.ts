@@ -2,7 +2,11 @@ import { IModel, ICollection, IColumns } from '../../../src/index';
 
 export const tableName: string = 'shipment';
 
-export const columns: IColumns = ['id', 'inventory_location_id', 'sellable_date'];
+export const columns: IColumns = [
+  'id',
+  'inventory_location_id',
+  'sellable_date'
+];
 
 export class Shipment implements IModel {
   id: number;
@@ -27,5 +31,5 @@ export const shipmentEntity = {
   tableName,
   columns,
   Model: Shipment,
-  Collection: Shipments,
-}
+  Collection: Shipments
+};

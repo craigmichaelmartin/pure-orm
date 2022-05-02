@@ -36,5 +36,5 @@ export const promptEntity = {
   tableName,
   columns,
   Model: Prompt,
-  Collection: Prompts,
-}
+  Collection: Prompts
+};

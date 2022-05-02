@@ -55,5 +55,5 @@ export const physicalAddressEntity = {
   tableName,
   columns,
   Model: PhysicalAddress,
-  Collection: PhysicalAddresses,
-}
+  Collection: PhysicalAddresses
+};

@@ -3,11 +3,7 @@ import { Person } from './person';
 
 export const tableName = 'tag';
 
-export const columns: IColumns = [
-  'id',
-  'name',
-  'slug'
-];
+export const columns: IColumns = ['id', 'name', 'slug'];
 
 export class Tag implements IModel {
   id: number;
@@ -32,5 +28,5 @@ export const tagEntity = {
   tableName,
   columns,
   Model: Tag,
-  Collection: Tags,
+  Collection: Tags
 };

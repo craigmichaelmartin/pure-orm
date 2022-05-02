@@ -74,5 +74,5 @@ export const personEntity = {
   tableName,
   columns,
   Model: Person,
-  Collection: Persons,
-}
+  Collection: Persons
+};

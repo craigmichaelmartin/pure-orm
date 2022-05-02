@@ -32,7 +32,9 @@ export class ShipmentActualProductVariant implements IModel {
   }
 }
 
-export class ShipmentActualProductVariants implements ICollection<ShipmentActualProductVariant> {
+export class ShipmentActualProductVariants
+  implements ICollection<ShipmentActualProductVariant>
+{
   models: Array<ShipmentActualProductVariant>;
   constructor({ models }: any) {
     this.models = models;
@@ -43,5 +45,5 @@ export const shipmentActualProductVariantEntity = {
   tableName,
   columns,
   Model: ShipmentActualProductVariant,
-  Collection: ShipmentActualProductVariants,
-}
+  Collection: ShipmentActualProductVariants
+};

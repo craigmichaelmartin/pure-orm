@@ -120,5 +120,5 @@ export const orderEntity = {
   tableName,
   columns,
   Model: Order,
-  Collection: Orders,
-}
+  Collection: Orders
+};
