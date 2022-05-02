@@ -249,7 +249,7 @@ We can now create our ORM, which layers atop the database driver to do the objec
 
 ```typescript
 // factories/orm.ts
-import { create, PureORM } from '../../src/index';
+import { create } from 'pure-orm';
 import { db } from './db';
 import { personEntity } from '../models/person';
 import { jobEntity } from '../models/job';
@@ -378,7 +378,7 @@ That's it! This controller code now works! The `getPerson` function returns a pr
 ### Can you show the business objects of a more complex entity?
 
 ```typescript
-import { IModel, ICollection, IColumns, IEntity } from '../../src/index';
+import { IModel, ICollection, IColumns, IEntity } from 'pure-orm';
 
 export const tableName: string = 'library_v2';
 
