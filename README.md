@@ -533,9 +533,7 @@ PureORM
 
 ## API
 
-### Functions
-
-#### `create`
+### `create`
 
 ```typescript
 function create(options: {
@@ -553,53 +551,91 @@ The factory function for creating your ORM.
 
 **Return Value**
 
-Your `PureORM` instance.
-
-### Interfaces
-
-#### `PureORM`
+Your `PureORM` instance, which is of this interface:
 
 ```typescript
 interface PureORM {
-  one: (query: string, params: object) => PureORMModel;
-  oneOrNone: (query: string, params: object) => PureORMModel | void;
-  many: (query: string, params: object) => Array<PureORMModel>;
-  any: (query: string, params: object) => Array<PureORMModel> | void;
-  none: (query: string, params: object) => void;
-  getMatching: (bo: PureORMModel) => PureORMModel;
-  getOneOrNoneMatching: (bo: PureORMModel) => PureORMModel | void;
-  getAnyMatching: (bo: PureORMModel) => Array<PureORMModel> | void;
-  getAllMatching: (bo: PureORMModel) => Array<PureORMModel>;
-  create: (bo: PureORMModel) => PureORMModel;
-  update: (bo: PureORMModel) => PureORMModel;
-  delete: (bo: PureORMModel) => void;
-  deleteMatching: (bo: PureORMModel) => void;
-  tables: Array<new () => PureORMModel>;
+  /* ------------------------------------------------------------------------*/
+  /* Query methods ----------------------------------------------------------*/
+  /* ------------------------------------------------------------------------*/
+
+  /* Note these query methods ensure their count against the number of
+   * generated top level business objects which are created - not the number
+   * of relational rows returned from the database driver! Thus, for example,
+   * `one` understands that there may be multiple result rows (which a
+   * database driver's `one` query method would throw at) but which correctly
+   * nest into one Model.)
+   */
+
+  // Execute a query returning a single model, or throws.
+  one: <T extends IModel>(
+    query: string,
+    values?: object,
+    errorHandler = defaultErrorHandler
+  ) => T;
+
+  // Execute a query returning either single model or undefined, or throws.
+  oneOrNone: <T extends IModel>(
+    query: string,
+    values?: object,
+    errorHandler = defaultErrorHandler
+  ) => T | void;
+
+  // Execute a query returning a Collection with at least one model, or throws.
+  many: <T extends ICollection<IModel>>(
+    query: string,
+    values?: object,
+    errorHandler = defaultErrorHandler
+  ) => T;
+
+  // Execute a query returning a Collection.
+  any: <T extends ICollection<IModel>>(
+    query: string,
+    values?: object,
+    errorHandler = defaultErrorHandler
+  ) => T | void;
+
+  // Execute a query returning null.
+  none: (
+    query: string,
+    values?: object,
+    errorHandler = defaultErrorHandler
+  ) => void;
+
+  /* ------------------------------------------------------------------------*/
+  /* Built-in basic CRUD functions ------------------------------------------*/
+  /* ------------------------------------------------------------------------*/
+
+  /* These are just provided because they are so common and straight-forward.
+   * While the goal of this library is foster writing SQL in your data access
+   * layer (which returns pure business objects) some CRUD operations are so
+   * common they are included in the ORM. Feel free to completely disregard
+   * if you want to write these in your data access layer yourself.
+   */
+
+  getMatching: <T extends IModel>(model: T) => T;
+  getOneOrNoneMatching: <T extends IModel>(model: T) => T | void;
+  getAnyMatching: <T extends ICollection<IModel>>(model: IModel) => T | void;
+  getAllMatching: <T extends ICollection<IModel>>(model: IModel) => T;
+  create: <T extends IModel>(model: T) => T;
+  update: <T extends IModel>(model: T, { on = 'id' } = {}) => T;
+  _delete: <T extends IModel>(model: T) => void;
+  deleteMatching: <T extends IModel>(model => T);
+
+  /* ------------------------------------------------------------------------*/
+  /* Built-in basic CRUD functions ------------------------------------------*/
+  /* ------------------------------------------------------------------------*/
+
+  /* The tables property gives access to the sql select clause string for
+   * each entity based on it's `displayName`. This property can be used when
+   * writing raw SQL as the select clause, which handles quoting column names
+   * and namespacing them to the table to avoid collisions and as required
+   * for PureORM mapping.
+   */
+
+  tables: { [key:string]: { [key: string]: string; }};
 }
 ```
-
-It has the following query methods:
-
-- `one(query: string, params: object)` - executes a query and returns a Bo, or throws.
-- `oneOrNone(query: string, params: object)` - executes a query and returns a Bo or undefined, or throws.
-- `many(query: string, params: object)` - executes a query and returns a BoCollection with at least one model, or throws.
-- `any(query: string, params: object)` - executes a query and returns a BoCollection.
-- `none(query: string, params: object)` - executes a query and returns null.
-
-(Note these orm query methods ensure their count against the number of generated top level business objects are created - not the number of relational rows returned from the database driver! Thus, for example, `one` understands that there may be multiple result rows (which a database driver's `one` query method would throw at) but which correctly nest into one PureORMModel.)
-
-Built-in "basic" / generic crud functions
-
-- `getMatching: (bo: PureORMModel) => PureORMModel`
-- `getOneOrNoneMatching: (bo: PureORMModel) => PureORMModel | void`
-- `getAnyMatching: (bo: PureORMModel) => Array<PureORMModel> | void`
-- `getAllMatching: (bo: PureORMModel) => Array<PureORMModel>`
-- `create: (bo: PureORMModel) => PureORMModel`
-- `update: (bo: PureORMModel) => PureORMModel`
-- `delete: (bo: PureORMModel) => void`
-- `deleteMatching: (bo: PureORMModel) => void`
-
-These are just provided because they are so common and straight-forward. While the goal of this library is foster writing SQL in your data access layer (which returns pure business objects) some CRUD operations are so common they are included in the ORM. Feel free to completely disregard if you want to write these in your data access layer yourself.
 
 ## Current Status
 

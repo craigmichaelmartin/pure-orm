@@ -12,5 +12,5 @@ export const getPerson = (id: number): Person => {
     LEFT JOIN employer on job.employer_id = employer.id
     WHERE id = $(id)
   `;
-  return orm.one(query, { id });
+  return orm.one<Person>(query, { id });
 };

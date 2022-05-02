@@ -24,10 +24,10 @@ export interface IModel {
 // IModel used as a type refers to an instance of IModel;
 // IModelClass used as a type refers to the class itself 
 export type IModelClass = (new (props: any) => IModel);
-export interface ICollection<T> {
+export interface ICollection<T extends IModel> {
   models: Array<T>;
 }
-export interface IEntity<T> {
+export interface IEntity<T extends IModel> {
   tableName: string;
   displayName?: string;
   collectionDisplayName?: string;
@@ -35,9 +35,9 @@ export interface IEntity<T> {
   Model: (new (props: any) => T)
   Collection: (new ({models}: any) => ICollection<T>);
 }
-export type IEntities<T> = Array<IEntity<T>>;
+export type IEntities<T extends IModel> = Array<IEntity<T>>;
 
-export interface IEntityInternal<T> {
+export interface IEntityInternal<T extends IModel> {
   tableName: string;
   displayName: string;
   collectionDisplayName: string;
@@ -52,38 +52,7 @@ export interface IEntityInternal<T> {
   selectColumnsClause: string;
   getPkId: (model: IModel) => string;
 }
-export type IEntitiesInternal<T> = Array<IEntityInternal<T>>;
-
-export interface PureORM {
-  nestClump: (clump: Array<Array<IModel>>) => object;
-  clumpIntoGroups: (processed: Array<Array<IModel>>) => Array<Array<Array<IModel>>>;
-  mapToBos: (objectified: any) => any;
-  objectifyDatabaseResult: (result: object) => any;
-  createFromDatabase: (_result: Array<object> | object) => any;
-  createOneFromDatabase: (_result: any) => any;
-  createOneOrNoneFromDatabase: (_result: any) => any;
-  createManyFromDatabase: (_result: any) => any;
-  getSqlInsertParts: (model: IModel) => any;
-  getSqlUpdateParts: (model: IModel, on?: string) => any;
-  getMatchingParts: (model: IModel) => any;
-  getMatchingPartsObject: (model: IModel) => any;
-  getNewWith: (model: IModel, sqlColumns: any, values: any) => any;
-  getValueBySqlColumn: (model: IModel, sqlColumn: string) => any;
-  one: <T>(query: string, params?: object) => T;
-  oneOrNone: <T>(query: string, params: object) => T | void;
-  many: <T>(query: string, params: object) => Array<T>;
-  any: <T>(query: string, params: object) => Array<T> | void;
-  none: (query: string, params: object) => void;
-  getMatching: <T>(model: T) => T;
-  getOneOrNoneMatching: <T>(model: T) => T | void;
-  getAnyMatching: <T>(model: T) => Array<T> | void;
-  getAllMatching: <T>(model: T) => Array<T>;
-  create: <T>(model: T) => T;
-  update: <T>(model: T) => T;
-  delete: <T>(model: T) => void;
-  deleteMatching: <T>(model: T) => void;
-  tables: { [key:string]: { [key: string]: string; }};
-}
+export type IEntitiesInternal<T extends IModel> = Array<IEntityInternal<T>>;
 
 export interface CreateOptions{
   getEntities: () => IEntities<any>;
@@ -91,7 +60,7 @@ export interface CreateOptions{
   logError?: (err: Error) => void;
 }
 
-export const create = ({ getEntities, db, logError }: CreateOptions): PureORM => {
+export const create = ({ getEntities, db, logError }: CreateOptions) => {
 
   const entities: IEntitiesInternal<any> = getEntities().map((d: IEntity<any>) => {
     const tableName = d.tableName;
@@ -382,7 +351,7 @@ export const create = ({ getEntities, db, logError }: CreateOptions): PureORM =>
     }, {});
   };
 
-  const createFromDatabase = (_result: Array<object> | object) => {
+  const createFromDatabase = <T extends ICollection<IModel>,>(_result: Array<object> | object): T | undefined => {
     const result = Array.isArray(_result) ? _result : [_result];
     const objectified = result.map(objectifyDatabaseResult);
     const boified = objectified.map(mapToBos);
@@ -390,20 +359,23 @@ export const create = ({ getEntities, db, logError }: CreateOptions): PureORM =>
     const nested = clumps.map(nestClump);
     const models = nested.map(n => Object.values(n)[0]);
     const Collection = getEntityByModel(models[0]).Collection;
-    return models.length ? new Collection({ models }) : void 0;
+    return models.length ? new Collection({ models }) as T : void 0;
   };
 
-  const createOneFromDatabase = (_result: any) => {
-    const collection = createFromDatabase(_result);
+  const createOneFromDatabase = <T extends IModel,>(_result: any): T => {
+    const collection = createFromDatabase<ICollection<IModel>>(_result);
+    if (!collection) {
+      throw Error('Did not get one.');
+    }
     if (!collection || collection.models.length === 0) {
       throw Error('Did not get one.');
     } else if (collection.models.length > 1) {
       throw Error('Got more than one.');
     }
-    return collection.models[0];
+    return collection.models[0] as T;
   };
 
-  const createOneOrNoneFromDatabase = (_result: any) => {
+  const createOneOrNoneFromDatabase = <T extends IModel>(_result: any): T | void => {
     if (!_result) {
       return _result;
     }
@@ -411,15 +383,15 @@ export const create = ({ getEntities, db, logError }: CreateOptions): PureORM =>
     if (collection && collection.models.length > 1) {
       throw Error('Got more than one.');
     }
-    return collection && collection.models[0];
+    return collection && collection.models[0] as T;
   };
 
-  const createManyFromDatabase = (_result: any) => {
+  const createManyFromDatabase = <T extends ICollection<IModel>,>(_result: any): T => {
     const collection = createFromDatabase(_result);
     if (!collection || collection.models.length === 0) {
       throw Error('Did not get at least one.');
     }
-    return collection;
+    return collection as T;
   };
 
   const getSqlInsertParts = (model: IModel) => {
@@ -518,35 +490,51 @@ export const create = ({ getEntities, db, logError }: CreateOptions): PureORM =>
   /* Query functions --------------------------------------------------------*/
   /* ------------------------------------------------------------------------*/
 
-  const one = <T>(query: string, values?: object, errorHandler = defaultErrorHandler): T => {
+  const one = <T extends IModel>(
+    query: string,
+    values?: object,
+    errorHandler = defaultErrorHandler
+  ): T => {
     return db
       .many(query, values)
       .then((rows: any) => createOneFromDatabase(rows))
       .catch(errorHandler);
   };
 
-  const oneOrNone = (query: string, values?: object, errorHandler = defaultErrorHandler) => {
+  const oneOrNone = <T extends IModel>(
+    query: string,
+    values?: object,
+    errorHandler = defaultErrorHandler
+  ): T | void => {
     return db
       .any(query, values)
       .then((rows: any) => createOneOrNoneFromDatabase(rows))
       .catch(errorHandler);
   };
 
-  const many = (query: string, values?: object, errorHandler = defaultErrorHandler) => {
+  const many = <T extends ICollection<IModel>>(
+    query: string,
+    values?: object,
+    errorHandler = defaultErrorHandler
+  ): T => {
     return db
       .any(query, values)
       .then((rows: any) => createManyFromDatabase(rows))
       .catch(errorHandler);
   };
 
-  const any = (query: string, values?: object, errorHandler = defaultErrorHandler) => {
+  const any = <T extends ICollection<IModel>>(
+    query: string,
+    values?: object,
+    errorHandler = defaultErrorHandler
+  ): T | void => {
     return db
       .any(query, values)
       .then((rows: any) => createFromDatabase(rows))
       .catch(errorHandler);
   };
 
-  const none = (query: string, values?: object, errorHandler = defaultErrorHandler) => {
+  const none = (query: string, values?: object, errorHandler = defaultErrorHandler): void => {
     return db
       .none(query, values)
       .then(() => null)
@@ -558,18 +546,18 @@ export const create = ({ getEntities, db, logError }: CreateOptions): PureORM =>
   /* ------------------------------------------------------------------------*/
 
   // Standard create
-  const create = <T>(model: T) => {
+  const create = <T extends IModel>(model: T): T => {
     const { columns, values, valuesVar } = getSqlInsertParts(model);
     const query = `
       INSERT INTO "${getEntityByModel(model).tableName}" ( ${columns} )
       VALUES ( ${valuesVar} )
       RETURNING ${getEntityByModel(model).selectColumnsClause};
     `;
-    return one(query, values) as T;
+    return one<T>(query, values);
   };
 
   // Standard update
-  const update = <T>(model: T, { on = 'id' } = {}) => {
+  const update = <T extends IModel>(model: T, { on = 'id' } = {}): T => {
     const { clause, idVar, values } = getSqlUpdateParts(model, on);
     const query = `
       UPDATE "${getEntityByModel(model).tableName}"
@@ -577,11 +565,11 @@ export const create = ({ getEntities, db, logError }: CreateOptions): PureORM =>
       WHERE "${getEntityByModel(model).tableName}".${on} = ${idVar}
       RETURNING ${getEntityByModel(model).selectColumnsClause};
     `;
-    return one(query, values) as T;
+    return one<T>(query, values);
   };
 
   // Standard delete
-  const _delete = <T>(model: T) => {
+  const _delete = <T extends IModel>(model: T): void => {
     const id = (model as any).id;
     const query = `
       DELETE FROM "${getEntityByModel(model).tableName}"
@@ -590,7 +578,7 @@ export const create = ({ getEntities, db, logError }: CreateOptions): PureORM =>
     return none(query, { id });
   };
 
-  const deleteMatching = <T>(model: T) => {
+  const deleteMatching = <T extends IModel>(model: T) => {
     const { whereClause, values } = getMatchingParts(model);
     const query = `
       DELETE FROM "${getEntityByModel(model).tableName}"
@@ -599,44 +587,44 @@ export const create = ({ getEntities, db, logError }: CreateOptions): PureORM =>
     return none(query, values);
   };
 
-  const getMatching = <T>(model: T) => {
+  const getMatching = <T extends IModel>(model: T): T => {
     const { whereClause, values } = getMatchingParts(model);
     const query = `
       SELECT ${getEntityByModel(model).selectColumnsClause}
       FROM "${getEntityByModel(model).tableName}"
       WHERE ${whereClause};
     `;
-    return one(query, values) as T;
+    return one<T>(query, values);
   };
 
-  const getOneOrNoneMatching = <T>(model: T) => {
+  const getOneOrNoneMatching = <T extends IModel>(model: T): T | void => {
     const { whereClause, values } = getMatchingParts(model);
     const query = `
       SELECT ${getEntityByModel(model).selectColumnsClause}
       FROM "${getEntityByModel(model).tableName}"
       WHERE ${whereClause};
     `;
-    return oneOrNone(query, values);
+    return oneOrNone<T>(query, values);
   };
 
-  const getAnyMatching = <T>(model: T) => {
+  const getAnyMatching = <T extends ICollection<IModel>>(model: IModel): T | void => {
     const { whereClause, values } = getMatchingParts(model);
     const query = `
       SELECT ${getEntityByModel(model).selectColumnsClause}
       FROM "${getEntityByModel(model).tableName}"
       WHERE ${whereClause};
     `;
-    return any(query, values);
+    return any<T>(query, values);
   };
 
-  const getAllMatching = <T>(model: T) => {
+  const getAllMatching = <T extends ICollection<IModel>>(model: IModel): T => {
     const { whereClause, values } = getMatchingParts(model);
     const query = `
       SELECT ${getEntityByModel(model).selectColumnsClause}
       FROM "${getEntityByModel(model).tableName}"
       WHERE ${whereClause};
     `;
-    return many(query, values);
+    return many<T>(query, values);
   };
 
   return {
