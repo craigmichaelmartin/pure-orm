@@ -11,5 +11,5 @@
     "types": ["node", "jest"]
   },
   "exclude": ["node_modules", "dist"],
-  "include": ["src", "example"]
+  "include": ["src", "example", "test-utils"]
 }
