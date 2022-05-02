@@ -373,6 +373,112 @@ app.listen(port);
 
 That's it! This controller code now works! The `getPerson` function returns a properly structured business object as we desire.
 
+## API
+
+### `create`
+
+```typescript
+function create(options: {
+  getEntities: () => Array<IEntity>;
+  db: DataBaseDriver;
+}): PureORM;
+```
+
+The factory function for creating your ORM.
+
+**Parameters**
+
+- `getEntities: () => Array<IEntity>` - A function which returns an array of all the business object class entity configuration objects.
+- `db: <DataBaseDriverInstance>` - A database driver instance.
+
+**Return Value**
+
+Your `PureORM` instance, which is of this interface:
+
+```typescript
+interface PureORM {
+  /* ------------------------------------------------------------------------*/
+  /* Query methods ----------------------------------------------------------*/
+  /* ------------------------------------------------------------------------*/
+
+  /* Note these query methods ensure their count against the number of
+   * generated top level business objects which are created - not the number
+   * of relational rows returned from the database driver! Thus, for example,
+   * `one` understands that there may be multiple result rows (which a
+   * database driver's `one` query method would throw at) but which correctly
+   * nest into one Model.)
+   */
+
+  // Execute a query returning a single model, or throws.
+  one: <T extends IModel>(
+    query: string,
+    values?: object,
+    errorHandler = defaultErrorHandler
+  ) => T;
+
+  // Execute a query returning either single model or undefined, or throws.
+  oneOrNone: <T extends IModel>(
+    query: string,
+    values?: object,
+    errorHandler = defaultErrorHandler
+  ) => T | void;
+
+  // Execute a query returning a Collection with at least one model, or throws.
+  many: <T extends ICollection<IModel>>(
+    query: string,
+    values?: object,
+    errorHandler = defaultErrorHandler
+  ) => T;
+
+  // Execute a query returning a Collection.
+  any: <T extends ICollection<IModel>>(
+    query: string,
+    values?: object,
+    errorHandler = defaultErrorHandler
+  ) => T | void;
+
+  // Execute a query returning null.
+  none: (
+    query: string,
+    values?: object,
+    errorHandler = defaultErrorHandler
+  ) => void;
+
+  /* ------------------------------------------------------------------------*/
+  /* Built-in basic CRUD functions ------------------------------------------*/
+  /* ------------------------------------------------------------------------*/
+
+  /* These are just provided because they are so common and straight-forward.
+   * While the goal of this library is foster writing SQL in your data access
+   * layer (which returns pure business objects) some CRUD operations are so
+   * common they are included in the ORM. Feel free to completely disregard
+   * if you want to write these in your data access layer yourself.
+   */
+
+  getMatching: <T extends IModel>(model: T) => T;
+  getOneOrNoneMatching: <T extends IModel>(model: T) => T | void;
+  getAnyMatching: <T extends ICollection<IModel>>(model: IModel) => T | void;
+  getAllMatching: <T extends ICollection<IModel>>(model: IModel) => T;
+  create: <T extends IModel>(model: T) => T;
+  update: <T extends IModel>(model: T, { on = 'id' } = {}) => T;
+  _delete: <T extends IModel>(model: T) => void;
+  deleteMatching: <T extends IModel>(model => T);
+
+  /* ------------------------------------------------------------------------*/
+  /* Built-in basic CRUD functions ------------------------------------------*/
+  /* ------------------------------------------------------------------------*/
+
+  /* The tables property gives access to the sql select clause string for
+   * each entity based on it's `displayName`. This property can be used when
+   * writing raw SQL as the select clause, which handles quoting column names
+   * and namespacing them to the table to avoid collisions and as required
+   * for PureORM mapping.
+   */
+
+  tables: { [key:string]: { [key: string]: string; }};
+}
+```
+
 ## FAQ
 
 ### Can you show the business objects of a more complex entity?
@@ -530,112 +636,6 @@ PureORM
 
 - PureORM is more than just the preference against the query builder portion of Stateful ORMs
 - PureORM is the preference against stateful, db-connected objects: PureORM resolves result rows to _pure_ business objects. This purity in business objects fosters a clean layer of the business layer from the data access layer, as well as ensuring the very best in performance (eg, the [N+1 problem](https://docs.sqlalchemy.org/en/13/glossary.html#term-n-plus-one-problem) can't exist with pure objects).
-
-## API
-
-### `create`
-
-```typescript
-function create(options: {
-  getEntities: () => Array<IEntity>;
-  db: DataBaseDriver;
-}): PureORM;
-```
-
-The factory function for creating your ORM.
-
-**Parameters**
-
-- `getEntities: () => Array<IEntity>` - A function which returns an array of all the business object class entity configuration objects.
-- `db: <DataBaseDriverInstance>` - A database driver instance.
-
-**Return Value**
-
-Your `PureORM` instance, which is of this interface:
-
-```typescript
-interface PureORM {
-  /* ------------------------------------------------------------------------*/
-  /* Query methods ----------------------------------------------------------*/
-  /* ------------------------------------------------------------------------*/
-
-  /* Note these query methods ensure their count against the number of
-   * generated top level business objects which are created - not the number
-   * of relational rows returned from the database driver! Thus, for example,
-   * `one` understands that there may be multiple result rows (which a
-   * database driver's `one` query method would throw at) but which correctly
-   * nest into one Model.)
-   */
-
-  // Execute a query returning a single model, or throws.
-  one: <T extends IModel>(
-    query: string,
-    values?: object,
-    errorHandler = defaultErrorHandler
-  ) => T;
-
-  // Execute a query returning either single model or undefined, or throws.
-  oneOrNone: <T extends IModel>(
-    query: string,
-    values?: object,
-    errorHandler = defaultErrorHandler
-  ) => T | void;
-
-  // Execute a query returning a Collection with at least one model, or throws.
-  many: <T extends ICollection<IModel>>(
-    query: string,
-    values?: object,
-    errorHandler = defaultErrorHandler
-  ) => T;
-
-  // Execute a query returning a Collection.
-  any: <T extends ICollection<IModel>>(
-    query: string,
-    values?: object,
-    errorHandler = defaultErrorHandler
-  ) => T | void;
-
-  // Execute a query returning null.
-  none: (
-    query: string,
-    values?: object,
-    errorHandler = defaultErrorHandler
-  ) => void;
-
-  /* ------------------------------------------------------------------------*/
-  /* Built-in basic CRUD functions ------------------------------------------*/
-  /* ------------------------------------------------------------------------*/
-
-  /* These are just provided because they are so common and straight-forward.
-   * While the goal of this library is foster writing SQL in your data access
-   * layer (which returns pure business objects) some CRUD operations are so
-   * common they are included in the ORM. Feel free to completely disregard
-   * if you want to write these in your data access layer yourself.
-   */
-
-  getMatching: <T extends IModel>(model: T) => T;
-  getOneOrNoneMatching: <T extends IModel>(model: T) => T | void;
-  getAnyMatching: <T extends ICollection<IModel>>(model: IModel) => T | void;
-  getAllMatching: <T extends ICollection<IModel>>(model: IModel) => T;
-  create: <T extends IModel>(model: T) => T;
-  update: <T extends IModel>(model: T, { on = 'id' } = {}) => T;
-  _delete: <T extends IModel>(model: T) => void;
-  deleteMatching: <T extends IModel>(model => T);
-
-  /* ------------------------------------------------------------------------*/
-  /* Built-in basic CRUD functions ------------------------------------------*/
-  /* ------------------------------------------------------------------------*/
-
-  /* The tables property gives access to the sql select clause string for
-   * each entity based on it's `displayName`. This property can be used when
-   * writing raw SQL as the select clause, which handles quoting column names
-   * and namespacing them to the table to avoid collisions and as required
-   * for PureORM mapping.
-   */
-
-  tables: { [key:string]: { [key: string]: string; }};
-}
-```
 
 ## Current Status
 
