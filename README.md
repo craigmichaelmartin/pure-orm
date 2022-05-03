@@ -98,7 +98,7 @@ app.get('/rest/person', (req: Request, res: Response) => {
 app.listen(port);
 ```
 
-Based on the tables, I know exactly how to query for this:
+Based on the tables with this data:
 
 **Person**
 | id | name |
@@ -117,17 +117,19 @@ Based on the tables, I know exactly how to query for this:
 | 277 | 55 | 17 | 2020-01-01 | 2020-12-31 |
 | 278 | 55 | 26 | 2021-01-01 | 2021-12-31 |
 
+I know exactly how I want to query for it:
+
 ```sql
 SELECT *
 FROM person
 LEFT JOIN job on person.id = job.person_id
 LEFT JOIN employer on job.employer_id = employer.id
-WHERE id = 55;
+WHERE person.id = 55;
 ```
 
-I already know how to SQL, and don't want to spend the time mapping what I already know how to do onto a huge, niche, library-specific API.
+I already know how SQL, and don't want to spend the time mapping what I already know how to do onto a huge, niche, library-specific API.
 
-However, using this query with a database driver would give me a bunch of flat result records, not one object that is properly structed/nested like I want in my code, and with collided fields (id from all three tables, name from person and employer, etc).
+However, using this query with a database driver would give me a bunch of flat result records (not one object that is properly structed/nested) and with collided fields (id from all three tables, name from person and employer, etc).
 
 So, lets install PureORM and the database driver and get started!
 
