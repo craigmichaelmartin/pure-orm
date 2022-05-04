@@ -4,7 +4,7 @@ import { personEntity } from '../models/person';
 import { jobEntity } from '../models/job';
 import { employerEntity } from '../models/employer';
 const orm = create({
-  getEntities: () => [personEntity, jobEntity, employerEntity],
+  entities: [personEntity, jobEntity, employerEntity],
   db
 });
 export default orm;

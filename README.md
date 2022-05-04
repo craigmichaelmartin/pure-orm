@@ -257,7 +257,7 @@ import { personEntity } from '../models/person';
 import { jobEntity } from '../models/job';
 import { employerEntity } from '../models/employer';
 const orm = create({
-  getEntities: () => [personEntity, jobEntity, employerEntity],
+  entities: [personEntity, jobEntity, employerEntity],
   db
 });
 export default orm;
@@ -381,7 +381,7 @@ That's it! This controller code now works! The `getPerson` function returns a pr
 
 ```typescript
 function create(options: {
-  getEntities: () => Array<IEntity>;
+  entities: Array<IEntity>;
   db: DataBaseDriver;
 }): PureORM;
 ```
@@ -390,7 +390,7 @@ The factory function for creating your ORM.
 
 **Parameters**
 
-- `getEntities: () => Array<IEntity>` - A function which returns an array of all the business object class entity configuration objects.
+- `entities: Array<IEntity>` - An array of all the business object class entity configuration objects.
 - `db: <DataBaseDriverInstance>` - A database driver instance.
 
 **Return Value**

@@ -5,7 +5,7 @@ import { lineItemEntity } from './models/line-item';
 import { orderEntity } from './models/order';
 import { customerEntity } from './models/customer';
 const orm = create({
-  getEntities: () => [
+  entities: [
     parcelEntity,
     parcelLineItemEntity,
     lineItemEntity,

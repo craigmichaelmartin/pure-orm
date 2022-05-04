@@ -5,7 +5,7 @@ const { articleTagEntity } = require('./models/article_tag');
 const { tagEntity } = require('./models/tag');
 
 const orm = create({
-  getEntities: () => [articleEntity, personEntity, articleTagEntity, tagEntity],
+  entities: [articleEntity, personEntity, articleTagEntity, tagEntity],
   db: void 0
 });
 export default orm;

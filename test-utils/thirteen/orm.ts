@@ -8,7 +8,7 @@ import { passionEntity } from './models/passion';
 import { recommendationAudienceEntity } from './models/recommendation-audience';
 import { audienceEntity } from './models/audience';
 const orm = create({
-  getEntities: () => [
+  entities: [
     memberEntity,
     recommendationEntity,
     brandEntity,

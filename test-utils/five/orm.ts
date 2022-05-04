@@ -5,7 +5,7 @@ import { parcelLineItemEntity } from './models/parcel-line-item';
 import { parcelEntity } from './models/parcel';
 import { parcelEventEntity } from './models/parcel-event';
 const orm = create({
-  getEntities: () => [
+  entities: [
     orderEntity,
     lineItemEntity,
     parcelLineItemEntity,

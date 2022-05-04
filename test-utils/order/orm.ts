@@ -6,7 +6,7 @@ import { productVariantEntity } from './models/product-variant';
 import { productEntity } from './models/product';
 
 const orm = create({
-  getEntities: () => [
+  entities: [
     utmSourceEntity,
     orderEntity,
     lineItemEntity,

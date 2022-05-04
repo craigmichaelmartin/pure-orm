@@ -55,13 +55,17 @@ export interface IEntityInternal<T extends IModel> {
 export type IEntitiesInternal<T extends IModel> = Array<IEntityInternal<T>>;
 
 export interface CreateOptions {
-  getEntities: () => IEntities<any>;
+  entities: IEntities<any>;
   db: any;
   logError?: (err: Error) => void;
 }
 
-export const create = ({ getEntities, db, logError }: CreateOptions) => {
-  const entities: IEntitiesInternal<any> = getEntities().map(
+export const create = ({
+  entities: externalEntities,
+  db,
+  logError
+}: CreateOptions) => {
+  const entities: IEntitiesInternal<any> = externalEntities.map(
     (d: IEntity<any>) => {
       const tableName = d.tableName;
       const displayName = d.displayName || camelCase(d.tableName);
