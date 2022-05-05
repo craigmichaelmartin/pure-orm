@@ -55,7 +55,7 @@ export interface IEntityInternal<T extends IModel> {
 export type IEntitiesInternal<T extends IModel> = Array<IEntityInternal<T>>;
 
 export interface CreateOptions {
-  entities: IEntities<any>;
+  entities: IEntities<IModel>;
   db: any;
   logError?: (err: Error) => void;
 }
@@ -65,8 +65,8 @@ export const create = ({
   db,
   logError
 }: CreateOptions) => {
-  const entities: IEntitiesInternal<any> = externalEntities.map(
-    (d: IEntity<any>) => {
+  const entities: IEntitiesInternal<IModel> = externalEntities.map(
+    (d: IEntity<IModel>) => {
       const tableName = d.tableName;
       const displayName = d.displayName || camelCase(d.tableName);
       const collectionDisplayName =
@@ -146,7 +146,7 @@ export const create = ({
     }
   );
 
-  const getEntityByTableName = (tableName: string): IEntityInternal<any> => {
+  const getEntityByTableName = (tableName: string): IEntityInternal<IModel> => {
     const entity = entities.find((data) => data.tableName == tableName);
     if (!entity) {
       throw new Error(`Could not find entity for table ${tableName}`);
@@ -154,7 +154,7 @@ export const create = ({
     return entity;
   };
 
-  const getEntityByModel = (model: IModel): IEntityInternal<any> => {
+  const getEntityByModel = (model: IModel): IEntityInternal<IModel> => {
     const entity = entities.find((data) => data.Model == model.constructor);
     if (!entity) {
       throw new Error(`Could not find entity for class ${model.constructor}`);
