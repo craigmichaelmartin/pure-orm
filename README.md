@@ -392,7 +392,7 @@ The factory function for creating your ORM.
 
 - `entities: Array<IEntity>` - An array of all the business object class entity configuration objects.
 
-  ```
+  ```typescript
   interface IEntity<T extends IModel> {
     // the tablename in the database for the entity (EG: article_tag)
     tableName: string;
