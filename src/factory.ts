@@ -731,11 +731,14 @@ export const create = ({
     getOneOrNoneMatching,
     getAnyMatching,
     getAllMatching,
+    // tables property for access to select columns clause string
     tables: entities.reduce((accum: any, data: IEntityInternal<IModel>) => {
       accum[data.displayName] = {
-        columns: data.selectColumnsClause,
+        columns: data.selectColumnsClause
       };
       return accum;
-    }, {})
+    }, {}),
+    // provide direct access to db
+    db
   };
 };

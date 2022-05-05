@@ -510,7 +510,7 @@ interface PureORM {
   deleteMatching: <T extends IModel>(model => T);
 
   /* ------------------------------------------------------------------------*/
-  /* Built-in basic CRUD functions ------------------------------------------*/
+  /* Helpful Properties -----------------------------------------------------*/
   /* ------------------------------------------------------------------------*/
 
   /* The tables property gives access to the sql select clause string for
@@ -519,8 +519,8 @@ interface PureORM {
    * and namespacing them to the table to avoid collisions and as required
    * for PureORM mapping.
    */
-
-  tables: { [key:string]: { [key: string]: string; }};
+  tables: { [key:string]: { 'columns': string; }};
+  db: DataBaseDriver;
 }
 ```
 
