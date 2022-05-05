@@ -731,8 +731,10 @@ export const create = ({
     getOneOrNoneMatching,
     getAnyMatching,
     getAllMatching,
-    tables: entities.reduce((accum: any, data: IEntityInternal<any>) => {
-      accum[data.displayName] = data.selectColumnsClause;
+    tables: entities.reduce((accum: any, data: IEntityInternal<IModel>) => {
+      accum[data.displayName] = {
+        columns: data.selectColumnsClause,
+      };
       return accum;
     }, {})
   };
