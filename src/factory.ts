@@ -7,7 +7,7 @@ export interface IColumnData {
   primaryKey?: boolean;
 }
 export type IColumn = IColumnData | string;
-export type IColumns = Array<IColumn>;
+export type IColumns = Array<IColumn> | (() => Array<IColumn>);
 
 export interface IColumnInternalData {
   column: string;
@@ -71,7 +71,9 @@ export const create = ({
       const displayName = d.displayName || camelCase(d.tableName);
       const collectionDisplayName =
         d.collectionDisplayName || `${displayName}s`;
-      const columns = d.columns.map((d: IColumn) => {
+      const columns = (
+        typeof d.columns === 'function' ? d.columns() : d.columns
+      ).map((d: IColumn) => {
         if (typeof d === 'string') {
           return {
             column: d,

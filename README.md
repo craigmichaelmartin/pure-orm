@@ -391,6 +391,49 @@ The factory function for creating your ORM.
 **Parameters**
 
 - `entities: Array<IEntity>` - An array of all the business object class entity configuration objects.
+
+  ```
+  interface IEntity<T extends IModel> {
+    // the tablename in the database for the entity (EG: article_tag)
+    tableName: string;
+    // the name to use for the model in the structured results of other models
+    // defaults to the camelcase of the tableName (EG: articleTag)
+    displayName?: string;
+    // the name to use for the collection in the structured results of other models
+    // defaults to adding an "s" to the displayName (EG: articleTags)
+    collectionDisplayName?: string;
+    // the column specs for the table (see interferface below)
+    columns: IColumns;
+    // the pure business object to use for result data
+    Model: new (props: any) => T;
+    // the pure business object to use for result collection data
+    Collection: new ({ models }: any) => ICollection<T>;
+  }
+
+  // the interface for the `columns` property of the Entity interface.
+  // is usually an array of the column data, but can be a function which
+  // returns they array of column data (which is used to avoid circular
+  // dependency issues when two entities reference each other).
+  type IColumns = Array<IColumn> | (() => Array<IColumn>);
+
+  // the column can just be a string (EG: 'id', 'value, 'label') which is
+  // understood to be the column name, or it can be an IColumnData object.
+  type IColumn = string | IColumnData;
+
+  // an object to specify more than just the column name
+  interface IColumnData {
+    // the name of the column (EG: is_active)
+    column: string;
+    // the name to be used in the pure business object model
+    // (defaults to the camelcase of the column, EG: isActive)
+    property?: string;
+    // the model this column references as a foreign key
+    references?: new (props: any) => IModel;
+    // whether this column is a primary key
+    primaryKey?: boolean;
+  }
+  ```
+
 - `db: <DataBaseDriverInstance>` - A database driver instance.
 
 **Return Value**
