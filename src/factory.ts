@@ -379,6 +379,9 @@ export const create = ({
     return Object.keys(result).reduce((obj: any, text: string) => {
       const tableName = text.split('#')[0];
       const column = text.split('#')[1];
+      if (!tableName || !column) {
+        throw new Error('Column names must be namespaced to table');
+      }
       obj[tableName] = obj[tableName] || {};
       obj[tableName][column] = result[text as keyof typeof result];
       return obj;
@@ -386,8 +389,11 @@ export const create = ({
   };
 
   const createFromDatabase = <T extends ICollection<IModel>>(
-    _result: Array<object> | object
+    _result: any
   ): T | undefined => {
+    if (!_result || !_result.length) {
+      return void 0;
+    }
     const result = Array.isArray(_result) ? _result : [_result];
     const objectified = result.map(objectifyDatabaseResult);
     const boified = objectified.map(mapToBos);
@@ -414,9 +420,6 @@ export const create = ({
   const createOneOrNoneFromDatabase = <T extends IModel>(
     _result: any
   ): T | void => {
-    if (!_result) {
-      return _result;
-    }
     const collection = createFromDatabase(_result);
     if (collection && collection.models.length > 1) {
       throw Error('Got more than one.');
