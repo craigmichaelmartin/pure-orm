@@ -388,53 +388,60 @@ export const create = ({
     }, {});
   };
 
-  const createFromDatabase = <T extends ICollection<IModel>>(
-    _result: any
-  ): T | undefined => {
-    if (!_result || !_result.length) {
-      return void 0;
-    }
-    const result = Array.isArray(_result) ? _result : [_result];
+  const createFromDatabase = <T extends ICollection<IModel>>(rows: any): T => {
+    const result = Array.isArray(rows) ? rows : [rows];
     const objectified = result.map(objectifyDatabaseResult);
     const boified = objectified.map(mapToBos);
     const clumps = clumpIntoGroups(boified);
     const nested = clumps.map(nestClump);
     const models = nested.map((n) => Object.values(n)[0]);
     const Collection = getEntityByModel(models[0]).Collection;
-    return models.length ? (new Collection({ models }) as T) : void 0;
+    return <T>new Collection({ models });
   };
 
-  const createOneFromDatabase = <T extends IModel>(_result: any): T => {
-    const collection = createFromDatabase<ICollection<IModel>>(_result);
-    if (!collection) {
+  const createAnyFromDatabase = <T extends ICollection<IModel>>(
+    rows: any,
+    rootKey: string | IModel
+  ): T => {
+    if (!rows || !rows.length) {
+      const Collection =
+        typeof rootKey === 'string'
+          ? getEntityByTableName(rootKey).Collection
+          : getEntityByModel(rootKey).Collection;
+      return new Collection({ models: [] }) as T;
+    }
+    return <T>createFromDatabase<T>(rows);
+  };
+
+  const createOneFromDatabase = <T extends IModel>(rows: any): T => {
+    if (!rows || !rows.length) {
       throw Error('Did not get one.');
     }
-    if (!collection || collection.models.length === 0) {
+    const collection = createFromDatabase<ICollection<IModel>>(rows);
+    if (!collection || !collection.models || collection.models.length === 0) {
       throw Error('Did not get one.');
     } else if (collection.models.length > 1) {
       throw Error('Got more than one.');
     }
-    return collection.models[0] as T;
+    return <T>collection.models[0];
   };
 
   const createOneOrNoneFromDatabase = <T extends IModel>(
-    _result: any
+    rows: any
   ): T | void => {
-    const collection = createFromDatabase(_result);
-    if (collection && collection.models.length > 1) {
-      throw Error('Got more than one.');
+    if (!rows || !rows.length) {
+      return void 0;
     }
-    return collection && (collection.models[0] as T);
+    return <T>createOneFromDatabase(rows);
   };
 
   const createManyFromDatabase = <T extends ICollection<IModel>>(
-    _result: any
+    rows: any
   ): T => {
-    const collection = createFromDatabase(_result);
-    if (!collection || collection.models.length === 0) {
+    if (!rows || !rows.length) {
       throw Error('Did not get at least one.');
     }
-    return collection as T;
+    return <T>createFromDatabase(rows);
   };
 
   const getSqlInsertParts = (model: IModel) => {
@@ -599,8 +606,10 @@ export const create = ({
     errorHandler = defaultErrorHandler
   ): T | void => {
     return db
-      .any(query, values)
-      .then((rows: any) => createFromDatabase(rows))
+      .result(query, values)
+      .then((result: any) =>
+        createAnyFromDatabase(result.rows, result.fields[0].name.split('#')[0])
+      )
       .catch(errorHandler);
   };
 
