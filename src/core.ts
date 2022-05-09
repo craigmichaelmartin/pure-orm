@@ -179,16 +179,38 @@ export const createCore = ({
     }
   );
 
+  const tableNameToEntityMap = entities.reduce(
+    (
+      map: Map<string, IEntityInternal<IModel>>,
+      entity: IEntityInternal<IModel>
+    ) => {
+      map.set(entity.tableName, entity);
+      return map;
+    },
+    new Map()
+  );
+
   const getEntityByTableName = (tableName: string): IEntityInternal<IModel> => {
-    const entity = entities.find((data) => data.tableName == tableName);
+    const entity = tableNameToEntityMap.get(tableName);
     if (!entity) {
       throw new Error(`Could not find entity for table ${tableName}`);
     }
     return entity;
   };
 
+  const modelToEntityMap = entities.reduce(
+    (
+      map: Map<IModel, IEntityInternal<IModel>>,
+      entity: IEntityInternal<IModel>
+    ) => {
+      map.set(entity.Model, entity);
+      return map;
+    },
+    new Map()
+  );
+
   const getEntityByModel = (model: IModel): IEntityInternal<IModel> => {
-    const entity = entities.find((data) => data.Model == model.constructor);
+    const entity = modelToEntityMap.get(model.constructor);
     if (!entity) {
       throw new Error(`Could not find entity for class ${model.constructor}`);
     }
