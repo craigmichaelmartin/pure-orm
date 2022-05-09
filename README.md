@@ -1,4 +1,4 @@
-# [PureORM](https://github.com/craigmichaelmartin/pure-orm) &middot; [![Build Status](https://travis-ci.org/craigmichaelmartin/pure-orm.svg?branch=master)](https://travis-ci.org/craigmichaelmartin/pure-orm) [![codecov](https://codecov.io/gh/craigmichaelmartin/pure-orm/branch/master/graph/badge.svg)](https://codecov.io/gh/craigmichaelmartin/pure-orm)
+# [PureORM](https://github.com/craigmichaelmartin/pure-orm)
 
 ## Installation
 
@@ -43,10 +43,10 @@ A **Collection** is a pure business object with a reference to a group of models
 - If your query returns records for multiple models, a Collection will be created and returned.
 - You can create the Collection class (in cases where it is useful to have business methods on the collection object, not just each model object).
 
-A **Data Access Layer** is a database-aware abstraction layer where native SQL is written.
+A **Data Access Layer** is a database-aware abstraction layer where native SQL is written, and which returns pure business objects.
 
-- This is not an "expresion language" or "query builder". There are not hundreds of methods mapping the complexity, expressiveness, and nuance of SQL to class objects.
-- Rather, is a data access layer in which native SQL is written, and which returns business objects (properly nested and structured).
+- With PureORM, database-aware code is limited to a data access layer. Your higher up controller and service layers deal only with API calls to the Data Access functions, which are written with native SQL, and which returns pure business objects.
+- There are no database-bound stateful orm objects with their huge query builder APIs sprawling across all the application code. Instead there is a single layer where native SQL is written, and which returns pure business objects (properly nested and structured).
 
 ## Practical Example
 
@@ -631,7 +631,7 @@ Traditional/stateful ORMs offer a dialetic-generic, chainable object api for exp
 
 ### Will I then have dozens of similar data access functions, since strings aren't as composable as stateful ORM builder builder APIs?
 
-There is still a lot of composibility possible with functions returning strings (someone create an Issue if you want to see examples used in the Kujo codebase), but in general yes, there is more repitition. Most of this remaining repitition is not something I think is a defect (though those obsessed with DRY would disagree). The only "defect" of this repitition is that there may be more than one similiar method (for example a "get" that does certain joins vs others), and differentiating the large query in a function name can be lengthy/annoying. In these cases where composing functions doesn't bring the number of similar functions methods to only one, rather than distilling these large queries into the function name (eg, getPersonWithJobsAndEmployers), I usually just opt for a small arbitrary hash at the end of the short name (eg, getXTW instead of getPersonWithJobsAndEmployers, getRJF instead of getPersonWithFriendsLocatedNearANewFriendRequest, etc).
+There is still a lot of composibility possible with functions returning strings (someone create an Issue if you want to see examples used in the Kujo codebase), but in general yes, there is more repitition. Most of this remaining repitition is not something I think is a defect (though those obsessed with DRY would disagree).
 
 ### Does PureORM abstract away the database driver?
 
@@ -683,12 +683,6 @@ PureORM
 - PureORM is the preference against stateful, db-connected objects: PureORM resolves result rows to _pure_ business objects. This purity in business objects fosters a clean layer of the business layer from the data access layer, as well as ensuring the very best in performance (eg, the [N+1 problem](https://docs.sqlalchemy.org/en/13/glossary.html#term-n-plus-one-problem) can't exist with pure objects).
 
 ## Current Status
-
-#### Current Limitations (PRs welcome!)
-
-- `pg-promise`/`node-postgres` is the only database driver supported out-of-the-box. There is not technical reason for this, other than that the project I'm using has a postgres database and so I only had `pg-promise` in mind. We could support more database drivers out of the box.
-- there must be a clear path in the "select" to your leaf joined-to-entities (eg, (Good): Article, ArticleTag, Tag, TagModerator, Moderator; not (Bad): Article, Moderator).
-- the result of _the select_ must always be a non-circular tree (eg, (Bad): Article, Person, Group, GroupArticle, Article)
 
 #### Current Todos (PRs welcome!):
 
