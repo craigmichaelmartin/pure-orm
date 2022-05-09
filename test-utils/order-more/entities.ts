@@ -1,4 +1,3 @@
-import { create } from '../../src/index';
 import { inventoryLevelEntity } from './models/inventory-level';
 import { actualProductVariantEntity } from './models/actual-product-variant';
 import { productVariantEntity } from './models/product-variant';
@@ -20,29 +19,25 @@ import { parcelLineItemEntity } from './models/parcel-line-item';
 import { parcelEntity } from './models/parcel';
 import { parcelEventEntity } from './models/parcel-event';
 
-const orm = create({
-  entities: [
-    inventoryLevelEntity,
-    actualProductVariantEntity,
-    productVariantEntity,
-    productVariantImageEntity,
-    productEntity,
-    sizeEntity,
-    colorEntity,
-    genderEntity,
-    shipmentEntity,
-    shipmentActualProductVariantEntity,
-    refundEntity,
-    orderEntity,
-    lineItemEntity,
-    customerEntity,
-    physicalAddressEntity,
-    utmSourceEntity,
-    utmMediumEntity,
-    parcelLineItemEntity,
-    parcelEntity,
-    parcelEventEntity
-  ],
-  db: void 0
-});
-export default orm;
+export const entities = [
+  inventoryLevelEntity,
+  actualProductVariantEntity,
+  productVariantEntity,
+  productVariantImageEntity,
+  productEntity,
+  sizeEntity,
+  colorEntity,
+  genderEntity,
+  shipmentEntity,
+  shipmentActualProductVariantEntity,
+  refundEntity,
+  orderEntity,
+  lineItemEntity,
+  customerEntity,
+  physicalAddressEntity,
+  utmSourceEntity,
+  utmMediumEntity,
+  parcelLineItemEntity,
+  parcelEntity,
+  parcelEventEntity
+];

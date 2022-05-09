@@ -458,35 +458,35 @@ interface PureORM {
   one: <T extends IModel>(
     query: string,
     values?: object,
-    errorHandler = defaultErrorHandler
+    errorHandler?: (err: Error) => never
   ) => T;
 
   // Execute a query returning either single model or undefined, or throws.
   oneOrNone: <T extends IModel>(
     query: string,
     values?: object,
-    errorHandler = defaultErrorHandler
+    errorHandler?: (err: Error) => never
   ) => T | void;
 
   // Execute a query returning a Collection with at least one model, or throws.
   many: <T extends ICollection<IModel>>(
     query: string,
     values?: object,
-    errorHandler = defaultErrorHandler
+    errorHandler?: (err: Error) => never
   ) => T;
 
   // Execute a query returning a Collection.
   any: <T extends ICollection<IModel>>(
     query: string,
     values?: object,
-    errorHandler = defaultErrorHandler
+    errorHandler?: (err: Error) => never
   ) => T | void;
 
   // Execute a query returning null.
   none: (
     query: string,
     values?: object,
-    errorHandler = defaultErrorHandler
+    errorHandler?: (err: Error) => never
   ) => void;
 
   /* ------------------------------------------------------------------------*/
@@ -505,9 +505,9 @@ interface PureORM {
   getAnyMatching: <T extends ICollection<IModel>>(model: IModel) => T | void;
   getAllMatching: <T extends ICollection<IModel>>(model: IModel) => T;
   create: <T extends IModel>(model: T) => T;
-  update: <T extends IModel>(model: T, { on = 'id' } = {}) => T;
-  _delete: <T extends IModel>(model: T) => void;
-  deleteMatching: <T extends IModel>(model => T);
+  update: <T extends IModel>(model: T, options: { on: string }) => T;
+  delete: <T extends IModel>(model: T) => void;
+  deleteMatching: <T extends IModel>(model: T) => void;
 
   /* ------------------------------------------------------------------------*/
   /* Helpful Properties -----------------------------------------------------*/
@@ -519,7 +519,7 @@ interface PureORM {
    * and namespacing them to the table to avoid collisions and as required
    * for PureORM mapping.
    */
-  tables: { [key:string]: { 'columns': string; }};
+  tables: { [key: string]: { columns: string } };
   db: DataBaseDriver;
 }
 ```

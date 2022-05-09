@@ -1,11 +1,11 @@
-const { create } = require('../../src/index');
 const { articleEntity } = require('./models/article');
 const { personEntity } = require('./models/person');
 const { articleTagEntity } = require('./models/article_tag');
 const { tagEntity } = require('./models/tag');
 
-const orm = create({
-  entities: [articleEntity, personEntity, articleTagEntity, tagEntity],
-  db: void 0
-});
-export default orm;
+export const entities = [
+  articleEntity,
+  personEntity,
+  articleTagEntity,
+  tagEntity
+];

@@ -1,13 +1,13 @@
 /* eslint-disable max-len */
-import orm from '../test-utils/order/orm';
-import ormA from '../test-utils/order/orm';
-import ormB from '../test-utils/blog/orm';
-import ormC from '../test-utils/order-more/orm';
-import ormD from '../test-utils/nine/orm';
-import ormE from '../test-utils/five/orm';
-import ormF from '../test-utils/six/orm';
-import ormG from '../test-utils/twelve/orm';
-import ormH from '../test-utils/thirteen/orm';
+import { createCore } from './core';
+import { entities as orderEntities } from '../test-utils/order/entities';
+import { entities as blogEntities } from '../test-utils/blog/entities';
+import { entities as orderMoreEntities } from '../test-utils/order-more/entities';
+import { entities as nineEntities } from '../test-utils/nine/entities';
+import { entities as fiveEntities } from '../test-utils/five/entities';
+import { entities as sixEntities } from '../test-utils/six/entities';
+import { entities as twelveEntities } from '../test-utils/twelve/entities';
+import { entities as thirteenEntities } from '../test-utils/thirteen/entities';
 import { Articles } from '../test-utils/blog/models/article';
 const two = require('../test-utils/two/results');
 const three = require('../test-utils/three/results');
@@ -23,8 +23,9 @@ const eleven = require('../test-utils/eleven/results.json');
 const twelve = require('../test-utils/twelve/results.json');
 const thirteen = require('../test-utils/thirteen/results.json');
 
-test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with all one-to-one or one-to-many tables)', () => {
-  const order = ormA.createOneFromDatabase(one);
+test('createOneFromDatabase where multiple rows reduce to one nested object (with all one-to-one or one-to-many tables)', () => {
+  const core = createCore({ entities: orderEntities });
+  const order = core.createOneFromDatabase(one);
   expect(Array.isArray(order)).toBe(false);
   expect(order?.id).toEqual(3866);
   expect(order?.utmSource.id).toEqual(6);
@@ -55,8 +56,9 @@ test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with
   expect(order.lineItems.models[5].productVariant.product.id).toEqual(3);
 });
 
-test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with many-to-many tables)', () => {
-  const article = ormB.createOneFromDatabase(two);
+test('createOneFromDatabase where multiple rows reduce to one nested object (with many-to-many tables)', () => {
+  const core = createCore({ entities: blogEntities });
+  const article = core.createOneFromDatabase(two);
   expect(Array.isArray(article)).toBe(false);
   expect(article.id).toEqual(14);
   expect(article.person.id).toEqual(8);
@@ -84,8 +86,9 @@ test('Bo#parseFromDatabase where multiple rows reduce to one nested object (with
   expect(article.articleTags.models[9].tag.id).toEqual(16);
 });
 
-test('Bo#parseFromDatabase where multiple rows reduce to many rows with nested objects (with many-to-many tables)', () => {
-  const articles = ormB.createFromDatabase(three);
+test('createFromDatabase where multiple rows reduce to many rows with nested objects (with many-to-many tables)', () => {
+  const core = createCore({ entities: blogEntities });
+  const articles = core.createFromDatabase(three);
   expect(Array.isArray(articles.models)).toBe(true);
   expect(articles instanceof Articles).toBe(true);
   expect(articles.models.length).toEqual(2);
@@ -136,8 +139,9 @@ test('Bo#parseFromDatabase where multiple rows reduce to many rows with nested o
 // productVariantImages append to it, instead of each productVariantImage
 // living on its own productVariant (which would keep overwriting itself
 // on the actualProductVariant node).
-test('Bo#parseFromDatabase where node is already seen', () => {
-  const inventoryLevels = ormC.createFromDatabase(four);
+test('createFromDatabase where node is already seen', () => {
+  const core = createCore({ entities: orderMoreEntities });
+  const inventoryLevels = core.createFromDatabase(four);
 
   expect(inventoryLevels).toBeDefined();
 
@@ -272,8 +276,9 @@ test('Bo#parseFromDatabase where node is already seen', () => {
 // the two relevant line items of the one relevant order. This test should
 // be doing that, but since code coverage all-around isn't great and I already
 // had this fuller json dump from production, I just used it all - YOLO.
-test('Bo#parseFromDatabase where a deeply nested models property was misbehaving', () => {
-  const orders = ormE.createFromDatabase(five);
+test('createFromDatabase where a deeply nested models property was misbehaving', () => {
+  const core = createCore({ entities: fiveEntities });
+  const orders = core.createFromDatabase(five);
   // The assertion that failed when the bug was present
   expect(
     orders?.models[0].lineItems.models[1].parcelLineItems.models[0].parcel
@@ -349,8 +354,9 @@ test('Bo#parseFromDatabase where a deeply nested models property was misbehaving
 //    [MISSING ORDER]
 // Issue occcurs in nestClump
 // Problem only surfaced when custom was included
-test('Bo#parseOneFromDatabase where a deeply nested models property was misbehaving', () => {
-  const parcel = ormF.createOneFromDatabase(six);
+test('createOneFromDatabase where a deeply nested models property was misbehaving', () => {
+  const core = createCore({ entities: sixEntities });
+  const parcel = core.createOneFromDatabase(six);
   // The assertion that failed when the bug was present
   expect(parcel.parcelLineItems.models[1].lineItem.order).toBeDefined();
   // Lots of other assertions that are unrelated and shouldn't be here except
@@ -391,8 +397,9 @@ test('Bo#parseOneFromDatabase where a deeply nested models property was misbehav
 //   ProductVariant(2)
 //    Color
 // Issue occcurs in nestClump
-test('Bo#parseOneFromDatabase where a deeply nested models property was attaching to wrong parent', () => {
-  const inventoryLevel = ormC.createOneFromDatabase(seven);
+test('createOneFromDatabase where a deeply nested models property was attaching to wrong parent', () => {
+  const core = createCore({ entities: orderMoreEntities });
+  const inventoryLevel = core.createOneFromDatabase(seven);
   // The assertion that failed when the bug was present
   expect(
     inventoryLevel.actualProductVariant.productVariants.models[1]
@@ -450,8 +457,9 @@ test('Bo#parseOneFromDatabase where a deeply nested models property was attachin
 //    ProductVariant(2)
 //     Product
 // Issue occcurs in nestClump
-test('Bo#parseOneFromDatabase where a deeply nested models property was attaching to wrong parent 2', () => {
-  const shipments = ormC.createFromDatabase(eight);
+test('createFromDatabase where a deeply nested models property was attaching to wrong parent 2', () => {
+  const core = createCore({ entities: orderMoreEntities });
+  const shipments = core.createFromDatabase(eight);
   // The assertion that failed when the bug was present
   expect(
     shipments?.models[0].shipmentActualProductVariants.models[1]
@@ -629,11 +637,12 @@ test('Bo#parseOneFromDatabase where a deeply nested models property was attachin
 
 // Issue occcurs in nestClump
 // Problem is with only top level nodes
-test('Bo#parseFromDatabase with just top level nodes', () => {
+test('createFromDatabase with just top level nodes', () => {
+  const core = createCore({ entities: nineEntities });
   let featureSwitches;
   try {
     // This failed when the bug was present
-    featureSwitches = ormD.createFromDatabase(nine);
+    featureSwitches = core.createFromDatabase(nine);
   } catch (e) {
     expect(e).not.toBeDefined();
   }
@@ -649,11 +658,12 @@ test('Bo#parseFromDatabase with just top level nodes', () => {
 // Problem is when oldest parent is an empty join record and is not included
 // which results in the oldest parent search returning -1 and parent heirarchy
 // is thus messed up.
-test('Bo#parseFromDatabase 10', () => {
+test('createFromDatabase 10', () => {
+  const core = createCore({ entities: orderMoreEntities });
   let orders;
   try {
     // This failed when the bug was present
-    orders = ormC.createFromDatabase(ten);
+    orders = core.createFromDatabase(ten);
   } catch (e) {
     expect(e).not.toBeDefined();
   }
@@ -954,11 +964,12 @@ test('Bo#parseFromDatabase 10', () => {
 
 // Issue occcurs in nestClump
 // Problem from early returning not logging bo so parent hierarcy was missing it
-test('Bo#parseFromDatabase 11', () => {
+test('createFromDatabase 11', () => {
+  const core = createCore({ entities: orderMoreEntities });
   let orders;
   try {
     // This failed when the bug was present
-    orders = ormC.createFromDatabase(eleven);
+    orders = core.createFromDatabase(eleven);
   } catch (e) {
     expect(e).not.toBeDefined();
   }
@@ -967,11 +978,12 @@ test('Bo#parseFromDatabase 11', () => {
 
 // Issue occcurs in nestClump
 // Problem when a table references another model twice (two columns)
-test('Bo#parseFromDatabase 12', () => {
+test('createFromDatabase 12', () => {
+  const core = createCore({ entities: twelveEntities });
   let prompt;
   try {
     // This failed when the bug was present
-    prompt = ormG.createFromDatabase(twelve);
+    prompt = core.createFromDatabase(twelve);
   } catch (e) {
     expect(e).not.toBeDefined();
   }
@@ -994,8 +1006,9 @@ test('Bo#parseFromDatabase 12', () => {
 //  Recommendations[4]
 //   Brand
 //   Passion
-test('Bo#parseFromDatabase 13', () => {
-  const members = ormH.createFromDatabase(thirteen);
+test('createFromDatabase 13', () => {
+  const core = createCore({ entities: thirteenEntities });
+  const members = core.createFromDatabase(thirteen);
   const member = members?.models[0];
   expect(member?.recommendations.models.length).toEqual(4);
   expect(member?.recommendations.models[0].brand.id).toEqual(2);
@@ -1029,20 +1042,21 @@ test('Bo#parseFromDatabase 13', () => {
 });
 
 test('orm.tables', () => {
-  expect(Object.keys(ormA.tables).length).toEqual(5);
-  expect(ormA.tables.utmSource.columns).toEqual(
+  const core = createCore({ entities: orderEntities });
+  expect(Object.keys(core.tables).length).toEqual(5);
+  expect(core.tables.utmSource.columns).toEqual(
     '"utm_source".id as "utm_source#id", "utm_source".value as "utm_source#value", "utm_source".label as "utm_source#label", "utm_source".internal as "utm_source#internal"'
   );
-  expect(ormA.tables.order.columns).toEqual(
+  expect(core.tables.order.columns).toEqual(
     '"order".id as "order#id", "order".email as "order#email", "order".browser_ip as "order#browser_ip", "order".browser_user_agent as "order#browser_user_agent", "order".kujo_imported_date as "order#kujo_imported_date", "order".created_date as "order#created_date", "order".cancel_reason as "order#cancel_reason", "order".cancelled_date as "order#cancelled_date", "order".closed_date as "order#closed_date", "order".processed_date as "order#processed_date", "order".updated_date as "order#updated_date", "order".note as "order#note", "order".subtotal_price as "order#subtotal_price", "order".taxes_included as "order#taxes_included", "order".total_discounts as "order#total_discounts", "order".total_price as "order#total_price", "order".total_tax as "order#total_tax", "order".total_weight as "order#total_weight", "order".order_status_url as "order#order_status_url", "order".utm_source_id as "order#utm_source_id", "order".utm_medium_id as "order#utm_medium_id", "order".utm_campaign as "order#utm_campaign", "order".utm_content as "order#utm_content", "order".utm_term as "order#utm_term"'
   );
-  expect(ormA.tables.lineItem.columns).toEqual(
+  expect(core.tables.lineItem.columns).toEqual(
     '"line_item".id as "line_item#id", "line_item".product_variant_id as "line_item#product_variant_id", "line_item".order_id as "line_item#order_id", "line_item".fulfillment_status_id as "line_item#fulfillment_status_id", "line_item".fulfillable_quantity as "line_item#fulfillable_quantity", "line_item".fulfillment_service as "line_item#fulfillment_service", "line_item".grams as "line_item#grams", "line_item".price as "line_item#price", "line_item".quantity as "line_item#quantity", "line_item".requires_shipping as "line_item#requires_shipping", "line_item".taxable as "line_item#taxable", "line_item".total_discount as "line_item#total_discount"'
   );
-  expect(ormA.tables.productVariant.columns).toEqual(
+  expect(core.tables.productVariant.columns).toEqual(
     '"product_variant".id as "product_variant#id", "product_variant".product_id as "product_variant#product_id", "product_variant".actual_product_variant_id as "product_variant#actual_product_variant_id", "product_variant".color_id as "product_variant#color_id", "product_variant".gender_id as "product_variant#gender_id", "product_variant".size_id as "product_variant#size_id", "product_variant".barcode as "product_variant#barcode", "product_variant".price as "product_variant#price", "product_variant".compare_at_price as "product_variant#compare_at_price", "product_variant".created_date as "product_variant#created_date", "product_variant".updated_date as "product_variant#updated_date", "product_variant".grams as "product_variant#grams", "product_variant".requires_shipping as "product_variant#requires_shipping"'
   );
-  expect(ormA.tables.product.columns).toEqual(
+  expect(core.tables.product.columns).toEqual(
     '"product".id as "product#id", "product".vendor_id as "product#vendor_id", "product".value as "product#value", "product".label as "product#label", "product".product_type as "product#product_type", "product".created_date as "product#created_date", "product".updated_date as "product#updated_date", "product".published_date as "product#published_date", "product".category as "product#category"'
   );
 });

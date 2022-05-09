@@ -1,4 +1,4 @@
-const camelCase = require('camelcase');
+import camelCase from 'camelcase';
 
 export interface IColumnData {
   column: string;
@@ -54,17 +54,50 @@ export interface IEntityInternal<T extends IModel> {
 }
 export type IEntitiesInternal<T extends IModel> = Array<IEntityInternal<T>>;
 
-export interface CreateOptions {
+export interface ICreateCoreOptions {
   entities: IEntities<IModel>;
-  db: any;
-  logError?: (err: Error) => void;
 }
 
-export const create = ({
-  entities: externalEntities,
-  db,
-  logError
-}: CreateOptions) => {
+export interface ICore {
+  /* ------------------------------------------------------------------------*/
+  /* Object Relational Mapping methods --------------------------------------*/
+  /* ------------------------------------------------------------------------*/
+
+  /* Note these construction methods ensure their count against the number of
+   * generated top level business objects - independent of the number of
+   * relational rows passed in as a result from a database driver query.
+   * Thus, for example, `one` understands that there may be multiple result
+   * rows (which a database driver's `one` query method would throw at) but
+   * which correctly nest into one Model.)
+   */
+
+  createFromDatabase: <T extends ICollection<IModel>>(rows: any) => T;
+  createAnyFromDatabase: <T extends ICollection<IModel>>(
+    rows: any,
+    rootKey: string | IModel
+  ) => T;
+  createOneFromDatabase: <T extends IModel>(rows: any) => T;
+  createOneOrNoneFromDatabase: <T extends IModel>(rows: any) => T | void;
+  createManyFromDatabase: <T extends ICollection<IModel>>(rows: any) => T;
+
+  /* ------------------------------------------------------------------------*/
+  /* Helpful Properties -----------------------------------------------------*/
+  /* ------------------------------------------------------------------------*/
+
+  /* The tables property gives access to the sql select clause string for
+   * each entity based on it's `displayName`. This property can be used when
+   * writing raw SQL as the select clause, which handles quoting column names
+   * and namespacing them to the table to avoid collisions and as required
+   * for PureORM mapping.
+   */
+  tables: { [key: string]: { columns: string } };
+  getEntityByModel: (model: IModel) => IEntityInternal<IModel>;
+  getEntityByTableName: (tableName: string) => IEntityInternal<IModel>;
+}
+
+export const createCore = ({
+  entities: externalEntities
+}: ICreateCoreOptions): ICore => {
   const entities: IEntitiesInternal<IModel> = externalEntities.map(
     (d: IEntity<IModel>) => {
       const tableName = d.tableName;
@@ -160,15 +193,6 @@ export const create = ({
       throw new Error(`Could not find entity for class ${model.constructor}`);
     }
     return entity;
-  };
-
-  const defaultErrorHandler = (err: Error) => {
-    if (!(err.name === 'QueryResultError')) {
-      if (logError) {
-        logError(err);
-      }
-    }
-    throw err;
   };
 
   /*
@@ -444,313 +468,19 @@ export const create = ({
     return <T>createFromDatabase(rows);
   };
 
-  const getSqlInsertParts = (model: IModel) => {
-    const columns = getEntityByModel(model)
-      .columnNames.filter(
-        (column: string, index: number) =>
-          model[
-            getEntityByModel(model).propertyNames[index] as keyof typeof model
-          ] !== void 0
-      )
-      .map((col: string) => `"${col}"`)
-      .join(', ');
-    const values = getEntityByModel(model)
-      .propertyNames.map(
-        (property: string) => model[property as keyof typeof model]
-      )
-      .filter((value: any) => value !== void 0);
-    const valuesVar = values.map(
-      (value: any, index: number) => `$${index + 1}`
-    );
-    return { columns, values, valuesVar };
-  };
-
-  const getSqlUpdateParts = (model: IModel, on = 'id') => {
-    const clauseArray = getEntityByModel(model)
-      .columnNames.filter(
-        (sqlColumn: string, index: number) =>
-          model[
-            getEntityByModel(model).propertyNames[index] as keyof typeof model
-          ] !== void 0
-      )
-      .map(
-        (sqlColumn: string, index: number) => `"${sqlColumn}" = $${index + 1}`
-      );
-    const clause = clauseArray.join(', ');
-    const idVar = `$${clauseArray.length + 1}`;
-    const _values = getEntityByModel(model)
-      .propertyNames.map(
-        (property: string) => model[property as keyof typeof model]
-      )
-      .filter((value: any) => value !== void 0);
-    const values = [..._values, model[on as keyof typeof model]];
-    return { clause, idVar, values };
-  };
-
-  const getMatchingParts = (model: IModel) => {
-    const whereClause = getEntityByModel(model)
-      .propertyNames.map((property: string, index: number) =>
-        model[property as keyof typeof model] != null
-          ? `"${getEntityByModel(model).tableName}"."${
-              getEntityByModel(model).columnNames[index]
-            }"`
-          : null
-      )
-      .filter((x: string | null) => x != null)
-      .map((x: string | null, i: number) => `${x} = $${i + 1}`)
-      .join(' AND ');
-    const values = getEntityByModel(model)
-      .propertyNames.map((property: string) =>
-        model[property as keyof typeof model] != null
-          ? model[property as keyof typeof model]
-          : null
-      )
-      .filter((x: any) => x != null);
-    return { whereClause, values };
-  };
-
-  // This one returns an object, which allows it to be more versatile.
-  // To-do: make this one even better and use it instead of the one above.
-  const getMatchingPartsObject = (model: IModel) => {
-    const whereClause = getEntityByModel(model)
-      .propertyNames.map((property: string, index: number) =>
-        model[property as keyof typeof model] != null
-          ? `"${getEntityByModel(model).tableName}"."${
-              getEntityByModel(model).columnNames[index]
-            }"`
-          : null
-      )
-      .filter((x: string | null) => x != null)
-      .map((x: string | null, i: number) => `${x} = $(${i + 1})`)
-      .join(' AND ');
-    const values = getEntityByModel(model)
-      .propertyNames.map((property: string) =>
-        model[property as keyof typeof model] != null
-          ? model[property as keyof typeof model]
-          : null
-      )
-      .filter((x: any) => x != null)
-      .reduce(
-        (accum: any, val: any, index: number) =>
-          Object.assign({}, accum, { [index + 1]: val }),
-        {}
-      );
-    return { whereClause, values };
-  };
-
-  const getNewWith = (model: IModel, sqlColumns: any, values: any) => {
-    const Constructor = model.constructor as any;
-    const modelKeys = sqlColumns.map(
-      (key: string) =>
-        getEntityByModel(model).propertyNames[
-          getEntityByModel(model).columnNames.indexOf(key)
-        ]
-    );
-    const modelData = modelKeys.reduce(
-      (data: any, key: string, index: number) => {
-        data[key] = values[index];
-        return data;
-      },
-      {}
-    );
-    return new Constructor(modelData);
-  };
-
-  const getValueBySqlColumn = (model: IModel, sqlColumn: string) => {
-    return model[
-      getEntityByModel(model).propertyNames[
-        getEntityByModel(model).columnNames.indexOf(sqlColumn)
-      ] as keyof typeof model
-    ];
-  };
-  /* ------------------------------------------------------------------------*/
-  /* Query functions --------------------------------------------------------*/
-  /* ------------------------------------------------------------------------*/
-
-  const one = <T extends IModel>(
-    query: string,
-    values?: object,
-    errorHandler = defaultErrorHandler
-  ): T => {
-    return db
-      .many(query, values)
-      .then((rows: any) => createOneFromDatabase(rows))
-      .catch(errorHandler);
-  };
-
-  const oneOrNone = <T extends IModel>(
-    query: string,
-    values?: object,
-    errorHandler = defaultErrorHandler
-  ): T | void => {
-    return db
-      .any(query, values)
-      .then((rows: any) => createOneOrNoneFromDatabase(rows))
-      .catch(errorHandler);
-  };
-
-  const many = <T extends ICollection<IModel>>(
-    query: string,
-    values?: object,
-    errorHandler = defaultErrorHandler
-  ): T => {
-    return db
-      .any(query, values)
-      .then((rows: any) => createManyFromDatabase(rows))
-      .catch(errorHandler);
-  };
-
-  const any = <T extends ICollection<IModel>>(
-    query: string,
-    values?: object,
-    errorHandler = defaultErrorHandler
-  ): T | void => {
-    return db
-      .result(query, values)
-      .then((result: any) =>
-        createAnyFromDatabase(result.rows, result.fields[0].name.split('#')[0])
-      )
-      .catch(errorHandler);
-  };
-
-  const none = (
-    query: string,
-    values?: object,
-    errorHandler = defaultErrorHandler
-  ): void => {
-    return db
-      .none(query, values)
-      .then(() => null)
-      .catch(errorHandler);
-  };
-
-  /* ------------------------------------------------------------------------*/
-  /* Built-in basic CRUD functions ------------------------------------------*/
-  /* ------------------------------------------------------------------------*/
-
-  // Standard create
-  const create = <T extends IModel>(model: T): T => {
-    const { columns, values, valuesVar } = getSqlInsertParts(model);
-    const query = `
-      INSERT INTO "${getEntityByModel(model).tableName}" ( ${columns} )
-      VALUES ( ${valuesVar} )
-      RETURNING ${getEntityByModel(model).selectColumnsClause};
-    `;
-    return one<T>(query, values);
-  };
-
-  // Standard update
-  const update = <T extends IModel>(model: T, { on = 'id' } = {}): T => {
-    const { clause, idVar, values } = getSqlUpdateParts(model, on);
-    const query = `
-      UPDATE "${getEntityByModel(model).tableName}"
-      SET ${clause}
-      WHERE "${getEntityByModel(model).tableName}".${on} = ${idVar}
-      RETURNING ${getEntityByModel(model).selectColumnsClause};
-    `;
-    return one<T>(query, values);
-  };
-
-  // Standard delete
-  const _delete = <T extends IModel>(model: T): void => {
-    const id = (model as any).id;
-    const query = `
-      DELETE FROM "${getEntityByModel(model).tableName}"
-      WHERE "${getEntityByModel(model).tableName}".id = $(id)
-    `;
-    return none(query, { id });
-  };
-
-  const deleteMatching = <T extends IModel>(model: T) => {
-    const { whereClause, values } = getMatchingParts(model);
-    const query = `
-      DELETE FROM "${getEntityByModel(model).tableName}"
-      WHERE ${whereClause};
-    `;
-    return none(query, values);
-  };
-
-  const getMatching = <T extends IModel>(model: T): T => {
-    const { whereClause, values } = getMatchingParts(model);
-    const query = `
-      SELECT ${getEntityByModel(model).selectColumnsClause}
-      FROM "${getEntityByModel(model).tableName}"
-      WHERE ${whereClause};
-    `;
-    return one<T>(query, values);
-  };
-
-  const getOneOrNoneMatching = <T extends IModel>(model: T): T | void => {
-    const { whereClause, values } = getMatchingParts(model);
-    const query = `
-      SELECT ${getEntityByModel(model).selectColumnsClause}
-      FROM "${getEntityByModel(model).tableName}"
-      WHERE ${whereClause};
-    `;
-    return oneOrNone<T>(query, values);
-  };
-
-  const getAnyMatching = <T extends ICollection<IModel>>(
-    model: IModel
-  ): T | void => {
-    const { whereClause, values } = getMatchingParts(model);
-    const query = `
-      SELECT ${getEntityByModel(model).selectColumnsClause}
-      FROM "${getEntityByModel(model).tableName}"
-      WHERE ${whereClause};
-    `;
-    return any<T>(query, values);
-  };
-
-  const getAllMatching = <T extends ICollection<IModel>>(model: IModel): T => {
-    const { whereClause, values } = getMatchingParts(model);
-    const query = `
-      SELECT ${getEntityByModel(model).selectColumnsClause}
-      FROM "${getEntityByModel(model).tableName}"
-      WHERE ${whereClause};
-    `;
-    return many<T>(query, values);
-  };
-
   return {
-    // Query Helper Function
-    nestClump,
-    clumpIntoGroups,
-    mapToBos,
-    objectifyDatabaseResult,
+    getEntityByModel,
+    getEntityByTableName,
     createFromDatabase,
+    createAnyFromDatabase,
     createOneFromDatabase,
     createOneOrNoneFromDatabase,
     createManyFromDatabase,
-    getSqlInsertParts,
-    getSqlUpdateParts,
-    getMatchingParts,
-    getMatchingPartsObject,
-    getNewWith,
-    getValueBySqlColumn,
-    // Query Functions
-    one,
-    oneOrNone,
-    many,
-    any,
-    none,
-    // Built-in basic CRUD functions
-    create,
-    update,
-    delete: _delete,
-    deleteMatching,
-    getMatching,
-    getOneOrNoneMatching,
-    getAnyMatching,
-    getAllMatching,
-    // tables property for access to select columns clause string
     tables: entities.reduce((accum: any, data: IEntityInternal<IModel>) => {
       accum[data.displayName] = {
         columns: data.selectColumnsClause
       };
       return accum;
-    }, {}),
-    // provide direct access to db
-    db
+    }, {})
   };
 };

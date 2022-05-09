@@ -1,8 +1,10 @@
 export {
-  create,
-  CreateOptions,
+  createCore,
+  ICreateCoreOptions,
+  ICore,
   IModel,
   IModelClass,
   ICollection,
   IColumns
-} from './factory';
+} from './core';
+export { create, ICreateOptions, IPureORM } from './orm';
