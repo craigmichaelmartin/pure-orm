@@ -74,7 +74,7 @@ export interface ICore {
   createFromDatabase: <T extends ICollection<IModel>>(rows: any) => T;
   createAnyFromDatabase: <T extends ICollection<IModel>>(
     rows: any,
-    rootKey: string | IModel
+    rootKey: string | IModelClass
   ) => T;
   createOneFromDatabase: <T extends IModel>(rows: any) => T;
   createOneOrNoneFromDatabase: <T extends IModel>(rows: any) => T | void;
@@ -209,12 +209,18 @@ export const createCore = ({
     new Map()
   );
 
-  const getEntityByModel = (model: IModel): IEntityInternal<IModel> => {
-    const entity = modelToEntityMap.get(model.constructor);
+  const getEntityByModelClass = (
+    Model: IModelClass
+  ): IEntityInternal<IModel> => {
+    const entity = modelToEntityMap.get(Model);
     if (!entity) {
-      throw new Error(`Could not find entity for class ${model.constructor}`);
+      throw new Error(`Could not find entity for class ${Model}`);
     }
     return entity;
+  };
+
+  const getEntityByModel = (model: IModel): IEntityInternal<IModel> => {
+    return getEntityByModelClass(model.constructor as IModelClass);
   };
 
   /*
@@ -447,13 +453,13 @@ export const createCore = ({
 
   const createAnyFromDatabase = <T extends ICollection<IModel>>(
     rows: any,
-    rootKey: string | IModel
+    rootKey: string | IModelClass
   ): T => {
     if (!rows || !rows.length) {
       const Collection =
         typeof rootKey === 'string'
           ? getEntityByTableName(rootKey).Collection
-          : getEntityByModel(rootKey).Collection;
+          : getEntityByModelClass(rootKey).Collection;
       return new Collection({ models: [] }) as T;
     }
     return <T>createFromDatabase<T>(rows);

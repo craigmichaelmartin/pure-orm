@@ -28,6 +28,30 @@ export interface IPureORM extends ICoreIntegratedDriver {
   update: <T extends IModel>(model: T, options: { on: string }) => T;
   delete: <T extends IModel>(model: T) => void;
   deleteMatching: <T extends IModel>(model: T) => void;
+
+  /* ------------------------------------------------------------------------*/
+  /* Helper Utility Functions -----------------------------------------------*/
+  /* ------------------------------------------------------------------------*/
+
+  getSqlInsertParts: (model: IModel) => {
+    columns: string;
+    values: Array<string>;
+    valuesVar: Array<string>;
+  };
+  getSqlUpdateParts: (
+    model: IModel,
+    on?: string
+  ) => { clause: string; idVar: string; values: Array<string> };
+  getMatchingParts: (model: IModel) => {
+    whereClause: string;
+    values: Array<string>;
+  };
+  getMatchingPartsObject: (model: IModel) => {
+    whereClause: string;
+    values: Array<string>;
+  };
+  getNewWith: (model: IModel, sqlColumns: any, values: any) => IModel;
+  getValueBySqlColumn: (model: IModel, sqlColumn: string) => string;
 }
 
 export const create = ({
@@ -50,7 +74,9 @@ export const create = ({
   /* Helper Utilities for CRUD functions ------------------------------------*/
   /* ------------------------------------------------------------------------*/
 
-  const getSqlInsertParts = (model: IModel) => {
+  const getSqlInsertParts = (
+    model: IModel
+  ): { columns: string; values: Array<string>; valuesVar: Array<string> } => {
     const columns = orm
       .getEntityByModel(model)
       .columnNames.filter(
@@ -75,7 +101,10 @@ export const create = ({
     return { columns, values, valuesVar };
   };
 
-  const getSqlUpdateParts = (model: IModel, on = 'id') => {
+  const getSqlUpdateParts = (
+    model: IModel,
+    on = 'id'
+  ): { clause: string; idVar: string; values: Array<string> } => {
     const clauseArray = orm
       .getEntityByModel(model)
       .columnNames.filter(
@@ -101,7 +130,9 @@ export const create = ({
     return { clause, idVar, values };
   };
 
-  const getMatchingParts = (model: IModel) => {
+  const getMatchingParts = (
+    model: IModel
+  ): { whereClause: string; values: Array<string> } => {
     const whereClause = orm
       .getEntityByModel(model)
       .propertyNames.map((property: string, index: number) =>
@@ -127,7 +158,9 @@ export const create = ({
 
   // This one returns an object, which allows it to be more versatile.
   // To-do: make this one even better and use it instead of the one above.
-  const getMatchingPartsObject = (model: IModel) => {
+  const getMatchingPartsObject = (
+    model: IModel
+  ): { whereClause: string; values: Array<string> } => {
     const whereClause = orm
       .getEntityByModel(model)
       .propertyNames.map((property: string, index: number) =>
@@ -156,7 +189,7 @@ export const create = ({
     return { whereClause, values };
   };
 
-  const getNewWith = (model: IModel, sqlColumns: any, values: any) => {
+  const getNewWith = (model: IModel, sqlColumns: any, values: any): IModel => {
     const Constructor = model.constructor as any;
     const modelKeys = sqlColumns.map(
       (key: string) =>
@@ -174,7 +207,7 @@ export const create = ({
     return new Constructor(modelData);
   };
 
-  const getValueBySqlColumn = (model: IModel, sqlColumn: string) => {
+  const getValueBySqlColumn = (model: IModel, sqlColumn: string): string => {
     return model[
       orm.getEntityByModel(model).propertyNames[
         orm.getEntityByModel(model).columnNames.indexOf(sqlColumn)
