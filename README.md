@@ -14,25 +14,23 @@ It's purpose - and guiding principle - is to allow you to write regular native S
 
 PureORM is the top layer for interfacing with your database. You bring your own database driver (eg [node-postgres](https://github.com/brianc/node-postgres)/[pg-promise](https://github.com/vitaly-t/pg-promise), [mysql](https://github.com/mysqljs/mysql), [node-sqlite3](https://github.com/mapbox/node-sqlite3), [node-mssql](https://github.com/tediousjs/node-mssql), [node-oracledb](https://github.com/oracle/node-oracledb), etc), and PureORM works on top of it to perform the Object-Relational Mapping (ORM).
 
-PureORM contrasts with tradtional ORMs in two ways:
+#### Contrasts with traditional ORMs
 
-1. PureORM is purely the "orm" (object-relational mapping) - it has the small scope of "owning" the mapping of database driver relational result rows to properly structured business objects. This contrasts against "ORM"s as typically exist - where they have grown to intertwine a huge query builder API with the ORM layer, where mapped objects are database-connected and serve as the query builder.
-2. PureORM yields pure (not database-connected) business objects. Queries are written in SQL (not niche library-specific ORM wrapper APIs), and the results are pure businesses objects.
+PureORM contrasts with tradtional ORMs in two important ways:
 
-Thus PureORM contrasts against traditional ORMs which use query builders (rather than raw SQL) to return database-connected (rather than pure) objects.
+1. PureORM is purely the "orm" (object-relational mapping) - it has the small scope of "owning" the mapping of database driver relational result rows to properly structured business objects. This contrasts against ORMs as typically exist - where they have swelled to intertwine a huge query builder API with the ORM layer, where mapped objects are database-connected and serve as the query builder.
+2. PureORM yields pure (not database-connected) models. Queries are written in SQL (not niche library-specific ORM wrapper APIs), and the results are pure businesses objects.
 
-The name _**pure**ORM_ reflects both of these points - that it is _pure_ ORM (there is no query builder dimension) as well as the _purity_ of the mapped objects.
+PureORM thus contrasts against traditional ORMs which use query builders (rather than raw SQL) to return database-connected (rather than pure) objects. The name _**pure**ORM_ reflects both of these points - that it is _pure_ ORM (there is no query builder dimension) as well as the _purity_ of the mapped models.
 
 #### Philosophy
 
-- Write _native_, _unobstructed_ SQL in a "data access layer" which returns _pure_ "business objects" to be used in the app's business logic.
+Write _native_, _unobstructed_ SQL in a data access layer, yielding _pure_ and _properly structured/nested_ models to be used in the app's business logic.
 
 #### Concepts
 
-A **Model** is a pure javascript business object corresponding to a table.
+A **Model** is a pure business object corresponding to a table.
 
-- In PureORM these pure business objects are referred to as "models".
-- They represent a row of the table data, but as pure javascript objects.
 - They are not connected to the database.
 - They are the subject of the app's business logic.
 - They will be full of userland business logic methods.
@@ -41,12 +39,12 @@ A **Model** is a pure javascript business object corresponding to a table.
 A **Collection** is a pure business object with a reference to a group of models.
 
 - If your query returns records for multiple models, a Collection will be created and returned.
-- You can create the Collection class (in cases where it is useful to have business methods on the collection object, not just each model object).
+- You can create the Collection class (in cases where it is useful to have business methods on the collection object, and not just only on the model object).
 
-A **Data Access Layer** is a database-aware abstraction layer where native SQL is written, and which returns pure business objects.
+A **Data Access Layer** is a database-aware access layer where PureORM is used to write native SQL yielding back models returned.
 
-- With PureORM, database-aware code is limited to a data access layer. Your higher up controller and service layers deal only with API calls to the Data Access functions, which are written with native SQL, and which returns pure business objects.
-- There are no database-bound stateful orm objects with their huge query builder APIs sprawling across all the application code. Instead there is a single layer where native SQL is written, and which returns pure business objects (properly nested and structured).
+- With PureORM, database-aware code is limited to a data access layer. Your higher up controller and service layers deal only with API calls to the Data Access functions, which are written with native SQL, and which returns models.
+- There are no database-bound stateful orm objects with their huge query builder APIs sprawling across all the application code. Instead there is a single layer where native SQL is written and models (pure business objects, properly nested and structured) are returned.
 
 ## Practical Example
 
