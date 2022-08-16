@@ -305,10 +305,10 @@ Some things to note:
         person.id as "person#id",
         person.name as "person#name",
         job.id as "job#id",
-        job.person_id: "job#person_id",
-        job.employer_id: "job#employer_id",
-        job.start_date: "job#start_date",
-        job.end_date: "job#end_date",
+        job.person_id as "job#person_id",
+        job.employer_id as "job#employer_id",
+        job.start_date as "job#start_date",
+        job.end_date as "job#end_date",
         employer.id as "employer#id",
         employer.name as "employer#name"
       FROM person
