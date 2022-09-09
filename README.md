@@ -10,11 +10,63 @@ npm install --save pure-orm
 
 PureORM is a lightweight ORM for mapping the relational result rows of a database driver query to properly structured (nested) pure instances of your business object classes.
 
-It's purpose - and guiding principle - is to allow you to write regular native SQL (not niche library-specific ORM wrapper APIs) and receive back properly structured/nested pure business objects (not database-connected stateful objects).
+It's purpose - and guiding principle - is to allow you to write _native_, _unobstructed_ SQL (not niche library-specific ORM wrapper APIs) and receive back properly structured/nested pure business objects (not database-connected stateful objects).
 
-PureORM is the top layer for interfacing with your database. You bring your own database driver (eg [node-postgres](https://github.com/brianc/node-postgres)/[pg-promise](https://github.com/vitaly-t/pg-promise), [mysql](https://github.com/mysqljs/mysql), [node-sqlite3](https://github.com/mapbox/node-sqlite3), [node-mssql](https://github.com/tediousjs/node-mssql), [node-oracledb](https://github.com/oracle/node-oracledb), etc), and PureORM works on top of it to perform the Object-Relational Mapping (ORM).
+#### What does this mean?
 
-#### Contrasts with traditional ORMs
+This means you can just write SQL like this:
+
+```javascript
+SELECT *
+FROM person
+LEFT JOIN job on person.id = job.person_id
+LEFT JOIN employer on job.employer_id = employer.id
+WHERE person.id = 55
+```
+
+and rather than getting flat, collided result objects:
+
+| id | name | id | personId | employerId | startDate | endDate | id | name |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 55 | John Doe | 277 | 55 | 17 | 2020-01-01 | 2020-12-31 | 17 | Good Corp |
+| 55 | John Doe | 278 |  55 | 26 | 2021-01-01 | 2021-12-31 | 26 | Better Corp |
+
+you get properly structured/nested, pure objects like this:
+
+```javascript
+{
+    id: 55,
+    name: 'John Doe',
+    jobs: {
+      models: [
+        {
+          id: 277,
+          personId: 55,
+          employerId: 17,
+          employer: {
+            id: 17,
+            name: 'Good Corp'
+          },
+          startDate: '2020-01-01',
+          endDate: '2020-12-31'
+        },
+        {
+          id: 278,
+          personId: 55,
+          employerId: 26,
+          employer: {
+            id: 26,
+            name: 'Better Corp'
+          },
+          startDate: '2021-01-01',
+          endDate: '2021-12-31'
+        }
+      ]
+    }
+  };
+  ```
+
+#### How does PureORM compare with traditional ORMs?
 
 PureORM contrasts with tradtional ORMs in two important ways:
 
@@ -23,28 +75,9 @@ PureORM contrasts with tradtional ORMs in two important ways:
 
 PureORM thus contrasts against traditional ORMs which use query builders (rather than raw SQL) to return database-connected (rather than pure) objects. The name _**pure**ORM_ reflects both of these points - that it is _pure_ ORM (there is no query builder dimension) as well as the _purity_ of the mapped models.
 
-#### Philosophy
+#### So I bring my own database driver?
 
-Write _native_, _unobstructed_ SQL in a data access layer, yielding _pure_ and _properly structured/nested_ models to be used in the app's business logic.
-
-#### Concepts
-
-A **Model** is a pure business object corresponding to a table.
-
-- They are not connected to the database.
-- They are the subject of the app's business logic.
-- They will be full of userland business logic methods.
-- Their purity allows them to be easy to test/use.
-
-A **Collection** is a pure business object with a reference to a group of models.
-
-- If your query returns records for multiple models, a Collection will be created and returned.
-- You can create the Collection class (in cases where it is useful to have business methods on the collection object, and not just only on the model object).
-
-A **Data Access Layer** is a database-aware access layer where PureORM is used to write native SQL yielding back models returned.
-
-- With PureORM, database-aware code is limited to a data access layer. Your higher up controller and service layers deal only with API calls to the Data Access functions, which are written with native SQL, and which returns models.
-- There are no database-bound stateful orm objects with their huge query builder APIs sprawling across all the application code. Instead there is a single layer where native SQL is written and models (pure business objects, properly nested and structured) are returned.
+Yep! PureORM is the top layer for interfacing with your database. You bring your own database driver (eg [node-postgres](https://github.com/brianc/node-postgres)/[pg-promise](https://github.com/vitaly-t/pg-promise), [mysql](https://github.com/mysqljs/mysql), [node-sqlite3](https://github.com/mapbox/node-sqlite3), [node-mssql](https://github.com/tediousjs/node-mssql), [node-oracledb](https://github.com/oracle/node-oracledb), etc), and PureORM works on top of it to perform the Object-Relational Mapping (ORM).
 
 ## Practical Example
 
@@ -69,23 +102,23 @@ app.get('/rest/person', (req: Request, res: Response) => {
           id: 277,
           personId: 55,
           employerId: 17,
-          startDate: '2020-01-01',
-          endDate: '2020-12-31',
           employer: {
             id: 17,
             name: 'Good Corp'
-          }
+          },
+          startDate: '2020-01-01',
+          endDate: '2020-12-31'
         },
         {
           id: 278,
           personId: 55,
           employerId: 26,
-          startDate: '2021-01-01',
-          endDate: '2021-12-31',
           employer: {
             id: 26,
             name: 'Better Corp'
-          }
+          },
+          startDate: '2021-01-01',
+          endDate: '2021-12-31'
         }
       ]
     }
@@ -142,7 +175,7 @@ npm install --save pg-promise
 
 ### Step 2: Creating the Business Objects
 
-Let's create a `/models` directory of business object classes for our database tables. These classes need to implement a static getter for `tableName` and `sqlColumnsData` to denote the database table and columns.
+Let's create a `/models` directory, with a file corresponding to each table. These modules contain the model and (optionally) collection classes we want to use when mapping our flat results to business objects, as well as the `tableName` and `columns` fields. We'll end up passing all this to the PureORM factory later.
 
 ```typescript
 // models/person.ts
@@ -224,8 +257,6 @@ export class Employer implements IModel {
 
 export const EmployerEntity: IEntity = { tableName, columns, Model: Employer };
 ```
-
-We've not got our three entities that relate our table data to our business objects.
 
 ### Step 3: Creating our ORM
 
@@ -323,7 +354,7 @@ Some things to note:
 
 ### Step 5: Writing the Controller Code
 
-We can now return to our controller code, and use our person data access function.
+We can now return to our controller code, and use our data access function.
 
 ```diff
 // app.ts
@@ -343,23 +374,23 @@ app.get('/rest/person', (req: Request, res: Response) => {
 -         id: 277,
 -         personId: 55,
 -         employerId: 17,
--         startDate: '2020-01-01',
--         endDate: '2020-12-31',
 -         employer: {
 -           id: 17,
 -           name: 'Good Corp'
--         }
+-         },
+-         startDate: '2020-01-01',
+-         endDate: '2020-12-31'
 -       },
 -       {
 -         id: 278,
 -         personId: 55,
 -         employerId: 26,
--         startDate: '2021-01-01',
--         endDate: '2021-12-31',
 -         employer: {
 -           id: 26,
 -           name: 'Better Corp'
--         }
+-         },
+-         startDate: '2021-01-01',
+-         endDate: '2021-12-31'
 -       }
 -     ]
 -   }
