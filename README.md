@@ -66,7 +66,7 @@ WHERE person.id = 55
 };
 ```
 
-...And these objects are instantiations of classes you define. So the above is our (not shown) Person class, which has a jobs field pointing to our (not shown) Jobs collection class, which has individual (not shown) Job classes, which have a employer field pointing to our (not shown) Employer classes. Each of these classes is defined by us, and can contain custom business logic. (Check out the full example lower down to see these!)
+...Where these objects are instantiations of classes you define. So the above is our (not shown) Person class, which has a jobs field pointing to our (not shown) Jobs collection class, which has individual (not shown) Job classes, which have a employer field pointing to our (not shown) Employer classes. Each of these classes is defined by us, and can contain custom business logic. (Check out the full example lower down to see these!)
 
 #### How does PureORM compare with traditional ORMs?
 
