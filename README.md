@@ -24,47 +24,49 @@ LEFT JOIN employer on job.employer_id = employer.id
 WHERE person.id = 55
 ```
 
-and rather than getting flat, collided result objects:
+...And rather than getting flat, collided result objects:
 
 | id | name | id | personId | employerId | startDate | endDate | id | name |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 55 | John Doe | 277 | 55 | 17 | 2020-01-01 | 2020-12-31 | 17 | Good Corp |
 | 55 | John Doe | 278 |  55 | 26 | 2021-01-01 | 2021-12-31 | 26 | Better Corp |
 
-you get properly structured/nested, pure objects like this:
+...You get properly structured/nested, pure objects like this:
 
 ```javascript
 {
-    id: 55,
-    name: 'John Doe',
-    jobs: {
-      models: [
-        {
-          id: 277,
-          personId: 55,
-          employerId: 17,
-          employer: {
-            id: 17,
-            name: 'Good Corp'
-          },
-          startDate: '2020-01-01',
-          endDate: '2020-12-31'
+  id: 55,
+  name: "John Doe",
+  jobs: {
+    models: [
+      {
+        id: 277,
+        personId: 55,
+        employerId: 17,
+        employer: {
+          id: 17,
+          name: "Good Corp"
         },
-        {
-          id: 278,
-          personId: 55,
-          employerId: 26,
-          employer: {
-            id: 26,
-            name: 'Better Corp'
-          },
-          startDate: '2021-01-01',
-          endDate: '2021-12-31'
-        }
-      ]
-    }
-  };
-  ```
+        startDate: "2020-01-01",
+        endDate: "2020-12-31"
+      },
+      {
+        id: 278,
+        personId: 55,
+        employerId: 26,
+        employer: {
+          id: 26,
+          name: "Better Corp"
+        },
+        startDate: "2021-01-01",
+        endDate: "2021-12-31"
+      }
+    ]
+  }
+};
+```
+
+...And these objects are instantiations of classes you define. So the above is our (not shown) Person class, which has a jobs field pointing to our (not shown) Jobs collection class, which has individual (not shown) Job classes, which have a employer field pointing to our (not shown) Employer classes. Each of these classes is defined by us, and can contain custom business logic. (Check out the full example lower down to see these!)
 
 #### How does PureORM compare with traditional ORMs?
 
