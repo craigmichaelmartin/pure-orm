@@ -7,6 +7,9 @@ export interface ICreateForDriverOptions {
 }
 
 export interface ICoreIntegratedDriver extends ICore {
+
+  db: any;
+
   /* ------------------------------------------------------------------------*/
   /* Query methods ----------------------------------------------------------*/
   /* ------------------------------------------------------------------------*/
