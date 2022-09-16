@@ -24,12 +24,34 @@ LEFT JOIN employer on job.employer_id = employer.id
 WHERE person.id = 55
 ```
 
-...And rather than getting flat, collided result objects:
+...And for the result data
 
 | id | name | id | personId | employerId | startDate | endDate | id | name |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 55 | John Doe | 277 | 55 | 17 | 2020-01-01 | 2020-12-31 | 17 | Good Corp |
 | 55 | John Doe | 278 |  55 | 26 | 2021-01-01 | 2021-12-31 | 26 | Better Corp |
+
+...Rather than getting flat, collided result objects:
+```javascript
+[
+  {
+    id: 17, // from employer which collided with job.id and person.id :( 
+    name: 'Good Corp', // from employer which collided with person.name :(
+    person_id: 55,
+    employer_id: 17,
+    start_date: 2020-01-01T05:00:00.000Z,
+    end_date: 2020-12-31T05:00:00.000Z
+  },
+  {
+    id: 26, // from employer which collided with job.id and person.id :(
+    name: 'Better Corp', // from employer which collided with person.name :(
+    person_id: 55,
+    employer_id: 26,
+    start_date: 2021-01-01T05:00:00.000Z,
+    end_date: 2021-12-31T05:00:00.000Z
+  }
+]
+```
 
 ...You get properly structured/nested, pure objects like this:
 
