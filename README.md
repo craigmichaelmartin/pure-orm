@@ -26,16 +26,17 @@ WHERE person.id = 55
 
 ...And for the result data
 
-| id | name | id | personId | employerId | startDate | endDate | id | name |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 55 | John Doe | 277 | 55 | 17 | 2020-01-01 | 2020-12-31 | 17 | Good Corp |
-| 55 | John Doe | 278 |  55 | 26 | 2021-01-01 | 2021-12-31 | 26 | Better Corp |
+| id  | name     | id  | personId | employerId | startDate  | endDate    | id  | name        |
+| --- | -------- | --- | -------- | ---------- | ---------- | ---------- | --- | ----------- |
+| 55  | John Doe | 277 | 55       | 17         | 2020-01-01 | 2020-12-31 | 17  | Good Corp   |
+| 55  | John Doe | 278 | 55       | 26         | 2021-01-01 | 2021-12-31 | 26  | Better Corp |
 
 ...Rather than getting flat, collided result objects:
+
 ```javascript
 [
   {
-    id: 17, // from employer which collided with job.id and person.id :( 
+    id: 17, // from employer which collided with job.id and person.id :(
     name: 'Good Corp', // from employer which collided with person.name :(
     person_id: 55,
     employer_id: 17,
