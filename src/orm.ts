@@ -52,6 +52,7 @@ export interface IPureORM extends ICoreIntegratedDriver {
   };
   getNewWith: (model: IModel, sqlColumns: any, values: any) => IModel;
   getValueBySqlColumn: (model: IModel, sqlColumn: string) => string;
+  getSqlColumnForPropertyName: (model: IModel, propertyName: string) => string;
 }
 
 export const create = ({
@@ -215,6 +216,15 @@ export const create = ({
     ];
   };
 
+  const getSqlColumnForPropertyName = (
+    model: IModel,
+    propertyName: string
+  ): string => {
+    return orm.getEntityByModel(model).columnNames[
+      orm.getEntityByModel(model).propertyNames.indexOf(propertyName)
+    ];
+  };
+
   /* ------------------------------------------------------------------------*/
   /* Built-in basic CRUD functions ------------------------------------------*/
   /* ------------------------------------------------------------------------*/
@@ -236,7 +246,9 @@ export const create = ({
     const query = `
       UPDATE "${orm.getEntityByModel(model).tableName}"
       SET ${clause}
-      WHERE "${orm.getEntityByModel(model).tableName}".${on} = ${idVar}
+      WHERE "${
+        orm.getEntityByModel(model).tableName
+      }".${getSqlColumnForPropertyName(model, on)} = ${idVar}
       RETURNING ${orm.getEntityByModel(model).selectColumnsClause};
     `;
     return orm.one<T>(query, values);
@@ -319,6 +331,7 @@ export const create = ({
     getMatchingParts,
     getMatchingPartsObject,
     getNewWith,
-    getValueBySqlColumn
+    getValueBySqlColumn,
+    getSqlColumnForPropertyName
   });
 };

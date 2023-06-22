@@ -96,3 +96,18 @@ test('getValueBySqlColumn', () => {
   expect(orm.getValueBySqlColumn(order, 'subtotal_price')).toEqual(100);
   expect(orm.getValueBySqlColumn(order, 'utm_source_id')).toEqual(10);
 });
+
+test('getSqlColumnForPropertyName', () => {
+  const orm = create({
+    entities: orderEntities,
+    db: { $config: { pgp: true } }
+  });
+  const order = new orderEntities[0].Model({ id: 1 });
+  expect(orm.getSqlColumnForPropertyName(order, 'id')).toEqual('id');
+  expect(orm.getSqlColumnForPropertyName(order, 'utmSourceId')).toEqual(
+    'utm_source_id'
+  );
+  expect(orm.getSqlColumnForPropertyName(order, 'browserIP')).toEqual(
+    'browser_ip'
+  );
+});

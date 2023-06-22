@@ -6,7 +6,7 @@ export const tableName: string = 'order';
 export const columns: IColumns = [
   'id',
   'email',
-  'browser_ip',
+  { column: 'browser_ip', property: 'browserIP' },
   'browser_user_agent',
   'kujo_imported_date',
   'created_date',
