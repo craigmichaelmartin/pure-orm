@@ -8,6 +8,7 @@ import { entities as fiveEntities } from '../test-utils/five/entities';
 import { entities as sixEntities } from '../test-utils/six/entities';
 import { entities as twelveEntities } from '../test-utils/twelve/entities';
 import { entities as thirteenEntities } from '../test-utils/thirteen/entities';
+import { entities as fourteenEntities } from '../test-utils/fourteen/entities';
 import { Articles } from '../test-utils/blog/models/article';
 const two = require('../test-utils/two/results');
 const three = require('../test-utils/three/results');
@@ -22,6 +23,7 @@ const ten = require('../test-utils/ten/results.json');
 const eleven = require('../test-utils/eleven/results.json');
 const twelve = require('../test-utils/twelve/results.json');
 const thirteen = require('../test-utils/thirteen/results.json');
+const fourteen = require('../test-utils/fourteen/results.json');
 
 describe('createFromDatabase', () => {
   test('multiple rows reduce to one nested object (with all one-to-one or one-to-many tables)', () => {
@@ -1065,6 +1067,19 @@ describe('createFromDatabase', () => {
       member?.recommendations.models[3].recommendationAudiences.models[0]
         .audience.id
     ).toEqual(1);
+  });
+
+  // Issue occcurs in nestClump
+  // Problem when a table has two columns which reference the same other table
+  test('14', () => {
+    const core = createCore({ entities: fourteenEntities });
+    const persons = core.createFromDatabase(fourteen);
+    expect(persons?.models.length).toEqual(1);
+    expect(persons.models[0].id).toEqual(67);
+    // Known issue: A reference always uses the model's name,
+    // instead of some version of the column's name
+    expect(persons.models[0].customers?.models.length).toEqual(1);
+    expect(persons.models[0].customers.models[0].id).toEqual(4);
   });
 });
 

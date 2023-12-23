@@ -292,16 +292,23 @@ export const createCore = ({
           ...nodes.slice(0, indexOfOldestParent + 1).reverse()
         ];
         const nodeItPointsTo = parentHeirarchy.find((parent) => {
-          const index = Object.values(
-            getEntityByModel(model).references
-          ).indexOf(parent.constructor);
-          if (index === -1) {
+          const indexes = Object.values(getEntityByModel(model).references)
+            .map((x: IModelClass, i: number) =>
+              x === parent.constructor ? i : null
+            )
+            .filter((x: number | null, i) => x != null) as Array<number>;
+          if (!indexes.length) {
             return false;
           }
-          const property = Object.keys(getEntityByModel(model).references)[
-            index
-          ];
-          return model[property as keyof typeof model] === parent.id;
+          for (const index of indexes) {
+            const property = Object.keys(getEntityByModel(model).references)[
+              index
+            ];
+            if (model[property] === parent.id) {
+              return true;
+            }
+          }
+          return false;
         });
         if (isNodeAlreadySeen) {
           if (nodeItPointsTo && !nodePointingToIt) {

@@ -1,0 +1,8 @@
+[
+  {
+    "person#id": 67,
+    "customer#id": 4,
+    "customer#locked_to_affiliate_id": null,
+    "customer#locked_to_salesperson_id": 67
+  }
+]
