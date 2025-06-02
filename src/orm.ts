@@ -20,14 +20,16 @@ export interface IPureORM extends ICoreIntegratedDriver {
    * if you want to write these in your data access layer yourself.
    */
 
-  getMatching: <T extends IModel>(model: T) => T;
-  getOneOrNoneMatching: <T extends IModel>(model: T) => T | void;
-  getAnyMatching: <T extends ICollection<IModel>>(model: IModel) => T | void;
-  getAllMatching: <T extends ICollection<IModel>>(model: IModel) => T;
-  create: <T extends IModel>(model: T) => T;
-  update: <T extends IModel>(model: T, options: { on: string }) => T;
-  delete: <T extends IModel>(model: T) => void;
-  deleteMatching: <T extends IModel>(model: T) => void;
+  getMatching: <T extends IModel>(model: T) => Promise<T>;
+  getOneOrNoneMatching: <T extends IModel>(model: T) => Promise<T | void>;
+  getAnyMatching: <T extends ICollection<IModel>>(
+    model: IModel
+  ) => Promise<T | void>;
+  getAllMatching: <T extends ICollection<IModel>>(model: IModel) => Promise<T>;
+  create: <T extends IModel>(model: T) => Promise<T>;
+  update: <T extends IModel>(model: T, options: { on: string }) => Promise<T>;
+  delete: <T extends IModel>(model: T) => Promise<void>;
+  deleteMatching: <T extends IModel>(model: T) => Promise<void>;
 
   /* ------------------------------------------------------------------------*/
   /* Helper Utility Functions -----------------------------------------------*/
@@ -230,7 +232,7 @@ export const create = ({
   /* ------------------------------------------------------------------------*/
 
   // Standard create
-  const create = <T extends IModel>(model: T): T => {
+  const create = <T extends IModel>(model: T): Promise<T> => {
     const { columns, values, valuesVar } = getSqlInsertParts(model);
     const query = `
       INSERT INTO "${orm.getEntityByModel(model).tableName}" ( ${columns} )
@@ -241,7 +243,10 @@ export const create = ({
   };
 
   // Standard update
-  const update = <T extends IModel>(model: T, { on = 'id' } = {}): T => {
+  const update = <T extends IModel>(
+    model: T,
+    { on = 'id' } = {}
+  ): Promise<T> => {
     const { clause, idVar, values } = getSqlUpdateParts(model, on);
     const query = `
       UPDATE "${orm.getEntityByModel(model).tableName}"
@@ -255,7 +260,7 @@ export const create = ({
   };
 
   // Standard delete
-  const _delete = <T extends IModel>(model: T): void => {
+  const _delete = <T extends IModel>(model: T): Promise<void> => {
     const id = (model as any).id;
     const query = `
       DELETE FROM "${orm.getEntityByModel(model).tableName}"
@@ -264,7 +269,7 @@ export const create = ({
     return orm.none(query, { id });
   };
 
-  const deleteMatching = <T extends IModel>(model: T) => {
+  const deleteMatching = <T extends IModel>(model: T): Promise<void> => {
     const { whereClause, values } = getMatchingParts(model);
     const query = `
       DELETE FROM "${orm.getEntityByModel(model).tableName}"
@@ -273,7 +278,7 @@ export const create = ({
     return orm.none(query, values);
   };
 
-  const getMatching = <T extends IModel>(model: T): T => {
+  const getMatching = <T extends IModel>(model: T): Promise<T> => {
     const { whereClause, values } = getMatchingParts(model);
     const query = `
       SELECT ${orm.getEntityByModel(model).selectColumnsClause}
@@ -283,7 +288,9 @@ export const create = ({
     return orm.one<T>(query, values);
   };
 
-  const getOneOrNoneMatching = <T extends IModel>(model: T): T | void => {
+  const getOneOrNoneMatching = <T extends IModel>(
+    model: T
+  ): Promise<T | void> => {
     const { whereClause, values } = getMatchingParts(model);
     const query = `
       SELECT ${orm.getEntityByModel(model).selectColumnsClause}
@@ -295,7 +302,7 @@ export const create = ({
 
   const getAnyMatching = <T extends ICollection<IModel>>(
     model: IModel
-  ): T | void => {
+  ): Promise<T | void> => {
     const { whereClause, values } = getMatchingParts(model);
     const query = `
       SELECT ${orm.getEntityByModel(model).selectColumnsClause}
@@ -305,7 +312,9 @@ export const create = ({
     return orm.any<T>(query, values);
   };
 
-  const getAllMatching = <T extends ICollection<IModel>>(model: IModel): T => {
+  const getAllMatching = <T extends ICollection<IModel>>(
+    model: IModel
+  ): Promise<T> => {
     const { whereClause, values } = getMatchingParts(model);
     const query = `
       SELECT ${orm.getEntityByModel(model).selectColumnsClause}

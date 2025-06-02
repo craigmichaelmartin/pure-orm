@@ -26,33 +26,33 @@ export interface ICoreIntegratedDriver extends ICore {
     query: string,
     values?: object,
     errorHandler?: (err: Error) => never
-  ) => T;
+  ) => Promise<T>;
 
   // Execute a query returning either single model or undefined, or throws.
   oneOrNone: <T extends IModel>(
     query: string,
     values?: object,
     errorHandler?: (err: Error) => never
-  ) => T | void;
+  ) => Promise<T | void>;
 
   // Execute a query returning a Collection with at least one model, or throws.
   many: <T extends ICollection<IModel>>(
     query: string,
     values?: object,
     errorHandler?: (err: Error) => never
-  ) => T;
+  ) => Promise<T>;
 
   // Execute a query returning a Collection.
   any: <T extends ICollection<IModel>>(
     query: string,
     values?: object,
     errorHandler?: (err: Error) => never
-  ) => T | void;
+  ) => Promise<T | void>;
 
   // Execute a query returning null.
   none: (
     query: string,
     values?: object,
     errorHandler?: (err: Error) => never
-  ) => void;
+  ) => Promise<void>;
 }

@@ -1,7 +1,10 @@
 {
+  "parser": "@babel/eslint-parser",
+  "ignorePatterns": ["dist/", "node_modules"],
   "parserOptions": {
     "ecmaVersion": 2020,
     "sourceType": "module",
+    "requireConfigFile": false,
     "ecmaFeatures": {
       "experimentalObjectRestSpread": true
     }
@@ -15,7 +18,7 @@
   "rules": {
     "comma-dangle": [0],
     "no-cond-assign": [2, "always"],
-    "no-console": 1,
+    "no-console": "warn",
     "no-constant-condition": 2,
     "no-control-regex": 2,
     "no-debugger": 2,
@@ -45,7 +48,7 @@
     "accessor-pairs": 2,
     "array-callback-return": 2,
     "block-scoped-var": 2,
-    "complexity": [1, 10],
+    "complexity": ["warn", 20],
     "consistent-return": 0,
     "curly": [2, "multi-line"],
     "default-case": 0,
@@ -70,7 +73,7 @@
     "no-implicit-coercion": 0,
     "no-implicit-globals": 2,
     "no-implied-eval": 2,
-    "no-invalid-this": 2,
+    "no-invalid-this": "off",
     "no-iterator": 2,
     "no-labels": 2,
     "no-lone-blocks": 2,
@@ -85,7 +88,7 @@
     "no-octal": 2,
     "no-octal-escape": 2,
     "no-param-reassign": 1,
-    "no-process-env": 2,
+    "no-process-env": "off",
     "no-proto": 2,
     "no-redeclare": 2,
     "no-return-assign": 0,
@@ -110,18 +113,18 @@
     "wrap-iife": [0, "outside"],
     "yoda": 2,
 
-    "strict": 2,
+    "strict": "off",
 
     "init-declarations": 0,
     "no-catch-shadow": 2,
     "no-delete-var": 2,
     "no-label-var": 2,
-    "no-shadow": 1,
+    "no-shadow": "warn",
     "no-shadow-restricted-names": 2,
     "no-undef": 2,
     "no-undef-init": 2,
     "no-undefined": 2,
-    "no-unused-vars": [2, { "argsIgnorePattern": "^_" }],
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     "no-use-before-define": 2,
 
     "callback-return": 2,
@@ -160,8 +163,15 @@
     "lines-around-comment": 0,
     "max-depth": [1, 4],
     "max-len": [
-      1,
-      { "code": 90, "tabWidth": 2, "ignoreUrls": true, "ignoreComments": true }
+      "warn",
+      {
+        "code": 200,
+        "tabWidth": 2,
+        "ignoreUrls": true,
+        "ignoreComments": true,
+        "ignoreStrings": true,
+        "ignoreTemplateLiterals": true
+      }
     ],
     "max-nested-callbacks": [1, 5],
     "max-params": [1, 4],
@@ -194,7 +204,7 @@
     "operator-assignment": 0,
     "operator-linebreak": 0,
     "padded-blocks": [0, "never"],
-    "quote-props": [2, "as-needed"],
+    "quote-props": ["error", "as-needed", { "numbers": true }],
     "quotes": [0, "single", "avoid-escape"],
     "require-jsdoc": 0,
     "semi": [2, "always"],

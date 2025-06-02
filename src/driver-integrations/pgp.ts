@@ -23,7 +23,7 @@ export const createForPGP = ({
     query: string,
     values?: object,
     errorHandler = defaultErrorHandler
-  ): T => {
+  ): Promise<T> => {
     return db
       .many(query, values)
       .then((rows: any) => core.createOneFromDatabase(rows))
@@ -34,7 +34,7 @@ export const createForPGP = ({
     query: string,
     values?: object,
     errorHandler = defaultErrorHandler
-  ): T | void => {
+  ): Promise<T | void> => {
     return db
       .any(query, values)
       .then((rows: any) => core.createOneOrNoneFromDatabase(rows))
@@ -45,7 +45,7 @@ export const createForPGP = ({
     query: string,
     values?: object,
     errorHandler = defaultErrorHandler
-  ): T => {
+  ): Promise<T> => {
     return db
       .any(query, values)
       .then((rows: any) => core.createManyFromDatabase(rows))
@@ -56,7 +56,7 @@ export const createForPGP = ({
     query: string,
     values?: object,
     errorHandler = defaultErrorHandler
-  ): T | void => {
+  ): Promise<T | void> => {
     return db
       .result(query, values)
       .then((result: any) =>
@@ -72,7 +72,7 @@ export const createForPGP = ({
     query: string,
     values?: object,
     errorHandler = defaultErrorHandler
-  ): void => {
+  ): Promise<void> => {
     return db
       .none(query, values)
       .then(() => null)

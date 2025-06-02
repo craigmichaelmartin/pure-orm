@@ -1,7 +1,7 @@
 import orm from '../factories/orm';
 import { Person } from '../models/person';
 
-export const getPerson = (id: number): Person => {
+export const getPerson = (id: number): Promise<Person> => {
   const query = `
     SELECT
       ${orm.tables.person.columns},
