@@ -33,6 +33,7 @@ const SAMPLE_COUNT = Number(process.env.BENCH_SAMPLES || 5);
 const HELPER_ITERATIONS = Number(process.env.BENCH_HELPER_ITERS || 300000);
 const SAVE_BASELINE_PATH = process.env.BENCH_SAVE_BASELINE || '';
 const COMPARE_BASELINE_PATH = process.env.BENCH_COMPARE_BASELINE || '';
+const BENCH_SEED = Number(process.env.BENCH_SEED || 1337);
 
 const FIXTURE_CASES = [
   { label: 'order/one', entities: orderEntities, rows: one },
@@ -107,6 +108,26 @@ const STRESS_SCENARIOS = [
     rounds: 8
   },
   {
+    label: 'stress/mixed-fixtures x80',
+    entities: orderMoreEntities,
+    baseRowsSet: [seven, eight, ten, eleven],
+    multiplier: 80,
+    distributeRoots: true,
+    sparseJoins: false,
+    shuffleRows: true,
+    rounds: 6
+  },
+  {
+    label: 'stress/mixed-sparse x80',
+    entities: orderMoreEntities,
+    baseRowsSet: [seven, eight, ten, eleven],
+    multiplier: 80,
+    distributeRoots: true,
+    sparseJoins: true,
+    shuffleRows: true,
+    rounds: 8
+  },
+  {
     label: 'stress/composite-pk x120',
     entities: null,
     baseRows: null,
@@ -116,6 +137,23 @@ const STRESS_SCENARIOS = [
     rounds: 8
   }
 ];
+
+const createRng = (seed) => {
+  let state = (seed >>> 0) || 1;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+};
+
+const shuffleInPlace = (items, random) => {
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    const tmp = items[i];
+    items[i] = items[j];
+    items[j] = tmp;
+  }
+};
 
 const sparsifyRow = ({ row, rootTablePrefix }) => {
   const sparse = {};
@@ -207,29 +245,34 @@ const createCompositePkScenario = ({ multiplier }) => {
 
 const buildStressRows = ({
   baseRows,
+  baseRowsSet,
   multiplier,
   distributeRoots,
   sparseJoins = false,
-  unstableColumnOrder = false
+  unstableColumnOrder = false,
+  shuffleRows = false,
+  rng
 }) => {
+  const sourceRows = baseRowsSet ? baseRowsSet.flat() : baseRows;
   const rows = [];
-  const firstKey = Object.keys(baseRows[0]).find((k) => k.endsWith('#id'));
+  const firstKey = Object.keys(sourceRows[0]).find((k) => k.endsWith('#id'));
   const rootTable = firstKey ? firstKey.split('#')[0] : 'order';
   for (let i = 0; i < multiplier; i++) {
-    for (const row of baseRows) {
+    for (const row of sourceRows) {
       let base = sparseJoins ? sparsifyRow({ row, rootTablePrefix: rootTable }) : row;
       if (unstableColumnOrder) {
         base = reorderRowKeys(base);
       }
+      const cloned = { ...base };
       if (distributeRoots) {
-        const cloned = { ...base };
         const rootIdKey = `${rootTable}#id`;
         cloned[rootIdKey] = row[rootIdKey] + (i + 1) * 10000;
-        rows.push(cloned);
-      } else {
-        rows.push(base);
       }
+      rows.push(cloned);
     }
+  }
+  if (shuffleRows && rows.length > 1) {
+    shuffleInPlace(rows, rng || Math.random);
   }
   return rows;
 };
@@ -330,12 +373,13 @@ const loadBaseline = (inputPath) => {
 };
 
 const main = () => {
+  const rng = createRng(BENCH_SEED);
   console.log('Pure ORM core.createFromDatabase benchmark');
   console.log('Coverage: all core.spec test-utils fixtures + stress scenarios\n');
   console.log(
     `Sampling: ${SAMPLE_COUNT} samples/scenario, ${
       global.gc ? 'GC enabled' : 'GC not enabled'
-    }`
+    }, seed=${BENCH_SEED}`
   );
   if (SAVE_BASELINE_PATH) {
     console.log(`Save baseline: ${path.resolve(SAVE_BASELINE_PATH)}`);
@@ -381,7 +425,7 @@ const main = () => {
       entities = composite.entities;
       rows = composite.rows;
     } else {
-      rows = buildStressRows(scenario);
+      rows = buildStressRows({ ...scenario, rng });
     }
     const core = createCore({ entities });
     return runBench({
@@ -417,46 +461,60 @@ const main = () => {
     none: () => Promise.resolve()
   };
   const orm = createOrm({ entities: orderEntities, db: fakeDb });
-  const benchmarkOrder = new Order({
-    id: 1,
-    email: 'a@b.com',
-    browserIp: '127.0.0.1',
-    browserUserAgent: 'ua',
-    kujoImportedDate: new Date(),
-    createdDate: new Date(),
-    cancelReason: null,
-    cancelledDate: null,
-    closedDate: null,
-    processedDate: new Date(),
-    updatedDate: new Date(),
-    note: 'n',
-    subtotalPrice: 1,
-    taxesIncluded: true,
-    totalDiscounts: 0,
-    totalPrice: 1,
-    totalTax: 0,
-    totalWeight: 0,
-    orderStatusUrl: 'url',
-    utmSourceId: 1,
-    utmMediumId: 2,
-    utmCampaign: 'c',
-    utmContent: 'ct',
-    utmTerm: 't'
+  const benchmarkOrders = Array.from({ length: 32 }, (_, i) => {
+    const ts = 1700000000000 + i * 86400000;
+    return new Order({
+      id: i + 1,
+      email: `user${i}@example.com`,
+      browserIp: `127.0.0.${(i % 250) + 1}`,
+      browserUserAgent: `ua-${i % 5}`,
+      kujoImportedDate: new Date(ts),
+      createdDate: new Date(ts - 1000),
+      cancelReason: i % 7 === 0 ? 'test' : null,
+      cancelledDate: i % 7 === 0 ? new Date(ts + 5000) : null,
+      closedDate: null,
+      processedDate: new Date(ts + 1000),
+      updatedDate: new Date(ts + 2000),
+      note: `n-${i}`,
+      subtotalPrice: i + 1,
+      taxesIncluded: i % 2 === 0,
+      totalDiscounts: i % 3,
+      totalPrice: i + 2,
+      totalTax: i % 5,
+      totalWeight: i % 11,
+      orderStatusUrl: `url-${i}`,
+      utmSourceId: (i % 4) + 1,
+      utmMediumId: (i % 6) + 1,
+      utmCampaign: `camp-${i % 3}`,
+      utmContent: `content-${i % 8}`,
+      utmTerm: `term-${i % 9}`
+    });
   });
+  const benchmarkProperties = ['updatedDate', 'email', 'totalPrice', 'utmCampaign'];
   const ormHelperScenarios = [
-    { label: 'orm/getSqlInsertParts', fn: () => orm.getSqlInsertParts(benchmarkOrder) },
+    {
+      label: 'orm/getSqlInsertParts',
+      fn: (i) => orm.getSqlInsertParts(benchmarkOrders[i & 31])
+    },
     {
       label: 'orm/getSqlUpdateParts',
-      fn: () => orm.getSqlUpdateParts(benchmarkOrder, 'id')
+      fn: (i) => orm.getSqlUpdateParts(benchmarkOrders[i & 31], 'id')
     },
-    { label: 'orm/getMatchingParts', fn: () => orm.getMatchingParts(benchmarkOrder) },
+    {
+      label: 'orm/getMatchingParts',
+      fn: (i) => orm.getMatchingParts(benchmarkOrders[i & 31])
+    },
     {
       label: 'orm/getMatchingPartsObject',
-      fn: () => orm.getMatchingPartsObject(benchmarkOrder)
+      fn: (i) => orm.getMatchingPartsObject(benchmarkOrders[i & 31])
     },
     {
       label: 'orm/getSqlColumnForPropertyName',
-      fn: () => orm.getSqlColumnForPropertyName(benchmarkOrder, 'updatedDate')
+      fn: (i) =>
+        orm.getSqlColumnForPropertyName(
+          benchmarkOrders[i & 31],
+          benchmarkProperties[i % benchmarkProperties.length]
+        )
     }
   ];
   console.log('\nORM helper microbench');
@@ -464,13 +522,13 @@ const main = () => {
   for (const scenario of ormHelperScenarios) {
     const sampleMs = [];
     for (let sample = 0; sample < SAMPLE_COUNT; sample++) {
-      scenario.fn();
+      scenario.fn(0);
       if (global.gc) {
         global.gc();
       }
       const start = process.hrtime.bigint();
       for (let i = 0; i < HELPER_ITERATIONS; i++) {
-        scenario.fn();
+        scenario.fn(i);
       }
       sampleMs.push(Number(process.hrtime.bigint() - start) / 1e6);
     }
