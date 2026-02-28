@@ -140,9 +140,14 @@ export const createCore = ({
       const primaryKeys = _primaryKeys.length > 0 ? _primaryKeys : ['id'];
 
       const getPkId = (model: IModel): string => {
-        return primaryKeys
-          .map((key: string) => model[key as keyof typeof model])
-          .join('');
+        let id = '';
+        for (let i = 0; i < primaryKeys.length; i++) {
+          const part = model[primaryKeys[i] as keyof typeof model];
+          if (part !== void 0 && part !== null) {
+            id += String(part);
+          }
+        }
+        return id;
       };
 
       const references: any = {};
@@ -272,7 +277,6 @@ export const createCore = ({
       return entity;
     };
     entityCache.set(root, rootEntity);
-
     clump.forEach((array: Array<IModel>) => {
       array.forEach((_model: IModel) => {
         const key = nodeKey(_model);
@@ -281,54 +285,84 @@ export const createCore = ({
         const isNodeAlreadySeen = !!nodeAlreadySeen;
         const modelEntity = getEntity(model);
 
-        const nodePointingToIt = nodes.find((node) => {
+        let nodePointingToIt: IModel | void = void 0;
+        for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
+          const node = nodes[nodeIndex];
           const nodeEntity = getEntity(node);
           const refs = nodeEntity.referencesEntries;
-          if (!refs.length) return false;
-          for (const ref of refs) {
+          if (!refs.length) {
+            continue;
+          }
+          let pointsToModel = false;
+          for (let refIndex = 0; refIndex < refs.length; refIndex++) {
+            const ref = refs[refIndex];
             if (
               ref.ModelClass === model.constructor &&
               node[ref.property] === model.id
             ) {
-              return true;
+              pointsToModel = true;
+              break;
             }
           }
-          return false;
-        });
+          if (pointsToModel) {
+            nodePointingToIt = node;
+            break;
+          }
+        }
 
         // For first obj type which has an instance in nodes array,
         // get its index in nodes array
-        const indexOfOldestParent =
-          array.reduce((answer: number | null, obj: IModel) => {
-            if (answer != null) return answer;
-            const index = nodes.findIndex(
-              (n) => n.constructor === obj.constructor
-            );
-            if (index !== -1) return index;
-            return null;
-          }, null) || 0;
+        let indexOfOldestParent = 0;
+        for (let arrayIndex = 0; arrayIndex < array.length; arrayIndex++) {
+          const obj = array[arrayIndex];
+          const index = nodes.findIndex((n) => n.constructor === obj.constructor);
+          if (index !== -1) {
+            indexOfOldestParent = index;
+            break;
+          }
+        }
 
-        const parentHeirarchy = [
-          root,
-          ...nodes.slice(0, indexOfOldestParent + 1).reverse()
-        ];
-        const nodeItPointsTo = parentHeirarchy.find((parent) => {
-          const refs = modelEntity.referencesEntries;
-          if (!refs.length) return false;
-          for (const ref of refs) {
+        let nodeItPointsTo: IModel | void = void 0;
+        const refs = modelEntity.referencesEntries;
+        if (refs.length) {
+          let pointsToRoot = false;
+          for (let refIndex = 0; refIndex < refs.length; refIndex++) {
+            const ref = refs[refIndex];
             if (
-              ref.ModelClass === parent.constructor &&
-              model[ref.property] === parent.id
+              ref.ModelClass === root.constructor &&
+              model[ref.property] === root.id
             ) {
-              return true;
+              pointsToRoot = true;
+              break;
             }
           }
-          return false;
-        });
+          if (pointsToRoot) {
+            nodeItPointsTo = root;
+          } else {
+            for (let parentIndex = indexOfOldestParent; parentIndex >= 0; parentIndex--) {
+              const parent = nodes[parentIndex];
+              let pointsToParent = false;
+              for (let refIndex = 0; refIndex < refs.length; refIndex++) {
+                const ref = refs[refIndex];
+                if (
+                  ref.ModelClass === parent.constructor &&
+                  model[ref.property] === parent.id
+                ) {
+                  pointsToParent = true;
+                  break;
+                }
+              }
+              if (pointsToParent) {
+                nodeItPointsTo = parent;
+                break;
+              }
+            }
+          }
+        }
 
         if (isNodeAlreadySeen) {
           if (nodeItPointsTo && !nodePointingToIt) {
-            nodes = [model, ...nodes];
+            nodes.unshift(model);
             return;
           }
           if (nodePointingToIt) {
@@ -337,8 +371,11 @@ export const createCore = ({
                 getEntity(nodePointingToIt)
                   .collectionDisplayName as keyof typeof model
               ];
-            if (ec && ec.models.find((m: IModel) => m === nodePointingToIt)) {
-              nodes = [model, ...nodes];
+            if (
+              ec &&
+              ec.models.some((m: IModel) => m === nodePointingToIt)
+            ) {
+              nodes.unshift(model);
               return;
             }
           }
@@ -346,8 +383,7 @@ export const createCore = ({
         if (nodePointingToIt) {
           nodePointingToIt[modelEntity.displayName] = model;
         } else if (nodeItPointsTo) {
-          let collection =
-            nodeItPointsTo[modelEntity.collectionDisplayName];
+          let collection = nodeItPointsTo[modelEntity.collectionDisplayName];
           if (collection) {
             collection.models.push(model);
           } else {
@@ -370,7 +406,7 @@ export const createCore = ({
         if (!isNodeAlreadySeen) {
           seenNodes.set(key, model);
         }
-        nodes = [model, ...nodes];
+        nodes.unshift(model);
       });
     });
 
@@ -388,13 +424,30 @@ export const createCore = ({
     const rootEntity = getEntityByModel(root);
     const primaryKeys = rootEntity.primaryKeys;
     const clumps = new Map<string, Array<Array<IModel>>>();
+    let rootIndex = -1;
+    for (let i = 0; i < processed[0].length; i++) {
+      if (processed[0][i].constructor === rootBo) {
+        rootIndex = i;
+        break;
+      }
+    }
+    if (rootIndex === -1) {
+      rootIndex = 0;
+    }
+
     for (const item of processed) {
-      const id = primaryKeys
-        .map(
-          (key: string) =>
-            item.find((x: IModel) => x.constructor === rootBo)?.[key]
-        )
-        .join('@');
+      const rootModel =
+        item[rootIndex] && item[rootIndex].constructor === rootBo
+          ? item[rootIndex]
+          : item.find((x: IModel) => x.constructor === rootBo);
+      let id = '';
+      for (let i = 0; i < primaryKeys.length; i++) {
+        if (i > 0) {
+          id += '@';
+        }
+        const value = rootModel?.[primaryKeys[i] as keyof typeof rootModel];
+        id += value === void 0 || value === null ? '' : String(value);
+      }
       const group = clumps.get(id);
       if (group) {
         group.push(item);
@@ -438,9 +491,10 @@ export const createCore = ({
    */
   const objectifyDatabaseResult = (result: object) => {
     const obj: any = {};
-    const keys = Object.keys(result);
-    for (let i = 0; i < keys.length; i++) {
-      const text = keys[i];
+    for (const text in result as any) {
+      if (!Object.prototype.hasOwnProperty.call(result, text)) {
+        continue;
+      }
       const hashIndex = text.indexOf('#');
       if (hashIndex === -1) {
         throw new Error('Column names must be namespaced to table');
