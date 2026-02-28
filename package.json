@@ -16,7 +16,8 @@
     "lint": "eslint .",
     "pub": "npm run test && npm run build && np",
     "build": "rm -rf dist && mkdir -p dist && cp -r test-utils dist/test-utils && tsc",
-    "build:watch": "rm -rf dist && mkdir -p dist && cp -r test-utils dist/test-utils && tsc --watch"
+    "build:watch": "rm -rf dist && mkdir -p dist && cp -r test-utils dist/test-utils && tsc --watch",
+    "bench:core": "npm run build && node scripts/bench-core.js"
   },
   "dependencies": {
     "@babel/core": "^7.17.9",
