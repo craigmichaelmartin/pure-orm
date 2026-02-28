@@ -269,6 +269,15 @@ export const createCore = ({
     const built = { [rootEntity.displayName]: root };
 
     let nodes: Array<IModel> = [root];
+    const firstNodeIndexByConstructor = new Map<IModelClass, number>();
+    firstNodeIndexByConstructor.set(root.constructor as IModelClass, 0);
+    const prependNode = (node: IModel) => {
+      nodes.unshift(node);
+      for (const [ctor, idx] of firstNodeIndexByConstructor) {
+        firstNodeIndexByConstructor.set(ctor, idx + 1);
+      }
+      firstNodeIndexByConstructor.set(node.constructor as IModelClass, 0);
+    };
     const seenNodes = new Map<string, IModel>();
     const nodeKey = (model: IModel): string => {
       const entity = getEntityByModel(model);
@@ -322,9 +331,10 @@ export const createCore = ({
         // get its index in nodes array
         let indexOfOldestParent = 0;
         for (let arrayIndex = 0; arrayIndex < array.length; arrayIndex++) {
-          const obj = array[arrayIndex];
-          const index = nodes.findIndex((n) => n.constructor === obj.constructor);
-          if (index !== -1) {
+          const index = firstNodeIndexByConstructor.get(
+            array[arrayIndex].constructor as IModelClass
+          );
+          if (index != null) {
             indexOfOldestParent = index;
             break;
           }
@@ -370,7 +380,7 @@ export const createCore = ({
 
         if (isNodeAlreadySeen) {
           if (nodeItPointsTo && !nodePointingToIt) {
-            nodes.unshift(model);
+            prependNode(model);
             indexNodeRefs(model);
             return;
           }
@@ -384,7 +394,7 @@ export const createCore = ({
               ec &&
               ec.models.some((m: IModel) => m === nodePointingToIt)
             ) {
-              nodes.unshift(model);
+              prependNode(model);
               indexNodeRefs(model);
               return;
             }
@@ -416,7 +426,7 @@ export const createCore = ({
         if (!isNodeAlreadySeen) {
           seenNodes.set(key, model);
         }
-        nodes.unshift(model);
+        prependNode(model);
         indexNodeRefs(model);
       });
     });
@@ -469,41 +479,35 @@ export const createCore = ({
     return [...clumps.values()];
   };
 
-  const mapToBos = (objectified: any) => {
-    const tableNames = Object.keys(objectified);
-    const result = new Array(tableNames.length);
-    for (let i = 0; i < tableNames.length; i++) {
-      const tableName = tableNames[i];
-      const entity = getEntityByTableName(tableName);
-      const tableData = objectified[tableName];
-      const columnToPropertyMap = entity.columnToPropertyMap;
-      const propified: any = {};
-      for (const column in tableData) {
-        let propertyName = columnToPropertyMap.get(column);
-        if (!propertyName) {
-          if (column.startsWith('meta_')) {
-            propertyName = camelCase(column);
-          } else {
-            throw Error(
-              `No property name for "${column}" in business object "${entity.displayName}". Non-spec'd columns must begin with "meta_".`
-            );
-          }
-        }
-        propified[propertyName] = tableData[column];
+  interface IColumnReadPlan {
+    rowKey: string;
+    propertyName: string;
+  }
+  interface IEntityRowPlan {
+    entity: IEntityInternal<IModel>;
+    columnPlans: Array<IColumnReadPlan>;
+    primaryKeyPropertyNames: Array<string>;
+  }
+
+  const getPkIdFromProperties = (
+    props: any,
+    primaryKeyPropertyNames: Array<string>
+  ): string => {
+    let id = '';
+    for (let i = 0; i < primaryKeyPropertyNames.length; i++) {
+      const part = props[primaryKeyPropertyNames[i]];
+      if (part !== void 0 && part !== null) {
+        id += String(part);
       }
-      result[i] = new entity.Model(propified);
     }
-    return result;
+    return id;
   };
 
-  /*
-   * Make objects (based on special table#column names) from flat database
-   * return value.
-   */
-  const objectifyDatabaseResult = (result: object) => {
-    const obj: any = {};
-    for (const text in result as any) {
-      if (!Object.prototype.hasOwnProperty.call(result, text)) {
+  const buildEntityRowPlans = (sampleRow: any): Array<IEntityRowPlan> => {
+    const plansByTable = new Map<string, IEntityRowPlan>();
+    const tableOrder: Array<string> = [];
+    for (const text in sampleRow) {
+      if (!Object.prototype.hasOwnProperty.call(sampleRow, text)) {
         continue;
       }
       const hashIndex = text.indexOf('#');
@@ -512,22 +516,108 @@ export const createCore = ({
       }
       const tableName = text.substring(0, hashIndex);
       const column = text.substring(hashIndex + 1);
-      let tableObj = obj[tableName];
-      if (!tableObj) {
-        tableObj = {};
-        obj[tableName] = tableObj;
+
+      let plan = plansByTable.get(tableName);
+      if (!plan) {
+        const entity = getEntityByTableName(tableName);
+        const primaryKeyPropertyNames = entity.primaryKeys.map((pk: string) => {
+          return entity.columnToPropertyMap.get(pk) || pk;
+        });
+        plan = {
+          entity,
+          columnPlans: [],
+          primaryKeyPropertyNames
+        };
+        plansByTable.set(tableName, plan);
+        tableOrder.push(tableName);
       }
-      tableObj[column] = (result as any)[text];
+
+      let propertyName = plan.entity.columnToPropertyMap.get(column);
+      if (!propertyName) {
+        if (column.startsWith('meta_')) {
+          propertyName = camelCase(column);
+        } else {
+          throw Error(
+            `No property name for "${column}" in business object "${plan.entity.displayName}". Non-spec'd columns must begin with "meta_".`
+          );
+        }
+      }
+      plan.columnPlans.push({
+        rowKey: text,
+        propertyName
+      });
     }
-    return obj;
+
+    const orderedPlans = new Array<IEntityRowPlan>(tableOrder.length);
+    for (let i = 0; i < tableOrder.length; i++) {
+      orderedPlans[i] = plansByTable.get(tableOrder[i]) as IEntityRowPlan;
+    }
+    return orderedPlans;
+  };
+
+  const mapDatabaseRowToBos = (
+    row: any,
+    entityRowPlans: Array<IEntityRowPlan>,
+    modelCacheByEntity: Map<IEntityInternal<IModel>, Map<string, IModel>>,
+    scopeId: string
+  ): Array<IModel> => {
+    const models = new Array<IModel>(entityRowPlans.length);
+    for (let i = 0; i < entityRowPlans.length; i++) {
+      const plan = entityRowPlans[i];
+      const props: any = {};
+      for (let j = 0; j < plan.columnPlans.length; j++) {
+        const columnPlan = plan.columnPlans[j];
+        props[columnPlan.propertyName] = row[columnPlan.rowKey];
+      }
+
+      const pkId = getPkIdFromProperties(props, plan.primaryKeyPropertyNames);
+      if (pkId) {
+        const scopedPkId = `${scopeId}#${pkId}`;
+        let entityCache = modelCacheByEntity.get(plan.entity);
+        if (!entityCache) {
+          entityCache = new Map<string, IModel>();
+          modelCacheByEntity.set(plan.entity, entityCache);
+        } else {
+          const existing = entityCache.get(scopedPkId);
+          if (existing) {
+            models[i] = existing;
+            continue;
+          }
+        }
+        const model = new plan.entity.Model(props);
+        entityCache.set(scopedPkId, model);
+        models[i] = model;
+      } else {
+        models[i] = new plan.entity.Model(props);
+      }
+    }
+    return models;
   };
 
   const createFromDatabase = <T extends ICollection<IModel>>(rows: any): T => {
     const result = Array.isArray(rows) ? rows : [rows];
     const len = result.length;
+    const entityRowPlans = buildEntityRowPlans(result[0]);
+    const rootEntity = entityRowPlans[0].entity;
+    const rootPrimaryKeys = rootEntity.primaryKeys;
+    const modelCacheByEntity = new Map<IEntityInternal<IModel>, Map<string, IModel>>();
     const boified = new Array(len);
     for (let i = 0; i < len; i++) {
-      boified[i] = mapToBos(objectifyDatabaseResult(result[i]));
+      const row = result[i];
+      let scopeId = '';
+      for (let j = 0; j < rootPrimaryKeys.length; j++) {
+        if (j > 0) {
+          scopeId += '@';
+        }
+        const value = row[`${rootEntity.tableName}#${rootPrimaryKeys[j]}`];
+        scopeId += value === void 0 || value === null ? '' : String(value);
+      }
+      boified[i] = mapDatabaseRowToBos(
+        row,
+        entityRowPlans,
+        modelCacheByEntity,
+        scopeId
+      );
     }
     const clumps = clumpIntoGroups(boified);
     const models = new Array<IModel>(clumps.length);
