@@ -251,11 +251,20 @@ export const createCore = ({
    *  Article {id: 32, ArticleTags articleTags: [ArticleTag {id: 54}, ArticleTag {id: 55}]
    */
   const nestClump = (clump: Array<Array<IModel>>): object => {
-    clump = clump.map((x: Array<IModel>) => Object.values(x));
-    const root = clump[0][0];
-    clump = clump.map((row: Array<IModel>) =>
-      row.filter((item: IModel, index: number) => index !== 0)
-    );
+    const normalized = new Array<Array<IModel>>(clump.length);
+    for (let i = 0; i < clump.length; i++) {
+      normalized[i] = Object.values(clump[i]);
+    }
+    const root = normalized[0][0];
+    const rows = new Array<Array<IModel>>(normalized.length);
+    for (let i = 0; i < normalized.length; i++) {
+      const row = normalized[i];
+      const withoutRoot = new Array<IModel>(row.length - 1);
+      for (let j = 1; j < row.length; j++) {
+        withoutRoot[j - 1] = row[j];
+      }
+      rows[i] = withoutRoot;
+    }
     const rootEntity = getEntityByModel(root);
     const built = { [rootEntity.displayName]: root };
 
@@ -277,7 +286,27 @@ export const createCore = ({
       return entity;
     };
     entityCache.set(root, rootEntity);
-    clump.forEach((array: Array<IModel>) => {
+    const latestNodePointingToByClass = new Map<IModelClass, Map<any, IModel>>();
+    const indexNodeRefs = (node: IModel) => {
+      const nodeEntity = getEntity(node);
+      const refs = nodeEntity.referencesEntries;
+      for (let i = 0; i < refs.length; i++) {
+        const ref = refs[i];
+        const refId = node[ref.property as keyof typeof node];
+        if (refId == null) {
+          continue;
+        }
+        let byId = latestNodePointingToByClass.get(ref.ModelClass);
+        if (!byId) {
+          byId = new Map<any, IModel>();
+          latestNodePointingToByClass.set(ref.ModelClass, byId);
+        }
+        byId.set(refId, node);
+      }
+    };
+    indexNodeRefs(root);
+
+    rows.forEach((array: Array<IModel>) => {
       array.forEach((_model: IModel) => {
         const key = nodeKey(_model);
         const nodeAlreadySeen = seenNodes.get(key);
@@ -285,30 +314,9 @@ export const createCore = ({
         const isNodeAlreadySeen = !!nodeAlreadySeen;
         const modelEntity = getEntity(model);
 
-        let nodePointingToIt: IModel | void = void 0;
-        for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
-          const node = nodes[nodeIndex];
-          const nodeEntity = getEntity(node);
-          const refs = nodeEntity.referencesEntries;
-          if (!refs.length) {
-            continue;
-          }
-          let pointsToModel = false;
-          for (let refIndex = 0; refIndex < refs.length; refIndex++) {
-            const ref = refs[refIndex];
-            if (
-              ref.ModelClass === model.constructor &&
-              node[ref.property] === model.id
-            ) {
-              pointsToModel = true;
-              break;
-            }
-          }
-          if (pointsToModel) {
-            nodePointingToIt = node;
-            break;
-          }
-        }
+        const nodePointingToIt = latestNodePointingToByClass
+          .get(model.constructor as IModelClass)
+          ?.get(model.id);
 
         // For first obj type which has an instance in nodes array,
         // get its index in nodes array
@@ -363,6 +371,7 @@ export const createCore = ({
         if (isNodeAlreadySeen) {
           if (nodeItPointsTo && !nodePointingToIt) {
             nodes.unshift(model);
+            indexNodeRefs(model);
             return;
           }
           if (nodePointingToIt) {
@@ -376,6 +385,7 @@ export const createCore = ({
               ec.models.some((m: IModel) => m === nodePointingToIt)
             ) {
               nodes.unshift(model);
+              indexNodeRefs(model);
               return;
             }
           }
@@ -407,6 +417,7 @@ export const createCore = ({
           seenNodes.set(key, model);
         }
         nodes.unshift(model);
+        indexNodeRefs(model);
       });
     });
 
@@ -519,8 +530,11 @@ export const createCore = ({
       boified[i] = mapToBos(objectifyDatabaseResult(result[i]));
     }
     const clumps = clumpIntoGroups(boified);
-    const nested = clumps.map(nestClump);
-    const models = nested.map((n) => Object.values(n)[0]);
+    const models = new Array<IModel>(clumps.length);
+    for (let i = 0; i < clumps.length; i++) {
+      const nested = nestClump(clumps[i]);
+      models[i] = Object.values(nested)[0] as IModel;
+    }
     const Collection = getEntityByModel(models[0]).Collection;
     return <T>new Collection({ models });
   };
