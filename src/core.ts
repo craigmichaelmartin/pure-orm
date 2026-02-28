@@ -241,6 +241,26 @@ export const createCore = ({
     return getEntityByModelClass(model.constructor as IModelClass);
   };
 
+  const entityReferencePlans = new Map<
+    IEntityInternal<IModel>,
+    Array<{ property: string; targetEntity: IEntityInternal<IModel> }>
+  >();
+  for (let i = 0; i < entities.length; i++) {
+    const entity = entities[i];
+    const plans = new Array<{
+      property: string;
+      targetEntity: IEntityInternal<IModel>;
+    }>(entity.referencesEntries.length);
+    for (let j = 0; j < entity.referencesEntries.length; j++) {
+      const ref = entity.referencesEntries[j];
+      plans[j] = {
+        property: ref.property,
+        targetEntity: getEntityByModelClass(ref.ModelClass)
+      };
+    }
+    entityReferencePlans.set(entity, plans);
+  }
+
   interface IRowColumnPlan {
     rowKey: string;
     propertyName: string;
@@ -248,16 +268,13 @@ export const createCore = ({
   interface IEntityRowPlan {
     entity: IEntityInternal<IModel>;
     columnPlans: Array<IRowColumnPlan>;
-    primaryKeyPropertyNames: Array<string>;
+    primaryKeyRowKeys: Array<string>;
   }
 
-  const getPkIdFromProperties = (
-    props: any,
-    primaryKeyPropertyNames: Array<string>
-  ): string => {
+  const getPkIdFromRow = (row: any, primaryKeyRowKeys: Array<string>): string => {
     let id = '';
-    for (let i = 0; i < primaryKeyPropertyNames.length; i++) {
-      const part = props[primaryKeyPropertyNames[i]];
+    for (let i = 0; i < primaryKeyRowKeys.length; i++) {
+      const part = row[primaryKeyRowKeys[i]];
       if (part !== void 0 && part !== null) {
         id += String(part);
       }
@@ -282,13 +299,13 @@ export const createCore = ({
       let plan = plansByTable.get(tableName);
       if (!plan) {
         const entity = getEntityByTableName(tableName);
-        const primaryKeyPropertyNames = entity.primaryKeys.map((pk: string) => {
-          return entity.columnToPropertyMap.get(pk) || pk;
-        });
+        const primaryKeyRowKeys = entity.primaryKeys.map(
+          (pk: string) => `${tableName}#${pk}`
+        );
         plan = {
           entity,
           columnPlans: [],
-          primaryKeyPropertyNames
+          primaryKeyRowKeys
         };
         plansByTable.set(tableName, plan);
         tableOrder.push(tableName);
@@ -320,38 +337,39 @@ export const createCore = ({
   const materializeModelsFromRow = (
     row: any,
     entityRowPlans: Array<IEntityRowPlan>,
-    scopedModelCacheByEntity: Map<IEntityInternal<IModel>, Map<string, IModel>>,
-    rootScopeKey: string
+    rootScopedModelsByEntity: IModelsByEntity
   ): Array<IModel> => {
     const models = new Array<IModel>(entityRowPlans.length);
     for (let i = 0; i < entityRowPlans.length; i++) {
       const plan = entityRowPlans[i];
-      const props: any = {};
-      for (let j = 0; j < plan.columnPlans.length; j++) {
-        const columnPlan = plan.columnPlans[j];
-        props[columnPlan.propertyName] = row[columnPlan.rowKey];
-      }
-
-      const pkId = getPkIdFromProperties(props, plan.primaryKeyPropertyNames);
+      const pkId = getPkIdFromRow(row, plan.primaryKeyRowKeys);
       if (pkId) {
-        const scopedPkId = `${rootScopeKey}#${pkId}`;
-        let entityCache = scopedModelCacheByEntity.get(plan.entity);
-        if (!entityCache) {
-          entityCache = new Map<string, IModel>();
-          scopedModelCacheByEntity.set(plan.entity, entityCache);
+        let modelsForEntity = rootScopedModelsByEntity.get(plan.entity);
+        if (!modelsForEntity) {
+          modelsForEntity = new Map<string, IModel>();
+          rootScopedModelsByEntity.set(plan.entity, modelsForEntity);
         } else {
-          const existing = entityCache.get(scopedPkId);
+          const existing = modelsForEntity.get(pkId);
           if (existing) {
             models[i] = existing;
             continue;
           }
         }
-        const model = new plan.entity.Model(props);
-        entityCache.set(scopedPkId, model);
-        models[i] = model;
-      } else {
-        models[i] = new plan.entity.Model(props);
       }
+      const props: any = {};
+      for (let j = 0; j < plan.columnPlans.length; j++) {
+        const columnPlan = plan.columnPlans[j];
+        props[columnPlan.propertyName] = row[columnPlan.rowKey];
+      }
+      const model = new plan.entity.Model(props);
+      if (pkId) {
+        // modelsForEntity is guaranteed to be initialized above for pk rows.
+        (rootScopedModelsByEntity.get(plan.entity) as Map<string, IModel>).set(
+          pkId,
+          model
+        );
+      }
+      models[i] = model;
     }
     return models;
   };
@@ -387,34 +405,22 @@ export const createCore = ({
     return modelsByEntity;
   };
 
-  const ensureEntityModelsForRoot = (
-    rootScopeKey: string,
-    entity: IEntityInternal<IModel>,
-    modelsByRootAndEntity: IModelsByRootAndEntity
-  ): Map<string, IModel> => {
-    const modelsByEntity = ensureRootEntityModels(
-      rootScopeKey,
-      modelsByRootAndEntity
-    );
-    let models = modelsByEntity.get(entity);
-    if (!models) {
-      models = new Map<string, IModel>();
-      modelsByEntity.set(entity, models);
-    }
-    return models;
-  };
-
   // Phase 2: wire directional refs and inverse collections across
   // the already materialized models within one root scope.
   const linkRootScopeRelationships = (modelsByEntity: IModelsByEntity) => {
-    const collectionMembership = new WeakMap<IModel, Map<string, Set<string>>>();
+    const collectionMembership = new WeakMap<
+      IModel,
+      Map<IEntityInternal<IModel>, Set<string>>
+    >();
     for (const [entity, modelMap] of modelsByEntity) {
-      for (const model of modelMap.values()) {
-        const refs = entity.referencesEntries;
+      const refs = entityReferencePlans.get(entity);
+      if (!refs || refs.length === 0) {
+        continue;
+      }
+      for (const [modelPkId, model] of modelMap.entries()) {
         for (let j = 0; j < refs.length; j++) {
           const ref = refs[j];
-          const targetEntity = getEntityByModelClass(ref.ModelClass);
-          const targetModels = modelsByEntity.get(targetEntity);
+          const targetModels = modelsByEntity.get(ref.targetEntity);
           if (!targetModels) {
             continue;
           }
@@ -427,7 +433,7 @@ export const createCore = ({
             continue;
           }
 
-          model[targetEntity.displayName as keyof typeof model] = target;
+          model[ref.targetEntity.displayName as keyof typeof model] = target;
 
           let collection =
             target[entity.collectionDisplayName as keyof typeof target];
@@ -440,18 +446,17 @@ export const createCore = ({
 
           let byCollection = collectionMembership.get(target);
           if (!byCollection) {
-            byCollection = new Map<string, Set<string>>();
+            byCollection = new Map<IEntityInternal<IModel>, Set<string>>();
             collectionMembership.set(target, byCollection);
           }
-          let memberIds = byCollection.get(entity.collectionDisplayName);
+          let memberIds = byCollection.get(entity);
           if (!memberIds) {
             memberIds = new Set<string>();
-            byCollection.set(entity.collectionDisplayName, memberIds);
+            byCollection.set(entity, memberIds);
           }
-          const modelId = model.constructor.name + ':' + entity.getPkId(model);
-          if (!memberIds.has(modelId)) {
+          if (!memberIds.has(modelPkId)) {
             collection.models.push(model);
-            memberIds.add(modelId);
+            memberIds.add(modelPkId);
           }
         }
       }
@@ -472,10 +477,6 @@ export const createCore = ({
     const entityRowPlans = buildEntityRowPlans(result[0]);
     const rootEntity = entityRowPlans[0].entity;
     const rootPrimaryKeys = rootEntity.primaryKeys;
-    const scopedModelCacheByEntity = new Map<
-      IEntityInternal<IModel>,
-      Map<string, IModel>
-    >();
     const rootScopeOrder: Array<string> = [];
     const rootModelsByScopeKey = new Map<string, IModel>();
     const modelsByRootAndEntity: IModelsByRootAndEntity = new Map();
@@ -484,25 +485,15 @@ export const createCore = ({
     for (let i = 0; i < len; i++) {
       const row = result[i];
       const rootScopeKey = getRootScopeKey(row, rootEntity, rootPrimaryKeys);
+      const modelsByEntityForRoot = ensureRootEntityModels(
+        rootScopeKey,
+        modelsByRootAndEntity
+      );
       const models = materializeModelsFromRow(
         row,
         entityRowPlans,
-        scopedModelCacheByEntity,
-        rootScopeKey
+        modelsByEntityForRoot
       );
-      for (let j = 0; j < models.length; j++) {
-        const model = models[j];
-        const plan = entityRowPlans[j];
-        const pkId = plan.entity.getPkId(model);
-        if (!pkId) {
-          continue;
-        }
-        ensureEntityModelsForRoot(
-          rootScopeKey,
-          plan.entity,
-          modelsByRootAndEntity
-        ).set(pkId, model);
-      }
       const rootModel = models[0];
       if (!rootModelsByScopeKey.has(rootScopeKey)) {
         rootScopeOrder.push(rootScopeKey);
