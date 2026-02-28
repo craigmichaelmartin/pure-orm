@@ -337,12 +337,16 @@ export const createCore = ({
   const materializeModelsFromRow = (
     row: any,
     entityRowPlans: Array<IEntityRowPlan>,
-    rootScopedModelsByEntity: IModelsByEntity
-  ): Array<IModel> => {
-    const models = new Array<IModel>(entityRowPlans.length);
+    rootScopedModelsByEntity: IModelsByEntity,
+    rowModels: Array<IModel | void>,
+    rowModelPkIds: Array<string>,
+    rowCreatedWithPkIndexes: Array<number>
+  ): IModel => {
+    rowCreatedWithPkIndexes.length = 0;
     for (let i = 0; i < entityRowPlans.length; i++) {
       const plan = entityRowPlans[i];
       const pkId = getPkIdFromRow(row, plan.primaryKeyRowKeys);
+      rowModelPkIds[i] = pkId;
       if (pkId) {
         let modelsForEntity = rootScopedModelsByEntity.get(plan.entity);
         if (!modelsForEntity) {
@@ -351,10 +355,15 @@ export const createCore = ({
         } else {
           const existing = modelsForEntity.get(pkId);
           if (existing) {
-            models[i] = existing;
+            rowModels[i] = existing;
             continue;
           }
         }
+      } else if (i !== 0) {
+        // No primary key means this is typically an outer-joined null row.
+        // Skip model construction for non-root entities since it cannot link.
+        rowModels[i] = void 0;
+        continue;
       }
       const props: any = {};
       for (let j = 0; j < plan.columnPlans.length; j++) {
@@ -368,14 +377,19 @@ export const createCore = ({
           pkId,
           model
         );
+        rowCreatedWithPkIndexes.push(i);
       }
-      models[i] = model;
+      rowModels[i] = model;
     }
-    return models;
+    return rowModels[0] as IModel;
   };
 
   type IModelsByEntity = Map<IEntityInternal<IModel>, Map<string, IModel>>;
-  type IModelsByRootAndEntity = Map<string, IModelsByEntity>;
+  interface IRootScopeState {
+    modelsByEntity: IModelsByEntity;
+    collectionMembership?: WeakMap<IModel, Map<IEntityInternal<IModel>, Set<string>>>;
+  }
+  type IRootScopeStateByKey = Map<string, IRootScopeState>;
 
   const getRootScopeKey = (
     row: any,
@@ -393,73 +407,71 @@ export const createCore = ({
     return rootScopeKey;
   };
 
-  const ensureRootEntityModels = (
+  const ensureRootScopeState = (
     rootScopeKey: string,
-    modelsByRootAndEntity: IModelsByRootAndEntity
-  ): IModelsByEntity => {
-    let modelsByEntity = modelsByRootAndEntity.get(rootScopeKey);
-    if (!modelsByEntity) {
-      modelsByEntity = new Map<IEntityInternal<IModel>, Map<string, IModel>>();
-      modelsByRootAndEntity.set(rootScopeKey, modelsByEntity);
+    rootScopeStateByKey: IRootScopeStateByKey
+  ): IRootScopeState => {
+    let state = rootScopeStateByKey.get(rootScopeKey);
+    if (!state) {
+      state = {
+        modelsByEntity: new Map<IEntityInternal<IModel>, Map<string, IModel>>()
+      };
+      rootScopeStateByKey.set(rootScopeKey, state);
     }
-    return modelsByEntity;
+    return state;
   };
 
-  // Phase 2: wire directional refs and inverse collections across
-  // the already materialized models within one root scope.
-  const linkRootScopeRelationships = (modelsByEntity: IModelsByEntity) => {
-    const collectionMembership = new WeakMap<
-      IModel,
-      Map<IEntityInternal<IModel>, Set<string>>
-    >();
-    for (const [entity, modelMap] of modelsByEntity) {
-      const refs = entityReferencePlans.get(entity);
-      if (!refs || refs.length === 0) {
-        continue;
-      }
-      for (const [modelPkId, model] of modelMap.entries()) {
-        for (let j = 0; j < refs.length; j++) {
-          const ref = refs[j];
-          const targetModels = modelsByEntity.get(ref.targetEntity);
-          if (!targetModels) {
-            continue;
-          }
-          const refId = model[ref.property as keyof typeof model];
-          if (refId == null) {
-            continue;
-          }
-          const target = targetModels.get(String(refId));
-          if (!target) {
-            continue;
-          }
+  const ensureCollectionMembership = (
+    rootScopeState: IRootScopeState
+  ): WeakMap<IModel, Map<IEntityInternal<IModel>, Set<string>>> => {
+    if (!rootScopeState.collectionMembership) {
+      rootScopeState.collectionMembership = new WeakMap<
+        IModel,
+        Map<IEntityInternal<IModel>, Set<string>>
+      >();
+    }
+    return rootScopeState.collectionMembership;
+  };
 
-          model[ref.targetEntity.displayName as keyof typeof model] = target;
+  const linkSourceToTarget = ({
+    sourceEntity,
+    sourceModel,
+    sourceModelPkId,
+    targetEntity,
+    targetModel,
+    collectionMembership
+  }: {
+    sourceEntity: IEntityInternal<IModel>;
+    sourceModel: IModel;
+    sourceModelPkId: string;
+    targetEntity: IEntityInternal<IModel>;
+    targetModel: IModel;
+    collectionMembership: WeakMap<IModel, Map<IEntityInternal<IModel>, Set<string>>>;
+  }) => {
+    sourceModel[targetEntity.displayName as keyof typeof sourceModel] = targetModel;
 
-          let collection =
-            target[entity.collectionDisplayName as keyof typeof target];
-          if (!collection) {
-            const Collection = entity.Collection;
-            collection = new Collection({ models: [] });
-            target[entity.collectionDisplayName as keyof typeof target] =
-              collection;
-          }
+    let collection =
+      targetModel[sourceEntity.collectionDisplayName as keyof typeof targetModel];
+    if (!collection) {
+      const Collection = sourceEntity.Collection;
+      collection = new Collection({ models: [] });
+      targetModel[sourceEntity.collectionDisplayName as keyof typeof targetModel] =
+        collection;
+    }
 
-          let byCollection = collectionMembership.get(target);
-          if (!byCollection) {
-            byCollection = new Map<IEntityInternal<IModel>, Set<string>>();
-            collectionMembership.set(target, byCollection);
-          }
-          let memberIds = byCollection.get(entity);
-          if (!memberIds) {
-            memberIds = new Set<string>();
-            byCollection.set(entity, memberIds);
-          }
-          if (!memberIds.has(modelPkId)) {
-            collection.models.push(model);
-            memberIds.add(modelPkId);
-          }
-        }
-      }
+    let byCollection = collectionMembership.get(targetModel);
+    if (!byCollection) {
+      byCollection = new Map<IEntityInternal<IModel>, Set<string>>();
+      collectionMembership.set(targetModel, byCollection);
+    }
+    let memberIds = byCollection.get(sourceEntity);
+    if (!memberIds) {
+      memberIds = new Set<string>();
+      byCollection.set(sourceEntity, memberIds);
+    }
+    if (!memberIds.has(sourceModelPkId)) {
+      collection.models.push(sourceModel);
+      memberIds.add(sourceModelPkId);
     }
   };
 
@@ -468,45 +480,94 @@ export const createCore = ({
    * 1) Compile row plans once (column -> property mapping per entity/table).
    * 2) Materialize models per row with scoped de-duplication by root scope key.
    * 3) Index models by root scope + entity + entity primary key.
-   * 4) Link directional refs and inverse collections within each root scope.
+   * 4) Link refs incrementally as new models appear.
    * 5) Return root models in first-seen root scope order.
    */
   const createFromDatabase = <T extends ICollection<IModel>>(rows: any): T => {
     const result = Array.isArray(rows) ? rows : [rows];
     const len = result.length;
     const entityRowPlans = buildEntityRowPlans(result[0]);
+    const selectedEntities = new Set<IEntityInternal<IModel>>();
+    for (let i = 0; i < entityRowPlans.length; i++) {
+      selectedEntities.add(entityRowPlans[i].entity);
+    }
+    const applicableRefPlans = new Map<
+      IEntityInternal<IModel>,
+      Array<{ property: string; targetEntity: IEntityInternal<IModel> }>
+    >();
+    for (let i = 0; i < entityRowPlans.length; i++) {
+      const entity = entityRowPlans[i].entity;
+      const refs = entityReferencePlans.get(entity) || [];
+      const filteredRefs = refs.filter((ref) => selectedEntities.has(ref.targetEntity));
+      applicableRefPlans.set(entity, filteredRefs);
+    }
     const rootEntity = entityRowPlans[0].entity;
     const rootPrimaryKeys = rootEntity.primaryKeys;
     const rootScopeOrder: Array<string> = [];
     const rootModelsByScopeKey = new Map<string, IModel>();
-    const modelsByRootAndEntity: IModelsByRootAndEntity = new Map();
+    const rootScopeStateByKey: IRootScopeStateByKey = new Map();
+    let currentRootScopeKey: string | void = void 0;
+    let currentRootScopeState: IRootScopeState | void = void 0;
+    const rowModels = new Array<IModel | void>(entityRowPlans.length);
+    const rowModelPkIds = new Array<string>(entityRowPlans.length);
+    const rowCreatedWithPkIndexes: Array<number> = [];
 
     // Phase 1: materialize and index model instances by root scope + entity.
     for (let i = 0; i < len; i++) {
       const row = result[i];
       const rootScopeKey = getRootScopeKey(row, rootEntity, rootPrimaryKeys);
-      const modelsByEntityForRoot = ensureRootEntityModels(
-        rootScopeKey,
-        modelsByRootAndEntity
-      );
-      const models = materializeModelsFromRow(
+      let rootScopeState: IRootScopeState | void = currentRootScopeState;
+      if (!rootScopeState || rootScopeKey !== currentRootScopeKey) {
+        rootScopeState = ensureRootScopeState(rootScopeKey, rootScopeStateByKey);
+        currentRootScopeKey = rootScopeKey;
+        currentRootScopeState = rootScopeState;
+      }
+      const rootModel = materializeModelsFromRow(
         row,
         entityRowPlans,
-        modelsByEntityForRoot
+        rootScopeState.modelsByEntity,
+        rowModels,
+        rowModelPkIds,
+        rowCreatedWithPkIndexes
       );
-      const rootModel = models[0];
       if (!rootModelsByScopeKey.has(rootScopeKey)) {
         rootScopeOrder.push(rootScopeKey);
         rootModelsByScopeKey.set(rootScopeKey, rootModel);
       }
-    }
 
-    // Phase 2: link references and collection membership per root scope.
-    for (let i = 0; i < rootScopeOrder.length; i++) {
-      const rootScopeKey = rootScopeOrder[i];
-      linkRootScopeRelationships(
-        ensureRootEntityModels(rootScopeKey, modelsByRootAndEntity)
-      );
+      for (let c = 0; c < rowCreatedWithPkIndexes.length; c++) {
+        const j = rowCreatedWithPkIndexes[c];
+        const sourceModel = rowModels[j] as IModel;
+        const sourceModelPkId = rowModelPkIds[j];
+        const sourceEntity = entityRowPlans[j].entity;
+
+        const refs = applicableRefPlans.get(sourceEntity);
+        if (!refs || refs.length === 0) {
+          continue;
+        }
+
+        for (let r = 0; r < refs.length; r++) {
+          const ref = refs[r];
+          const refId = sourceModel[ref.property as keyof typeof sourceModel];
+          if (refId == null) {
+            continue;
+          }
+          const targetPkId = String(refId);
+          const target = rootScopeState.modelsByEntity
+            .get(ref.targetEntity)
+            ?.get(targetPkId);
+          if (target) {
+            linkSourceToTarget({
+              sourceEntity,
+              sourceModel,
+              sourceModelPkId,
+              targetEntity: ref.targetEntity,
+              targetModel: target,
+              collectionMembership: ensureCollectionMembership(rootScopeState)
+            });
+          }
+        }
+      }
     }
 
     const models = new Array<IModel>(rootScopeOrder.length);
