@@ -1,5 +1,5 @@
 /* eslint-disable max-len */
-import { createCore } from './core';
+import { createCore, IModel, ICollection, IColumns } from './core';
 import { entities as orderEntities } from '../test-utils/order/entities';
 import { entities as blogEntities } from '../test-utils/blog/entities';
 import { entities as orderMoreEntities } from '../test-utils/order-more/entities';
@@ -9,7 +9,10 @@ import { entities as sixEntities } from '../test-utils/six/entities';
 import { entities as twelveEntities } from '../test-utils/twelve/entities';
 import { entities as thirteenEntities } from '../test-utils/thirteen/entities';
 import { entities as fourteenEntities } from '../test-utils/fourteen/entities';
-import { Articles } from '../test-utils/blog/models/article';
+import { Articles, Article } from '../test-utils/blog/models/article';
+import { Order, Orders } from '../test-utils/order/models/order';
+import { UtmSource } from '../test-utils/order/models/utm-source';
+import { FeatureSwitch } from '../test-utils/nine/models/feature-switch';
 const two = require('../test-utils/two/results');
 const three = require('../test-utils/three/results');
 const one = require('../test-utils/one/results.json');
@@ -1185,4 +1188,416 @@ test('tables', () => {
   expect(core.tables.product.columns).toEqual(
     '"product".id as "product#id", "product".vendor_id as "product#vendor_id", "product".value as "product#value", "product".label as "product#label", "product".product_type as "product#product_type", "product".created_date as "product#created_date", "product".updated_date as "product#updated_date", "product".published_date as "product#published_date", "product".category as "product#category"'
   );
+});
+
+/* -------------------------------------------------------------------------*/
+/* getEntityByModel --------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+
+describe('getEntityByModel', () => {
+  test('returns entity for a model instance', () => {
+    const core = createCore({ entities: orderEntities });
+    const order = new Order({ id: 1, email: 'x@x.com' });
+    const entity = core.getEntityByModel(order);
+    expect(entity.tableName).toEqual('order');
+    expect(entity.displayName).toEqual('order');
+    expect(entity.Model).toBe(Order);
+    expect(entity.Collection).toBe(Orders);
+  });
+
+  test('returns correct entity among multiple registered entities', () => {
+    const core = createCore({ entities: orderEntities });
+    const utm = new UtmSource({ id: 1, value: 'google', label: 'Google', internal: 'false' });
+    const entity = core.getEntityByModel(utm);
+    expect(entity.tableName).toEqual('utm_source');
+    expect(entity.displayName).toEqual('utmSource');
+  });
+
+  test('throws for an unregistered model class', () => {
+    const core = createCore({ entities: nineEntities });
+    const order = new Order({ id: 1 });
+    expect(() => core.getEntityByModel(order)).toThrow(
+      'Could not find entity for class'
+    );
+  });
+
+  test('entity has correct propertyNames derived from columns', () => {
+    const core = createCore({ entities: orderEntities });
+    const order = new Order({ id: 1 });
+    const entity = core.getEntityByModel(order);
+    expect(entity.propertyNames).toContain('id');
+    expect(entity.propertyNames).toContain('email');
+    expect(entity.propertyNames).toContain('browserIP');
+    expect(entity.propertyNames).toContain('utmSourceId');
+  });
+
+  test('entity has correct columnNames derived from columns', () => {
+    const core = createCore({ entities: orderEntities });
+    const order = new Order({ id: 1 });
+    const entity = core.getEntityByModel(order);
+    expect(entity.columnNames).toContain('id');
+    expect(entity.columnNames).toContain('email');
+    expect(entity.columnNames).toContain('browser_ip');
+    expect(entity.columnNames).toContain('utm_source_id');
+  });
+
+  test('entity has correct prefixedColumnNames', () => {
+    const core = createCore({ entities: orderEntities });
+    const order = new Order({ id: 1 });
+    const entity = core.getEntityByModel(order);
+    expect(entity.prefixedColumnNames).toContain('order#id');
+    expect(entity.prefixedColumnNames).toContain('order#email');
+    expect(entity.prefixedColumnNames).toContain('order#browser_ip');
+  });
+
+  test('entity has correct references', () => {
+    const core = createCore({ entities: orderEntities });
+    const order = new Order({ id: 1 });
+    const entity = core.getEntityByModel(order);
+    expect(entity.references).toEqual({ utmSourceId: UtmSource });
+  });
+
+  test('entity defaults primaryKeys to [id] when none specified', () => {
+    const core = createCore({ entities: orderEntities });
+    const order = new Order({ id: 1 });
+    const entity = core.getEntityByModel(order);
+    expect(entity.primaryKeys).toEqual(['id']);
+  });
+
+  test('entity selectColumnsClause is correctly formed', () => {
+    const core = createCore({ entities: nineEntities });
+    const fs = new FeatureSwitch({ id: 'x', label: 'x', on: true });
+    const entity = core.getEntityByModel(fs);
+    expect(entity.selectColumnsClause).toEqual(
+      '"feature_switch".id as "feature_switch#id", "feature_switch".label as "feature_switch#label", "feature_switch".on as "feature_switch#on"'
+    );
+  });
+});
+
+/* -------------------------------------------------------------------------*/
+/* getEntityByTableName ----------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+
+describe('getEntityByTableName', () => {
+  test('returns entity for a valid table name', () => {
+    const core = createCore({ entities: orderEntities });
+    const entity = core.getEntityByTableName('order');
+    expect(entity.tableName).toEqual('order');
+    expect(entity.Model).toBe(Order);
+  });
+
+  test('returns correct entity among multiple registered entities', () => {
+    const core = createCore({ entities: orderEntities });
+    const entity = core.getEntityByTableName('utm_source');
+    expect(entity.tableName).toEqual('utm_source');
+    expect(entity.displayName).toEqual('utmSource');
+    expect(entity.Model).toBe(UtmSource);
+  });
+
+  test('throws for a non-existent table name', () => {
+    const core = createCore({ entities: orderEntities });
+    expect(() => core.getEntityByTableName('nonexistent')).toThrow(
+      'Could not find entity for table nonexistent'
+    );
+  });
+});
+
+/* -------------------------------------------------------------------------*/
+/* Entity configuration edge cases -----------------------------------------*/
+/* -------------------------------------------------------------------------*/
+
+describe('entity configuration', () => {
+  test('custom displayName is used instead of camelCase tableName', () => {
+    class Widget implements IModel {
+      id: number;
+      constructor(props: any) { this.id = props.id; }
+    }
+    class Widgets implements ICollection<Widget> {
+      models: Array<Widget>;
+      constructor({ models }: any) { this.models = models; }
+    }
+    const core = createCore({
+      entities: [{
+        tableName: 'widget_thing',
+        displayName: 'myWidget',
+        columns: ['id'],
+        Model: Widget,
+        Collection: Widgets
+      }]
+    });
+    expect(core.tables.myWidget).toBeDefined();
+    expect(core.tables.myWidget.columns).toEqual(
+      '"widget_thing".id as "widget_thing#id"'
+    );
+  });
+
+  test('custom collectionDisplayName is used', () => {
+    class Goose implements IModel {
+      id: number;
+      constructor(props: any) { this.id = props.id; }
+    }
+    class Geese implements ICollection<Goose> {
+      models: Array<Goose>;
+      constructor({ models }: any) { this.models = models; }
+    }
+    const core = createCore({
+      entities: [{
+        tableName: 'goose',
+        collectionDisplayName: 'geese',
+        columns: ['id'],
+        Model: Goose,
+        Collection: Geese
+      }]
+    });
+    const entity = core.getEntityByTableName('goose');
+    expect(entity.collectionDisplayName).toEqual('geese');
+  });
+
+  test('default collectionDisplayName appends "s" to displayName', () => {
+    const core = createCore({ entities: orderEntities });
+    const entity = core.getEntityByTableName('order');
+    expect(entity.collectionDisplayName).toEqual('orders');
+  });
+
+  test('function-based columns are resolved', () => {
+    class Item implements IModel {
+      id: number;
+      name: string;
+      constructor(props: any) { this.id = props.id; this.name = props.name; }
+    }
+    class Items implements ICollection<Item> {
+      models: Array<Item>;
+      constructor({ models }: any) { this.models = models; }
+    }
+    const columnsFn: IColumns = () => ['id', 'name'];
+    const core = createCore({
+      entities: [{
+        tableName: 'item',
+        columns: columnsFn,
+        Model: Item,
+        Collection: Items
+      }]
+    });
+    const entity = core.getEntityByTableName('item');
+    expect(entity.columnNames).toEqual(['id', 'name']);
+    expect(entity.propertyNames).toEqual(['id', 'name']);
+  });
+
+  test('custom primary key is used', () => {
+    class Tenant implements IModel {
+      slug: string;
+      name: string;
+      constructor(props: any) { this.slug = props.slug; this.name = props.name; }
+    }
+    class Tenants implements ICollection<Tenant> {
+      models: Array<Tenant>;
+      constructor({ models }: any) { this.models = models; }
+    }
+    const core = createCore({
+      entities: [{
+        tableName: 'tenant',
+        columns: [
+          { column: 'slug', primaryKey: true },
+          'name'
+        ],
+        Model: Tenant,
+        Collection: Tenants
+      }]
+    });
+    const entity = core.getEntityByTableName('tenant');
+    expect(entity.primaryKeys).toEqual(['slug']);
+  });
+
+  test('composite primary keys', () => {
+    class Mapping implements IModel {
+      aId: number;
+      bId: number;
+      constructor(props: any) { this.aId = props.aId; this.bId = props.bId; }
+    }
+    class Mappings implements ICollection<Mapping> {
+      models: Array<Mapping>;
+      constructor({ models }: any) { this.models = models; }
+    }
+    const core = createCore({
+      entities: [{
+        tableName: 'mapping',
+        columns: [
+          { column: 'a_id', primaryKey: true },
+          { column: 'b_id', primaryKey: true }
+        ],
+        Model: Mapping,
+        Collection: Mappings
+      }]
+    });
+    const entity = core.getEntityByTableName('mapping');
+    expect(entity.primaryKeys).toEqual(['a_id', 'b_id']);
+  });
+
+  test('column with explicit property name overrides camelCase', () => {
+    class Thing implements IModel {
+      myIP: string;
+      constructor(props: any) { this.myIP = props.myIP; }
+    }
+    class Things implements ICollection<Thing> {
+      models: Array<Thing>;
+      constructor({ models }: any) { this.models = models; }
+    }
+    const core = createCore({
+      entities: [{
+        tableName: 'thing',
+        columns: [{ column: 'ip_address', property: 'myIP' }],
+        Model: Thing,
+        Collection: Things
+      }]
+    });
+    const entity = core.getEntityByTableName('thing');
+    expect(entity.propertyNames).toEqual(['myIP']);
+    expect(entity.columnNames).toEqual(['ip_address']);
+  });
+
+  test('getPkId returns concatenated primary key values', () => {
+    class Mapping implements IModel {
+      a_id: number;
+      b_id: number;
+      constructor(props: any) { this.a_id = props.aId; this.b_id = props.bId; }
+    }
+    class Mappings implements ICollection<Mapping> {
+      models: Array<Mapping>;
+      constructor({ models }: any) { this.models = models; }
+    }
+    const core = createCore({
+      entities: [{
+        tableName: 'mapping',
+        columns: [
+          { column: 'a_id', primaryKey: true },
+          { column: 'b_id', primaryKey: true }
+        ],
+        Model: Mapping,
+        Collection: Mappings
+      }]
+    });
+    const entity = core.getEntityByTableName('mapping');
+    const m = new Mapping({ aId: 5, bId: 10 });
+    expect(entity.getPkId(m)).toEqual('510');
+  });
+
+  test('entity with no columns other than id', () => {
+    class Simple implements IModel {
+      id: number;
+      constructor(props: any) { this.id = props.id; }
+    }
+    class Simples implements ICollection<Simple> {
+      models: Array<Simple>;
+      constructor({ models }: any) { this.models = models; }
+    }
+    const core = createCore({
+      entities: [{
+        tableName: 'simple',
+        columns: ['id'],
+        Model: Simple,
+        Collection: Simples
+      }]
+    });
+    const entity = core.getEntityByTableName('simple');
+    expect(entity.columnNames).toEqual(['id']);
+    expect(entity.propertyNames).toEqual(['id']);
+    expect(entity.primaryKeys).toEqual(['id']);
+    expect(entity.references).toEqual({});
+  });
+});
+
+/* -------------------------------------------------------------------------*/
+/* createFromDatabase error/edge cases -------------------------------------*/
+/* -------------------------------------------------------------------------*/
+
+describe('createFromDatabase edge cases', () => {
+  test('handles a single row (not an array)', () => {
+    const core = createCore({ entities: nineEntities });
+    const row = { 'feature_switch#id': 'test_switch', 'feature_switch#label': 'Test', 'feature_switch#on': true };
+    const result = core.createFromDatabase(row);
+    expect(result.models.length).toEqual(1);
+    expect(result.models[0].id).toEqual('test_switch');
+  });
+
+  test('throws when column names are not namespaced', () => {
+    const core = createCore({ entities: nineEntities });
+    expect(() =>
+      core.createFromDatabase([{ id: 1, label: 'test', on: true }])
+    ).toThrow('Column names must be namespaced to table');
+  });
+
+  test('handles meta_ prefixed columns', () => {
+    class Widget implements IModel {
+      [key: string]: any;
+      id: number;
+      constructor(props: any) {
+        this.id = props.id;
+        Object.assign(this, props);
+      }
+    }
+    class Widgets implements ICollection<Widget> {
+      models: Array<Widget>;
+      constructor({ models }: any) { this.models = models; }
+    }
+    const core = createCore({
+      entities: [{
+        tableName: 'widget',
+        columns: ['id'],
+        Model: Widget,
+        Collection: Widgets
+      }]
+    });
+    const result = core.createFromDatabase([
+      { 'widget#id': 1, 'widget#meta_count': 42 }
+    ]);
+    expect(result.models[0].id).toEqual(1);
+    expect(result.models[0].metaCount).toEqual(42);
+  });
+
+  test('throws for non-meta unrecognized columns', () => {
+    class Widget implements IModel {
+      id: number;
+      constructor(props: any) { this.id = props.id; }
+    }
+    class Widgets implements ICollection<Widget> {
+      models: Array<Widget>;
+      constructor({ models }: any) { this.models = models; }
+    }
+    const core = createCore({
+      entities: [{
+        tableName: 'widget',
+        columns: ['id'],
+        Model: Widget,
+        Collection: Widgets
+      }]
+    });
+    expect(() =>
+      core.createFromDatabase([{ 'widget#id': 1, 'widget#unknown_col': 'x' }])
+    ).toThrow('No property name for "unknown_col"');
+  });
+});
+
+/* -------------------------------------------------------------------------*/
+/* tables property ---------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+
+describe('tables property', () => {
+  test('uses displayName as key', () => {
+    const core = createCore({ entities: blogEntities });
+    expect(core.tables.article).toBeDefined();
+    expect(core.tables.person).toBeDefined();
+    expect(core.tables.articleTag).toBeDefined();
+    expect(core.tables.tag).toBeDefined();
+  });
+
+  test('each table entry has a columns string', () => {
+    const core = createCore({ entities: nineEntities });
+    expect(typeof core.tables.featureSwitch.columns).toBe('string');
+    expect(core.tables.featureSwitch.columns).toContain('feature_switch');
+  });
+
+  test('single entity produces single table entry', () => {
+    const core = createCore({ entities: nineEntities });
+    expect(Object.keys(core.tables).length).toEqual(1);
+  });
 });
