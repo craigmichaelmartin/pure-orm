@@ -80,26 +80,20 @@ export const create = ({
   const getSqlInsertParts = (
     model: IModel
   ): { columns: string; values: Array<string>; valuesVar: Array<string> } => {
-    const columns = orm
-      .getEntityByModel(model)
-      .columnNames.filter(
-        (column: string, index: number) =>
-          model[
-            orm.getEntityByModel(model).propertyNames[
-              index
-            ] as keyof typeof model
-          ] !== void 0
-      )
-      .map((col: string) => `"${col}"`)
-      .join(', ');
-    const values = orm
-      .getEntityByModel(model)
-      .propertyNames.map(
-        (property: string) => model[property as keyof typeof model]
-      )
-      .filter((value: any) => value !== void 0);
+    const entity = orm.getEntityByModel(model);
+    const { columnNames, propertyNames } = entity;
+    const cols: Array<string> = [];
+    const values: Array<any> = [];
+    for (let i = 0; i < columnNames.length; i++) {
+      const val = model[propertyNames[i] as keyof typeof model];
+      if (val !== void 0) {
+        cols.push(`"${columnNames[i]}"`);
+        values.push(val);
+      }
+    }
+    const columns = cols.join(', ');
     const valuesVar = values.map(
-      (value: any, index: number) => `$${index + 1}`
+      (_: any, index: number) => `$${index + 1}`
     );
     return { columns, values, valuesVar };
   };
@@ -108,54 +102,44 @@ export const create = ({
     model: IModel,
     on = 'id'
   ): { clause: string; idVar: string; values: Array<string> } => {
-    const clauseArray = orm
-      .getEntityByModel(model)
-      .columnNames.filter(
-        (sqlColumn: string, index: number) =>
-          model[
-            orm.getEntityByModel(model).propertyNames[
-              index
-            ] as keyof typeof model
-          ] !== void 0
-      )
-      .map(
-        (sqlColumn: string, index: number) => `"${sqlColumn}" = $${index + 1}`
-      );
-    const clause = clauseArray.join(', ');
-    const idVar = `$${clauseArray.length + 1}`;
-    const _values = orm
-      .getEntityByModel(model)
-      .propertyNames.map(
-        (property: string) => model[property as keyof typeof model]
-      )
-      .filter((value: any) => value !== void 0);
-    const values = [..._values, model[on as keyof typeof model]];
+    const entity = orm.getEntityByModel(model);
+    const { columnNames, propertyNames } = entity;
+    const clauseParts: Array<string> = [];
+    const values: Array<any> = [];
+    let paramIndex = 1;
+    for (let i = 0; i < columnNames.length; i++) {
+      const val = model[propertyNames[i] as keyof typeof model];
+      if (val !== void 0) {
+        clauseParts.push(`"${columnNames[i]}" = $${paramIndex}`);
+        values.push(val);
+        paramIndex++;
+      }
+    }
+    const clause = clauseParts.join(', ');
+    const idVar = `$${paramIndex}`;
+    values.push(model[on as keyof typeof model]);
     return { clause, idVar, values };
   };
 
   const getMatchingParts = (
     model: IModel
   ): { whereClause: string; values: Array<string> } => {
-    const whereClause = orm
-      .getEntityByModel(model)
-      .propertyNames.map((property: string, index: number) =>
-        model[property as keyof typeof model] != null
-          ? `"${orm.getEntityByModel(model).tableName}"."${
-              orm.getEntityByModel(model).columnNames[index]
-            }"`
-          : null
-      )
-      .filter((x: string | null) => x != null)
-      .map((x: string | null, i: number) => `${x} = $${i + 1}`)
-      .join(' AND ');
-    const values = orm
-      .getEntityByModel(model)
-      .propertyNames.map((property: string) =>
-        model[property as keyof typeof model] != null
-          ? model[property as keyof typeof model]
-          : null
-      )
-      .filter((x: any) => x != null);
+    const entity = orm.getEntityByModel(model);
+    const { propertyNames, columnNames, tableName } = entity;
+    const whereParts: Array<string> = [];
+    const values: Array<any> = [];
+    let paramIndex = 1;
+    for (let i = 0; i < propertyNames.length; i++) {
+      const val = model[propertyNames[i] as keyof typeof model];
+      if (val != null) {
+        whereParts.push(
+          `"${tableName}"."${columnNames[i]}" = $${paramIndex}`
+        );
+        values.push(val);
+        paramIndex++;
+      }
+    }
+    const whereClause = whereParts.join(' AND ');
     return { whereClause, values };
   };
 
@@ -164,67 +148,51 @@ export const create = ({
   const getMatchingPartsObject = (
     model: IModel
   ): { whereClause: string; values: Array<string> } => {
-    const whereClause = orm
-      .getEntityByModel(model)
-      .propertyNames.map((property: string, index: number) =>
-        model[property as keyof typeof model] != null
-          ? `"${orm.getEntityByModel(model).tableName}"."${
-              orm.getEntityByModel(model).columnNames[index]
-            }"`
-          : null
-      )
-      .filter((x: string | null) => x != null)
-      .map((x: string | null, i: number) => `${x} = $(${i + 1})`)
-      .join(' AND ');
-    const values = orm
-      .getEntityByModel(model)
-      .propertyNames.map((property: string) =>
-        model[property as keyof typeof model] != null
-          ? model[property as keyof typeof model]
-          : null
-      )
-      .filter((x: any) => x != null)
-      .reduce(
-        (accum: any, val: any, index: number) =>
-          Object.assign({}, accum, { [index + 1]: val }),
-        {}
-      );
+    const entity = orm.getEntityByModel(model);
+    const { propertyNames, columnNames, tableName } = entity;
+    const whereParts: Array<string> = [];
+    const values: any = {};
+    let paramIndex = 1;
+    for (let i = 0; i < propertyNames.length; i++) {
+      const val = model[propertyNames[i] as keyof typeof model];
+      if (val != null) {
+        whereParts.push(
+          `"${tableName}"."${columnNames[i]}" = $(${paramIndex})`
+        );
+        values[paramIndex] = val;
+        paramIndex++;
+      }
+    }
+    const whereClause = whereParts.join(' AND ');
     return { whereClause, values };
   };
 
   const getNewWith = (model: IModel, sqlColumns: any, values: any): IModel => {
     const Constructor = model.constructor as any;
-    const modelKeys = sqlColumns.map(
-      (key: string) =>
-        orm.getEntityByModel(model).propertyNames[
-          orm.getEntityByModel(model).columnNames.indexOf(key)
-        ]
-    );
-    const modelData = modelKeys.reduce(
-      (data: any, key: string, index: number) => {
-        data[key] = values[index];
-        return data;
-      },
-      {}
-    );
+    const entity = orm.getEntityByModel(model);
+    const modelData: any = {};
+    for (let i = 0; i < sqlColumns.length; i++) {
+      const propertyName = entity.columnToPropertyMap.get(sqlColumns[i]);
+      if (propertyName) {
+        modelData[propertyName] = values[i];
+      }
+    }
     return new Constructor(modelData);
   };
 
   const getValueBySqlColumn = (model: IModel, sqlColumn: string): string => {
-    return model[
-      orm.getEntityByModel(model).propertyNames[
-        orm.getEntityByModel(model).columnNames.indexOf(sqlColumn)
-      ] as keyof typeof model
-    ];
+    const entity = orm.getEntityByModel(model);
+    const propertyName = entity.columnToPropertyMap.get(sqlColumn);
+    return propertyName ? model[propertyName as keyof typeof model] : (undefined as any);
   };
 
   const getSqlColumnForPropertyName = (
     model: IModel,
     propertyName: string
   ): string => {
-    return orm.getEntityByModel(model).columnNames[
-      orm.getEntityByModel(model).propertyNames.indexOf(propertyName)
-    ];
+    const entity = orm.getEntityByModel(model);
+    const idx = entity.propertyNames.indexOf(propertyName);
+    return entity.columnNames[idx];
   };
 
   /* ------------------------------------------------------------------------*/
@@ -233,11 +201,12 @@ export const create = ({
 
   // Standard create
   const create = <T extends IModel>(model: T): Promise<T> => {
+    const entity = orm.getEntityByModel(model);
     const { columns, values, valuesVar } = getSqlInsertParts(model);
     const query = `
-      INSERT INTO "${orm.getEntityByModel(model).tableName}" ( ${columns} )
+      INSERT INTO "${entity.tableName}" ( ${columns} )
       VALUES ( ${valuesVar} )
-      RETURNING ${orm.getEntityByModel(model).selectColumnsClause};
+      RETURNING ${entity.selectColumnsClause};
     `;
     return orm.one<T>(query, values);
   };
@@ -247,42 +216,44 @@ export const create = ({
     model: T,
     { on = 'id' } = {}
   ): Promise<T> => {
+    const entity = orm.getEntityByModel(model);
     const { clause, idVar, values } = getSqlUpdateParts(model, on);
     const query = `
-      UPDATE "${orm.getEntityByModel(model).tableName}"
+      UPDATE "${entity.tableName}"
       SET ${clause}
-      WHERE "${
-        orm.getEntityByModel(model).tableName
-      }".${getSqlColumnForPropertyName(model, on)} = ${idVar}
-      RETURNING ${orm.getEntityByModel(model).selectColumnsClause};
+      WHERE "${entity.tableName}".${getSqlColumnForPropertyName(model, on)} = ${idVar}
+      RETURNING ${entity.selectColumnsClause};
     `;
     return orm.one<T>(query, values);
   };
 
   // Standard delete
   const _delete = <T extends IModel>(model: T): Promise<void> => {
+    const entity = orm.getEntityByModel(model);
     const id = (model as any).id;
     const query = `
-      DELETE FROM "${orm.getEntityByModel(model).tableName}"
-      WHERE "${orm.getEntityByModel(model).tableName}".id = $(id)
+      DELETE FROM "${entity.tableName}"
+      WHERE "${entity.tableName}".id = $(id)
     `;
     return orm.none(query, { id });
   };
 
   const deleteMatching = <T extends IModel>(model: T): Promise<void> => {
+    const entity = orm.getEntityByModel(model);
     const { whereClause, values } = getMatchingParts(model);
     const query = `
-      DELETE FROM "${orm.getEntityByModel(model).tableName}"
+      DELETE FROM "${entity.tableName}"
       WHERE ${whereClause};
     `;
     return orm.none(query, values);
   };
 
   const getMatching = <T extends IModel>(model: T): Promise<T> => {
+    const entity = orm.getEntityByModel(model);
     const { whereClause, values } = getMatchingParts(model);
     const query = `
-      SELECT ${orm.getEntityByModel(model).selectColumnsClause}
-      FROM "${orm.getEntityByModel(model).tableName}"
+      SELECT ${entity.selectColumnsClause}
+      FROM "${entity.tableName}"
       WHERE ${whereClause};
     `;
     return orm.one<T>(query, values);
@@ -291,10 +262,11 @@ export const create = ({
   const getOneOrNoneMatching = <T extends IModel>(
     model: T
   ): Promise<T | void> => {
+    const entity = orm.getEntityByModel(model);
     const { whereClause, values } = getMatchingParts(model);
     const query = `
-      SELECT ${orm.getEntityByModel(model).selectColumnsClause}
-      FROM "${orm.getEntityByModel(model).tableName}"
+      SELECT ${entity.selectColumnsClause}
+      FROM "${entity.tableName}"
       WHERE ${whereClause};
     `;
     return orm.oneOrNone<T>(query, values);
@@ -303,10 +275,11 @@ export const create = ({
   const getAnyMatching = <T extends ICollection<IModel>>(
     model: IModel
   ): Promise<T | void> => {
+    const entity = orm.getEntityByModel(model);
     const { whereClause, values } = getMatchingParts(model);
     const query = `
-      SELECT ${orm.getEntityByModel(model).selectColumnsClause}
-      FROM "${orm.getEntityByModel(model).tableName}"
+      SELECT ${entity.selectColumnsClause}
+      FROM "${entity.tableName}"
       WHERE ${whereClause};
     `;
     return orm.any<T>(query, values);
@@ -315,10 +288,11 @@ export const create = ({
   const getAllMatching = <T extends ICollection<IModel>>(
     model: IModel
   ): Promise<T> => {
+    const entity = orm.getEntityByModel(model);
     const { whereClause, values } = getMatchingParts(model);
     const query = `
-      SELECT ${orm.getEntityByModel(model).selectColumnsClause}
-      FROM "${orm.getEntityByModel(model).tableName}"
+      SELECT ${entity.selectColumnsClause}
+      FROM "${entity.tableName}"
       WHERE ${whereClause};
     `;
     return orm.many<T>(query, values);
