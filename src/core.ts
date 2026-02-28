@@ -52,6 +52,7 @@ export interface IEntityInternal<T extends IModel> {
   selectColumnsClause: string;
   getPkId: (model: IModel) => string;
   columnToPropertyMap: Map<string, string>;
+  propertyToColumnMap: Map<string, string>;
   referencesEntries: Array<{ property: string; ModelClass: IModelClass }>;
 }
 export type IEntitiesInternal<T extends IModel> = Array<IEntityInternal<T>>;
@@ -166,8 +167,10 @@ export const createCore = ({
       }
 
       const columnToPropertyMap = new Map<string, string>();
+      const propertyToColumnMap = new Map<string, string>();
       for (let i = 0; i < columnNames.length; i++) {
         columnToPropertyMap.set(columnNames[i], propertyNames[i]);
+        propertyToColumnMap.set(propertyNames[i], columnNames[i]);
       }
 
       const selectColumnsClause = prefixedColumnNames
@@ -192,6 +195,7 @@ export const createCore = ({
         selectColumnsClause,
         getPkId,
         columnToPropertyMap,
+        propertyToColumnMap,
         referencesEntries
       };
     }

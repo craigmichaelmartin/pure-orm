@@ -77,24 +77,61 @@ export const create = ({
   /* Helper Utilities for CRUD functions ------------------------------------*/
   /* ------------------------------------------------------------------------*/
 
+  interface IOrmHelperPlan {
+    quotedColumns: Array<string>;
+    updateClausePrefixes: Array<string>;
+    wherePositionalPrefixes: Array<string>;
+    whereNamedPrefixes: Array<string>;
+  }
+
+  const helperPlanByEntity = new Map<any, IOrmHelperPlan>();
+  const getHelperPlan = (entity: any): IOrmHelperPlan => {
+    let plan = helperPlanByEntity.get(entity);
+    if (!plan) {
+      const quotedColumns = new Array(entity.columnNames.length);
+      const updateClausePrefixes = new Array(entity.columnNames.length);
+      const wherePositionalPrefixes = new Array(entity.columnNames.length);
+      const whereNamedPrefixes = new Array(entity.columnNames.length);
+      for (let i = 0; i < entity.columnNames.length; i++) {
+        const column = entity.columnNames[i];
+        quotedColumns[i] = `"${column}"`;
+        updateClausePrefixes[i] = `"${column}" = $`;
+        wherePositionalPrefixes[i] = `"${entity.tableName}"."${column}" = $`;
+        whereNamedPrefixes[i] = `"${entity.tableName}"."${column}" = $(`;
+      }
+      plan = {
+        quotedColumns,
+        updateClausePrefixes,
+        wherePositionalPrefixes,
+        whereNamedPrefixes
+      };
+      helperPlanByEntity.set(entity, plan);
+    }
+    return plan;
+  };
+
   const getSqlInsertParts = (
     model: IModel
   ): { columns: string; values: Array<string>; valuesVar: Array<string> } => {
     const entity = orm.getEntityByModel(model);
     const { columnNames, propertyNames } = entity;
-    const cols: Array<string> = [];
+    const helperPlan = getHelperPlan(entity);
+    let columns = '';
     const values: Array<any> = [];
+    const valuesVar: Array<string> = [];
+    let paramIndex = 1;
     for (let i = 0; i < columnNames.length; i++) {
       const val = model[propertyNames[i] as keyof typeof model];
       if (val !== void 0) {
-        cols.push(`"${columnNames[i]}"`);
+        if (columns) {
+          columns += ', ';
+        }
+        columns += helperPlan.quotedColumns[i];
         values.push(val);
+        valuesVar.push(`$${paramIndex}`);
+        paramIndex++;
       }
     }
-    const columns = cols.join(', ');
-    const valuesVar = values.map(
-      (_: any, index: number) => `$${index + 1}`
-    );
     return { columns, values, valuesVar };
   };
 
@@ -104,18 +141,21 @@ export const create = ({
   ): { clause: string; idVar: string; values: Array<string> } => {
     const entity = orm.getEntityByModel(model);
     const { columnNames, propertyNames } = entity;
-    const clauseParts: Array<string> = [];
+    const helperPlan = getHelperPlan(entity);
+    let clause = '';
     const values: Array<any> = [];
     let paramIndex = 1;
     for (let i = 0; i < columnNames.length; i++) {
       const val = model[propertyNames[i] as keyof typeof model];
       if (val !== void 0) {
-        clauseParts.push(`"${columnNames[i]}" = $${paramIndex}`);
+        if (clause) {
+          clause += ', ';
+        }
+        clause += helperPlan.updateClausePrefixes[i] + paramIndex;
         values.push(val);
         paramIndex++;
       }
     }
-    const clause = clauseParts.join(', ');
     const idVar = `$${paramIndex}`;
     values.push(model[on as keyof typeof model]);
     return { clause, idVar, values };
@@ -125,21 +165,22 @@ export const create = ({
     model: IModel
   ): { whereClause: string; values: Array<string> } => {
     const entity = orm.getEntityByModel(model);
-    const { propertyNames, columnNames, tableName } = entity;
-    const whereParts: Array<string> = [];
+    const { propertyNames, columnNames } = entity;
+    const helperPlan = getHelperPlan(entity);
     const values: Array<any> = [];
     let paramIndex = 1;
+    let whereClause = '';
     for (let i = 0; i < propertyNames.length; i++) {
       const val = model[propertyNames[i] as keyof typeof model];
       if (val != null) {
-        whereParts.push(
-          `"${tableName}"."${columnNames[i]}" = $${paramIndex}`
-        );
+        if (whereClause) {
+          whereClause += ' AND ';
+        }
+        whereClause += helperPlan.wherePositionalPrefixes[i] + paramIndex;
         values.push(val);
         paramIndex++;
       }
     }
-    const whereClause = whereParts.join(' AND ');
     return { whereClause, values };
   };
 
@@ -149,21 +190,22 @@ export const create = ({
     model: IModel
   ): { whereClause: string; values: Array<string> } => {
     const entity = orm.getEntityByModel(model);
-    const { propertyNames, columnNames, tableName } = entity;
-    const whereParts: Array<string> = [];
+    const { propertyNames, columnNames } = entity;
+    const helperPlan = getHelperPlan(entity);
     const values: any = {};
     let paramIndex = 1;
+    let whereClause = '';
     for (let i = 0; i < propertyNames.length; i++) {
       const val = model[propertyNames[i] as keyof typeof model];
       if (val != null) {
-        whereParts.push(
-          `"${tableName}"."${columnNames[i]}" = $(${paramIndex})`
-        );
+        if (whereClause) {
+          whereClause += ' AND ';
+        }
+        whereClause += helperPlan.whereNamedPrefixes[i] + paramIndex + ')';
         values[paramIndex] = val;
         paramIndex++;
       }
     }
-    const whereClause = whereParts.join(' AND ');
     return { whereClause, values };
   };
 
@@ -191,8 +233,8 @@ export const create = ({
     propertyName: string
   ): string => {
     const entity = orm.getEntityByModel(model);
-    const idx = entity.propertyNames.indexOf(propertyName);
-    return entity.columnNames[idx];
+    const column = entity.propertyToColumnMap.get(propertyName);
+    return column as string;
   };
 
   /* ------------------------------------------------------------------------*/
