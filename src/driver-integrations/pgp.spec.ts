@@ -111,7 +111,7 @@ describe('oneOrNone', () => {
 
     const result = await pgp.oneOrNone('SELECT ...', { id: 1 });
     expect(db.any).toHaveBeenCalledWith('SELECT ...', { id: 1 });
-    expect(result.id).toEqual(1);
+    expect(result!.id).toEqual(1);
   });
 
   test('returns undefined when no results', async () => {

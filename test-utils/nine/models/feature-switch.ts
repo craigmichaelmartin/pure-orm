@@ -5,13 +5,13 @@ export const tableName: string = 'feature_switch';
 export const columns: IColumns = ['id', 'label', 'on'];
 
 interface IFeatureSwitchProps {
-  id: number;
+  id: string | number;
   label: string;
   on: boolean;
 }
 
 export class FeatureSwitch implements IModel {
-  id: number;
+  id: string | number;
   label: string;
   on: boolean;
 

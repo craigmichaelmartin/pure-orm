@@ -309,7 +309,7 @@ describe('CRUD operations', () => {
   const orderSelectClause =
     '"order".id as "order#id", "order".email as "order#email", "order".browser_ip as "order#browser_ip", "order".browser_user_agent as "order#browser_user_agent", "order".kujo_imported_date as "order#kujo_imported_date", "order".created_date as "order#created_date", "order".cancel_reason as "order#cancel_reason", "order".cancelled_date as "order#cancelled_date", "order".closed_date as "order#closed_date", "order".processed_date as "order#processed_date", "order".updated_date as "order#updated_date", "order".note as "order#note", "order".subtotal_price as "order#subtotal_price", "order".taxes_included as "order#taxes_included", "order".total_discounts as "order#total_discounts", "order".total_price as "order#total_price", "order".total_tax as "order#total_tax", "order".total_weight as "order#total_weight", "order".order_status_url as "order#order_status_url", "order".utm_source_id as "order#utm_source_id", "order".utm_medium_id as "order#utm_medium_id", "order".utm_campaign as "order#utm_campaign", "order".utm_content as "order#utm_content", "order".utm_term as "order#utm_term"';
 
-  const makeRow = (id: number, email: string) => ({
+  const makeRow = (id: number, email: string | null) => ({
     'order#id': id,
     'order#email': email,
     'order#browser_ip': null,
@@ -466,7 +466,7 @@ describe('CRUD operations', () => {
       const result = await orm.getOneOrNoneMatching(order);
       expect(db.any).toHaveBeenCalledTimes(1);
       expect(result).toBeDefined();
-      expect(result.id).toEqual(1);
+      expect(result!.id).toEqual(1);
     });
 
     test('returns undefined when none exist', async () => {

@@ -27,7 +27,7 @@ export interface IPureORM extends ICoreIntegratedDriver {
   ) => Promise<T | void>;
   getAllMatching: <T extends ICollection<IModel>>(model: IModel) => Promise<T>;
   create: <T extends IModel>(model: T) => Promise<T>;
-  update: <T extends IModel>(model: T, options: { on: string }) => Promise<T>;
+  update: <T extends IModel>(model: T, options?: { on: string }) => Promise<T>;
   delete: <T extends IModel>(model: T) => Promise<void>;
   deleteMatching: <T extends IModel>(model: T) => Promise<void>;
 
