@@ -241,251 +241,13 @@ export const createCore = ({
     return getEntityByModelClass(model.constructor as IModelClass);
   };
 
-  /*
-   * In:
-   *  [
-   *    [Article {id: 32}, ArticleTag {id: 54}]
-   *    [Article {id: 32}, ArticleTag {id: 55}]
-   *  ]
-   * Out:
-   *  Article {id: 32, ArticleTags articleTags: [ArticleTag {id: 54}, ArticleTag {id: 55}]
-   */
-  const nestClump = (clump: Array<Array<IModel>>): object => {
-    const normalized = new Array<Array<IModel>>(clump.length);
-    for (let i = 0; i < clump.length; i++) {
-      normalized[i] = Object.values(clump[i]);
-    }
-    const root = normalized[0][0];
-    const rows = new Array<Array<IModel>>(normalized.length);
-    for (let i = 0; i < normalized.length; i++) {
-      const row = normalized[i];
-      const withoutRoot = new Array<IModel>(row.length - 1);
-      for (let j = 1; j < row.length; j++) {
-        withoutRoot[j - 1] = row[j];
-      }
-      rows[i] = withoutRoot;
-    }
-    const rootEntity = getEntityByModel(root);
-    const built = { [rootEntity.displayName]: root };
-
-    let nodes: Array<IModel> = [root];
-    const firstNodeIndexByConstructor = new Map<IModelClass, number>();
-    firstNodeIndexByConstructor.set(root.constructor as IModelClass, 0);
-    const prependNode = (node: IModel) => {
-      nodes.unshift(node);
-      for (const [ctor, idx] of firstNodeIndexByConstructor) {
-        firstNodeIndexByConstructor.set(ctor, idx + 1);
-      }
-      firstNodeIndexByConstructor.set(node.constructor as IModelClass, 0);
-    };
-    const seenNodes = new Map<string, IModel>();
-    const nodeKey = (model: IModel): string => {
-      const entity = getEntityByModel(model);
-      return model.constructor.name + ':' + entity.getPkId(model);
-    };
-    seenNodes.set(nodeKey(root), root);
-
-    const entityCache = new Map<IModel, IEntityInternal<IModel>>();
-    const getEntity = (model: IModel): IEntityInternal<IModel> => {
-      let entity = entityCache.get(model);
-      if (!entity) {
-        entity = getEntityByModel(model);
-        entityCache.set(model, entity);
-      }
-      return entity;
-    };
-    entityCache.set(root, rootEntity);
-    const latestNodePointingToByClass = new Map<IModelClass, Map<any, IModel>>();
-    const indexNodeRefs = (node: IModel) => {
-      const nodeEntity = getEntity(node);
-      const refs = nodeEntity.referencesEntries;
-      for (let i = 0; i < refs.length; i++) {
-        const ref = refs[i];
-        const refId = node[ref.property as keyof typeof node];
-        if (refId == null) {
-          continue;
-        }
-        let byId = latestNodePointingToByClass.get(ref.ModelClass);
-        if (!byId) {
-          byId = new Map<any, IModel>();
-          latestNodePointingToByClass.set(ref.ModelClass, byId);
-        }
-        byId.set(refId, node);
-      }
-    };
-    indexNodeRefs(root);
-
-    rows.forEach((array: Array<IModel>) => {
-      array.forEach((_model: IModel) => {
-        const key = nodeKey(_model);
-        const nodeAlreadySeen = seenNodes.get(key);
-        const model = nodeAlreadySeen || _model;
-        const isNodeAlreadySeen = !!nodeAlreadySeen;
-        const modelEntity = getEntity(model);
-
-        const nodePointingToIt = latestNodePointingToByClass
-          .get(model.constructor as IModelClass)
-          ?.get(model.id);
-
-        // For first obj type which has an instance in nodes array,
-        // get its index in nodes array
-        let indexOfOldestParent = 0;
-        for (let arrayIndex = 0; arrayIndex < array.length; arrayIndex++) {
-          const index = firstNodeIndexByConstructor.get(
-            array[arrayIndex].constructor as IModelClass
-          );
-          if (index != null) {
-            indexOfOldestParent = index;
-            break;
-          }
-        }
-
-        let nodeItPointsTo: IModel | void = void 0;
-        const refs = modelEntity.referencesEntries;
-        if (refs.length) {
-          let pointsToRoot = false;
-          for (let refIndex = 0; refIndex < refs.length; refIndex++) {
-            const ref = refs[refIndex];
-            if (
-              ref.ModelClass === root.constructor &&
-              model[ref.property] === root.id
-            ) {
-              pointsToRoot = true;
-              break;
-            }
-          }
-          if (pointsToRoot) {
-            nodeItPointsTo = root;
-          } else {
-            for (let parentIndex = indexOfOldestParent; parentIndex >= 0; parentIndex--) {
-              const parent = nodes[parentIndex];
-              let pointsToParent = false;
-              for (let refIndex = 0; refIndex < refs.length; refIndex++) {
-                const ref = refs[refIndex];
-                if (
-                  ref.ModelClass === parent.constructor &&
-                  model[ref.property] === parent.id
-                ) {
-                  pointsToParent = true;
-                  break;
-                }
-              }
-              if (pointsToParent) {
-                nodeItPointsTo = parent;
-                break;
-              }
-            }
-          }
-        }
-
-        if (isNodeAlreadySeen) {
-          if (nodeItPointsTo && !nodePointingToIt) {
-            prependNode(model);
-            indexNodeRefs(model);
-            return;
-          }
-          if (nodePointingToIt) {
-            const ec =
-              model[
-                getEntity(nodePointingToIt)
-                  .collectionDisplayName as keyof typeof model
-              ];
-            if (
-              ec &&
-              ec.models.some((m: IModel) => m === nodePointingToIt)
-            ) {
-              prependNode(model);
-              indexNodeRefs(model);
-              return;
-            }
-          }
-        }
-        if (nodePointingToIt) {
-          nodePointingToIt[modelEntity.displayName] = model;
-        } else if (nodeItPointsTo) {
-          let collection = nodeItPointsTo[modelEntity.collectionDisplayName];
-          if (collection) {
-            collection.models.push(model);
-          } else {
-            const Collection = modelEntity.Collection;
-            nodeItPointsTo[modelEntity.collectionDisplayName] =
-              new Collection({
-                models: [model]
-              });
-          }
-        } else {
-          if (!modelEntity.getPkId(model)) {
-            return;
-          }
-          throw Error(
-            `Could not find how this BO fits: ${JSON.stringify(model)} ${
-              modelEntity.tableName
-            }`
-          );
-        }
-        if (!isNodeAlreadySeen) {
-          seenNodes.set(key, model);
-        }
-        prependNode(model);
-        indexNodeRefs(model);
-      });
-    });
-
-    return built;
-  };
-
-  /*
-   * Clump array of flat objects into groups based on id of root
-   */
-  const clumpIntoGroups = (
-    processed: Array<Array<IModel>>
-  ): Array<Array<Array<IModel>>> => {
-    const root = processed[0][0];
-    const rootBo = root.constructor;
-    const rootEntity = getEntityByModel(root);
-    const primaryKeys = rootEntity.primaryKeys;
-    const clumps = new Map<string, Array<Array<IModel>>>();
-    let rootIndex = -1;
-    for (let i = 0; i < processed[0].length; i++) {
-      if (processed[0][i].constructor === rootBo) {
-        rootIndex = i;
-        break;
-      }
-    }
-    if (rootIndex === -1) {
-      rootIndex = 0;
-    }
-
-    for (const item of processed) {
-      const rootModel =
-        item[rootIndex] && item[rootIndex].constructor === rootBo
-          ? item[rootIndex]
-          : item.find((x: IModel) => x.constructor === rootBo);
-      let id = '';
-      for (let i = 0; i < primaryKeys.length; i++) {
-        if (i > 0) {
-          id += '@';
-        }
-        const value = rootModel?.[primaryKeys[i] as keyof typeof rootModel];
-        id += value === void 0 || value === null ? '' : String(value);
-      }
-      const group = clumps.get(id);
-      if (group) {
-        group.push(item);
-      } else {
-        clumps.set(id, [item]);
-      }
-    }
-    return [...clumps.values()];
-  };
-
-  interface IColumnReadPlan {
+  interface IRowColumnPlan {
     rowKey: string;
     propertyName: string;
   }
   interface IEntityRowPlan {
     entity: IEntityInternal<IModel>;
-    columnPlans: Array<IColumnReadPlan>;
+    columnPlans: Array<IRowColumnPlan>;
     primaryKeyPropertyNames: Array<string>;
   }
 
@@ -555,11 +317,11 @@ export const createCore = ({
     return orderedPlans;
   };
 
-  const mapDatabaseRowToBos = (
+  const materializeModelsFromRow = (
     row: any,
     entityRowPlans: Array<IEntityRowPlan>,
-    modelCacheByEntity: Map<IEntityInternal<IModel>, Map<string, IModel>>,
-    scopeId: string
+    scopedModelCacheByEntity: Map<IEntityInternal<IModel>, Map<string, IModel>>,
+    rootScopeKey: string
   ): Array<IModel> => {
     const models = new Array<IModel>(entityRowPlans.length);
     for (let i = 0; i < entityRowPlans.length; i++) {
@@ -572,11 +334,11 @@ export const createCore = ({
 
       const pkId = getPkIdFromProperties(props, plan.primaryKeyPropertyNames);
       if (pkId) {
-        const scopedPkId = `${scopeId}#${pkId}`;
-        let entityCache = modelCacheByEntity.get(plan.entity);
+        const scopedPkId = `${rootScopeKey}#${pkId}`;
+        let entityCache = scopedModelCacheByEntity.get(plan.entity);
         if (!entityCache) {
           entityCache = new Map<string, IModel>();
-          modelCacheByEntity.set(plan.entity, entityCache);
+          scopedModelCacheByEntity.set(plan.entity, entityCache);
         } else {
           const existing = entityCache.get(scopedPkId);
           if (existing) {
@@ -594,36 +356,171 @@ export const createCore = ({
     return models;
   };
 
+  type IModelsByEntity = Map<IEntityInternal<IModel>, Map<string, IModel>>;
+  type IModelsByRootAndEntity = Map<string, IModelsByEntity>;
+
+  const getRootScopeKey = (
+    row: any,
+    rootEntity: IEntityInternal<IModel>,
+    rootPrimaryKeys: Array<string>
+  ): string => {
+    let rootScopeKey = '';
+    for (let i = 0; i < rootPrimaryKeys.length; i++) {
+      if (i > 0) {
+        rootScopeKey += '@';
+      }
+      const value = row[`${rootEntity.tableName}#${rootPrimaryKeys[i]}`];
+      rootScopeKey += value === void 0 || value === null ? '' : String(value);
+    }
+    return rootScopeKey;
+  };
+
+  const ensureRootEntityModels = (
+    rootScopeKey: string,
+    modelsByRootAndEntity: IModelsByRootAndEntity
+  ): IModelsByEntity => {
+    let modelsByEntity = modelsByRootAndEntity.get(rootScopeKey);
+    if (!modelsByEntity) {
+      modelsByEntity = new Map<IEntityInternal<IModel>, Map<string, IModel>>();
+      modelsByRootAndEntity.set(rootScopeKey, modelsByEntity);
+    }
+    return modelsByEntity;
+  };
+
+  const ensureEntityModelsForRoot = (
+    rootScopeKey: string,
+    entity: IEntityInternal<IModel>,
+    modelsByRootAndEntity: IModelsByRootAndEntity
+  ): Map<string, IModel> => {
+    const modelsByEntity = ensureRootEntityModels(
+      rootScopeKey,
+      modelsByRootAndEntity
+    );
+    let models = modelsByEntity.get(entity);
+    if (!models) {
+      models = new Map<string, IModel>();
+      modelsByEntity.set(entity, models);
+    }
+    return models;
+  };
+
+  // Phase 2: wire directional refs and inverse collections across
+  // the already materialized models within one root scope.
+  const linkRootScopeRelationships = (modelsByEntity: IModelsByEntity) => {
+    const collectionMembership = new WeakMap<IModel, Map<string, Set<string>>>();
+    for (const [entity, modelMap] of modelsByEntity) {
+      for (const model of modelMap.values()) {
+        const refs = entity.referencesEntries;
+        for (let j = 0; j < refs.length; j++) {
+          const ref = refs[j];
+          const targetEntity = getEntityByModelClass(ref.ModelClass);
+          const targetModels = modelsByEntity.get(targetEntity);
+          if (!targetModels) {
+            continue;
+          }
+          const refId = model[ref.property as keyof typeof model];
+          if (refId == null) {
+            continue;
+          }
+          const target = targetModels.get(String(refId));
+          if (!target) {
+            continue;
+          }
+
+          model[targetEntity.displayName as keyof typeof model] = target;
+
+          let collection =
+            target[entity.collectionDisplayName as keyof typeof target];
+          if (!collection) {
+            const Collection = entity.Collection;
+            collection = new Collection({ models: [] });
+            target[entity.collectionDisplayName as keyof typeof target] =
+              collection;
+          }
+
+          let byCollection = collectionMembership.get(target);
+          if (!byCollection) {
+            byCollection = new Map<string, Set<string>>();
+            collectionMembership.set(target, byCollection);
+          }
+          let memberIds = byCollection.get(entity.collectionDisplayName);
+          if (!memberIds) {
+            memberIds = new Set<string>();
+            byCollection.set(entity.collectionDisplayName, memberIds);
+          }
+          const modelId = model.constructor.name + ':' + entity.getPkId(model);
+          if (!memberIds.has(modelId)) {
+            collection.models.push(model);
+            memberIds.add(modelId);
+          }
+        }
+      }
+    }
+  };
+
+  /*
+   * createFromDatabase architecture:
+   * 1) Compile row plans once (column -> property mapping per entity/table).
+   * 2) Materialize models per row with scoped de-duplication by root scope key.
+   * 3) Index models by root scope + entity + entity primary key.
+   * 4) Link directional refs and inverse collections within each root scope.
+   * 5) Return root models in first-seen root scope order.
+   */
   const createFromDatabase = <T extends ICollection<IModel>>(rows: any): T => {
     const result = Array.isArray(rows) ? rows : [rows];
     const len = result.length;
     const entityRowPlans = buildEntityRowPlans(result[0]);
     const rootEntity = entityRowPlans[0].entity;
     const rootPrimaryKeys = rootEntity.primaryKeys;
-    const modelCacheByEntity = new Map<IEntityInternal<IModel>, Map<string, IModel>>();
-    const boified = new Array(len);
+    const scopedModelCacheByEntity = new Map<
+      IEntityInternal<IModel>,
+      Map<string, IModel>
+    >();
+    const rootScopeOrder: Array<string> = [];
+    const rootModelsByScopeKey = new Map<string, IModel>();
+    const modelsByRootAndEntity: IModelsByRootAndEntity = new Map();
+
+    // Phase 1: materialize and index model instances by root scope + entity.
     for (let i = 0; i < len; i++) {
       const row = result[i];
-      let scopeId = '';
-      for (let j = 0; j < rootPrimaryKeys.length; j++) {
-        if (j > 0) {
-          scopeId += '@';
-        }
-        const value = row[`${rootEntity.tableName}#${rootPrimaryKeys[j]}`];
-        scopeId += value === void 0 || value === null ? '' : String(value);
-      }
-      boified[i] = mapDatabaseRowToBos(
+      const rootScopeKey = getRootScopeKey(row, rootEntity, rootPrimaryKeys);
+      const models = materializeModelsFromRow(
         row,
         entityRowPlans,
-        modelCacheByEntity,
-        scopeId
+        scopedModelCacheByEntity,
+        rootScopeKey
+      );
+      for (let j = 0; j < models.length; j++) {
+        const model = models[j];
+        const plan = entityRowPlans[j];
+        const pkId = plan.entity.getPkId(model);
+        if (!pkId) {
+          continue;
+        }
+        ensureEntityModelsForRoot(
+          rootScopeKey,
+          plan.entity,
+          modelsByRootAndEntity
+        ).set(pkId, model);
+      }
+      const rootModel = models[0];
+      if (!rootModelsByScopeKey.has(rootScopeKey)) {
+        rootScopeOrder.push(rootScopeKey);
+        rootModelsByScopeKey.set(rootScopeKey, rootModel);
+      }
+    }
+
+    // Phase 2: link references and collection membership per root scope.
+    for (let i = 0; i < rootScopeOrder.length; i++) {
+      const rootScopeKey = rootScopeOrder[i];
+      linkRootScopeRelationships(
+        ensureRootEntityModels(rootScopeKey, modelsByRootAndEntity)
       );
     }
-    const clumps = clumpIntoGroups(boified);
-    const models = new Array<IModel>(clumps.length);
-    for (let i = 0; i < clumps.length; i++) {
-      const nested = nestClump(clumps[i]);
-      models[i] = Object.values(nested)[0] as IModel;
+
+    const models = new Array<IModel>(rootScopeOrder.length);
+    for (let i = 0; i < rootScopeOrder.length; i++) {
+      models[i] = rootModelsByScopeKey.get(rootScopeOrder[i]) as IModel;
     }
     const Collection = getEntityByModel(models[0]).Collection;
     return <T>new Collection({ models });
