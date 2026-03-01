@@ -1207,7 +1207,12 @@ describe('getEntityByModel', () => {
 
   test('returns correct entity among multiple registered entities', () => {
     const core = createCore({ entities: orderEntities });
-    const utm = new UtmSource({ id: 1, value: 'google', label: 'Google', internal: 'false' });
+    const utm = new UtmSource({
+      id: 1,
+      value: 'google',
+      label: 'Google',
+      internal: 'false'
+    });
     const entity = core.getEntityByModel(utm);
     expect(entity.tableName).toEqual('utm_source');
     expect(entity.displayName).toEqual('utmSource');
@@ -1310,20 +1315,26 @@ describe('entity configuration', () => {
   test('custom displayName is used instead of camelCase tableName', () => {
     class Widget implements IModel {
       id: number;
-      constructor(props: any) { this.id = props.id; }
+      constructor(props: any) {
+        this.id = props.id;
+      }
     }
     class Widgets implements ICollection<Widget> {
       models: Array<Widget>;
-      constructor({ models }: any) { this.models = models; }
+      constructor({ models }: any) {
+        this.models = models;
+      }
     }
     const core = createCore({
-      entities: [{
-        tableName: 'widget_thing',
-        displayName: 'myWidget',
-        columns: ['id'],
-        Model: Widget,
-        Collection: Widgets
-      }]
+      entities: [
+        {
+          tableName: 'widget_thing',
+          displayName: 'myWidget',
+          columns: ['id'],
+          Model: Widget,
+          Collection: Widgets
+        }
+      ]
     });
     expect(core.tables.myWidget).toBeDefined();
     expect(core.tables.myWidget.columns).toEqual(
@@ -1334,20 +1345,26 @@ describe('entity configuration', () => {
   test('custom collectionDisplayName is used', () => {
     class Goose implements IModel {
       id: number;
-      constructor(props: any) { this.id = props.id; }
+      constructor(props: any) {
+        this.id = props.id;
+      }
     }
     class Geese implements ICollection<Goose> {
       models: Array<Goose>;
-      constructor({ models }: any) { this.models = models; }
+      constructor({ models }: any) {
+        this.models = models;
+      }
     }
     const core = createCore({
-      entities: [{
-        tableName: 'goose',
-        collectionDisplayName: 'geese',
-        columns: ['id'],
-        Model: Goose,
-        Collection: Geese
-      }]
+      entities: [
+        {
+          tableName: 'goose',
+          collectionDisplayName: 'geese',
+          columns: ['id'],
+          Model: Goose,
+          Collection: Geese
+        }
+      ]
     });
     const entity = core.getEntityByTableName('goose');
     expect(entity.collectionDisplayName).toEqual('geese');
@@ -1363,20 +1380,27 @@ describe('entity configuration', () => {
     class Item implements IModel {
       id: number;
       name: string;
-      constructor(props: any) { this.id = props.id; this.name = props.name; }
+      constructor(props: any) {
+        this.id = props.id;
+        this.name = props.name;
+      }
     }
     class Items implements ICollection<Item> {
       models: Array<Item>;
-      constructor({ models }: any) { this.models = models; }
+      constructor({ models }: any) {
+        this.models = models;
+      }
     }
     const columnsFn: IColumns = () => ['id', 'name'];
     const core = createCore({
-      entities: [{
-        tableName: 'item',
-        columns: columnsFn,
-        Model: Item,
-        Collection: Items
-      }]
+      entities: [
+        {
+          tableName: 'item',
+          columns: columnsFn,
+          Model: Item,
+          Collection: Items
+        }
+      ]
     });
     const entity = core.getEntityByTableName('item');
     expect(entity.columnNames).toEqual(['id', 'name']);
@@ -1387,22 +1411,26 @@ describe('entity configuration', () => {
     class Tenant implements IModel {
       slug: string;
       name: string;
-      constructor(props: any) { this.slug = props.slug; this.name = props.name; }
+      constructor(props: any) {
+        this.slug = props.slug;
+        this.name = props.name;
+      }
     }
     class Tenants implements ICollection<Tenant> {
       models: Array<Tenant>;
-      constructor({ models }: any) { this.models = models; }
+      constructor({ models }: any) {
+        this.models = models;
+      }
     }
     const core = createCore({
-      entities: [{
-        tableName: 'tenant',
-        columns: [
-          { column: 'slug', primaryKey: true },
-          'name'
-        ],
-        Model: Tenant,
-        Collection: Tenants
-      }]
+      entities: [
+        {
+          tableName: 'tenant',
+          columns: [{ column: 'slug', primaryKey: true }, 'name'],
+          Model: Tenant,
+          Collection: Tenants
+        }
+      ]
     });
     const entity = core.getEntityByTableName('tenant');
     expect(entity.primaryKeys).toEqual(['slug']);
@@ -1412,22 +1440,29 @@ describe('entity configuration', () => {
     class Mapping implements IModel {
       aId: number;
       bId: number;
-      constructor(props: any) { this.aId = props.aId; this.bId = props.bId; }
+      constructor(props: any) {
+        this.aId = props.aId;
+        this.bId = props.bId;
+      }
     }
     class Mappings implements ICollection<Mapping> {
       models: Array<Mapping>;
-      constructor({ models }: any) { this.models = models; }
+      constructor({ models }: any) {
+        this.models = models;
+      }
     }
     const core = createCore({
-      entities: [{
-        tableName: 'mapping',
-        columns: [
-          { column: 'a_id', primaryKey: true },
-          { column: 'b_id', primaryKey: true }
-        ],
-        Model: Mapping,
-        Collection: Mappings
-      }]
+      entities: [
+        {
+          tableName: 'mapping',
+          columns: [
+            { column: 'a_id', primaryKey: true },
+            { column: 'b_id', primaryKey: true }
+          ],
+          Model: Mapping,
+          Collection: Mappings
+        }
+      ]
     });
     const entity = core.getEntityByTableName('mapping');
     expect(entity.primaryKeys).toEqual(['a_id', 'b_id']);
@@ -1436,19 +1471,25 @@ describe('entity configuration', () => {
   test('column with explicit property name overrides camelCase', () => {
     class Thing implements IModel {
       myIP: string;
-      constructor(props: any) { this.myIP = props.myIP; }
+      constructor(props: any) {
+        this.myIP = props.myIP;
+      }
     }
     class Things implements ICollection<Thing> {
       models: Array<Thing>;
-      constructor({ models }: any) { this.models = models; }
+      constructor({ models }: any) {
+        this.models = models;
+      }
     }
     const core = createCore({
-      entities: [{
-        tableName: 'thing',
-        columns: [{ column: 'ip_address', property: 'myIP' }],
-        Model: Thing,
-        Collection: Things
-      }]
+      entities: [
+        {
+          tableName: 'thing',
+          columns: [{ column: 'ip_address', property: 'myIP' }],
+          Model: Thing,
+          Collection: Things
+        }
+      ]
     });
     const entity = core.getEntityByTableName('thing');
     expect(entity.propertyNames).toEqual(['myIP']);
@@ -1459,22 +1500,29 @@ describe('entity configuration', () => {
     class Mapping implements IModel {
       a_id: number;
       b_id: number;
-      constructor(props: any) { this.a_id = props.aId; this.b_id = props.bId; }
+      constructor(props: any) {
+        this.a_id = props.aId;
+        this.b_id = props.bId;
+      }
     }
     class Mappings implements ICollection<Mapping> {
       models: Array<Mapping>;
-      constructor({ models }: any) { this.models = models; }
+      constructor({ models }: any) {
+        this.models = models;
+      }
     }
     const core = createCore({
-      entities: [{
-        tableName: 'mapping',
-        columns: [
-          { column: 'a_id', primaryKey: true },
-          { column: 'b_id', primaryKey: true }
-        ],
-        Model: Mapping,
-        Collection: Mappings
-      }]
+      entities: [
+        {
+          tableName: 'mapping',
+          columns: [
+            { column: 'a_id', primaryKey: true },
+            { column: 'b_id', primaryKey: true }
+          ],
+          Model: Mapping,
+          Collection: Mappings
+        }
+      ]
     });
     const entity = core.getEntityByTableName('mapping');
     const m = new Mapping({ aId: 5, bId: 10 });
@@ -1484,19 +1532,25 @@ describe('entity configuration', () => {
   test('entity with no columns other than id', () => {
     class Simple implements IModel {
       id: number;
-      constructor(props: any) { this.id = props.id; }
+      constructor(props: any) {
+        this.id = props.id;
+      }
     }
     class Simples implements ICollection<Simple> {
       models: Array<Simple>;
-      constructor({ models }: any) { this.models = models; }
+      constructor({ models }: any) {
+        this.models = models;
+      }
     }
     const core = createCore({
-      entities: [{
-        tableName: 'simple',
-        columns: ['id'],
-        Model: Simple,
-        Collection: Simples
-      }]
+      entities: [
+        {
+          tableName: 'simple',
+          columns: ['id'],
+          Model: Simple,
+          Collection: Simples
+        }
+      ]
     });
     const entity = core.getEntityByTableName('simple');
     expect(entity.columnNames).toEqual(['id']);
@@ -1513,7 +1567,11 @@ describe('entity configuration', () => {
 describe('createFromDatabase edge cases', () => {
   test('handles a single row (not an array)', () => {
     const core = createCore({ entities: nineEntities });
-    const row = { 'feature_switch#id': 'test_switch', 'feature_switch#label': 'Test', 'feature_switch#on': true };
+    const row = {
+      'feature_switch#id': 'test_switch',
+      'feature_switch#label': 'Test',
+      'feature_switch#on': true
+    };
     const result = core.createFromDatabase(row);
     expect(result.models.length).toEqual(1);
     expect(result.models[0].id).toEqual('test_switch');
@@ -1537,15 +1595,19 @@ describe('createFromDatabase edge cases', () => {
     }
     class Widgets implements ICollection<Widget> {
       models: Array<Widget>;
-      constructor({ models }: any) { this.models = models; }
+      constructor({ models }: any) {
+        this.models = models;
+      }
     }
     const core = createCore({
-      entities: [{
-        tableName: 'widget',
-        columns: ['id'],
-        Model: Widget,
-        Collection: Widgets
-      }]
+      entities: [
+        {
+          tableName: 'widget',
+          columns: ['id'],
+          Model: Widget,
+          Collection: Widgets
+        }
+      ]
     });
     const result = core.createFromDatabase([
       { 'widget#id': 1, 'widget#meta_count': 42 }
@@ -1557,19 +1619,25 @@ describe('createFromDatabase edge cases', () => {
   test('throws for non-meta unrecognized columns', () => {
     class Widget implements IModel {
       id: number;
-      constructor(props: any) { this.id = props.id; }
+      constructor(props: any) {
+        this.id = props.id;
+      }
     }
     class Widgets implements ICollection<Widget> {
       models: Array<Widget>;
-      constructor({ models }: any) { this.models = models; }
+      constructor({ models }: any) {
+        this.models = models;
+      }
     }
     const core = createCore({
-      entities: [{
-        tableName: 'widget',
-        columns: ['id'],
-        Model: Widget,
-        Collection: Widgets
-      }]
+      entities: [
+        {
+          tableName: 'widget',
+          columns: ['id'],
+          Model: Widget,
+          Collection: Widgets
+        }
+      ]
     });
     expect(() =>
       core.createFromDatabase([{ 'widget#id': 1, 'widget#unknown_col': 'x' }])

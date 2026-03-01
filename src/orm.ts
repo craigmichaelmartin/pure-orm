@@ -225,7 +225,9 @@ export const create = ({
   const getValueBySqlColumn = (model: IModel, sqlColumn: string): string => {
     const entity = orm.getEntityByModel(model);
     const propertyName = entity.columnToPropertyMap.get(sqlColumn);
-    return propertyName ? model[propertyName as keyof typeof model] : (undefined as any);
+    return propertyName
+      ? model[propertyName as keyof typeof model]
+      : (undefined as any);
   };
 
   const getSqlColumnForPropertyName = (
@@ -263,7 +265,10 @@ export const create = ({
     const query = `
       UPDATE "${entity.tableName}"
       SET ${clause}
-      WHERE "${entity.tableName}".${getSqlColumnForPropertyName(model, on)} = ${idVar}
+      WHERE "${entity.tableName}".${getSqlColumnForPropertyName(
+      model,
+      on
+    )} = ${idVar}
       RETURNING ${entity.selectColumnsClause};
     `;
     return orm.one<T>(query, values);

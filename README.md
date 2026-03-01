@@ -738,13 +738,6 @@ PureORM
 
 ## Current Status
 
-#### Current Todos (PRs welcome!):
-
-- Performance. While the API has been somewhat thought through and iterated on to this point, the implementation details have been secondary, knowing that they can be perfected in time. Probably about time now.
-- Add more tests
-- Known Bug: if a table references the same table twice, the first one is found as the nodePointingToIt and so ends up throwing.
-  - ideally the fix to this will change the behavior of when a table points to another table by another name (author_id -> person)
-
 #### Is it production ready?
 
 It is in production at [www.kujo.com](https://www.kujo.com) - powering the marketing pages and blog, as well as the customer, affiliate, and admin platforms (behind login). When considering for your case, note the Current Limitations and TODOs sections above.

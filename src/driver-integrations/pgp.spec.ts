@@ -323,9 +323,9 @@ describe('error handling', () => {
       throw new Error('custom handled');
     }) as any;
 
-    await expect(pgp.one('SELECT ...', undefined, customHandler)).rejects.toThrow(
-      'custom handled'
-    );
+    await expect(
+      pgp.one('SELECT ...', undefined, customHandler)
+    ).rejects.toThrow('custom handled');
     expect(customHandler).toHaveBeenCalledWith(err);
   });
 
@@ -394,7 +394,12 @@ describe('error handling', () => {
 describe('createForPGP return structure', () => {
   test('includes all core methods', () => {
     const core = createCore({ entities: simpleEntities });
-    const db = { many: jest.fn(), any: jest.fn(), result: jest.fn(), none: jest.fn() };
+    const db = {
+      many: jest.fn(),
+      any: jest.fn(),
+      result: jest.fn(),
+      none: jest.fn()
+    };
     const pgp = createForPGP({ core, db });
 
     expect(typeof pgp.createFromDatabase).toBe('function');
@@ -409,7 +414,12 @@ describe('createForPGP return structure', () => {
 
   test('includes all query methods', () => {
     const core = createCore({ entities: simpleEntities });
-    const db = { many: jest.fn(), any: jest.fn(), result: jest.fn(), none: jest.fn() };
+    const db = {
+      many: jest.fn(),
+      any: jest.fn(),
+      result: jest.fn(),
+      none: jest.fn()
+    };
     const pgp = createForPGP({ core, db });
 
     expect(typeof pgp.one).toBe('function');
@@ -421,7 +431,12 @@ describe('createForPGP return structure', () => {
 
   test('exposes db reference', () => {
     const core = createCore({ entities: simpleEntities });
-    const db = { many: jest.fn(), any: jest.fn(), result: jest.fn(), none: jest.fn() };
+    const db = {
+      many: jest.fn(),
+      any: jest.fn(),
+      result: jest.fn(),
+      none: jest.fn()
+    };
     const pgp = createForPGP({ core, db });
 
     expect(pgp.db).toBe(db);

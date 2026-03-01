@@ -252,7 +252,11 @@ describe('getNewWith', () => {
       db: mockPgpDb()
     });
     const order = new Order({ id: 1 });
-    const newOrder = orm.getNewWith(order, ['id', 'email'], [99, 'new@test.com']);
+    const newOrder = orm.getNewWith(
+      order,
+      ['id', 'email'],
+      [99, 'new@test.com']
+    );
     expect(newOrder).toBeInstanceOf(Order);
     expect(newOrder.id).toEqual(99);
     expect(newOrder.email).toEqual('new@test.com');

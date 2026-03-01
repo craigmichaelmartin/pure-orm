@@ -3,15 +3,25 @@ const fs = require('fs');
 const path = require('path');
 const { createCore } = require('../dist/src/core');
 const { create: createOrm } = require('../dist/src/orm');
-const { entities: orderEntities } = require('../dist/test-utils/order/entities');
+const {
+  entities: orderEntities
+} = require('../dist/test-utils/order/entities');
 const { entities: blogEntities } = require('../dist/test-utils/blog/entities');
-const { entities: orderMoreEntities } = require('../dist/test-utils/order-more/entities');
+const {
+  entities: orderMoreEntities
+} = require('../dist/test-utils/order-more/entities');
 const { entities: nineEntities } = require('../dist/test-utils/nine/entities');
 const { entities: fiveEntities } = require('../dist/test-utils/five/entities');
 const { entities: sixEntities } = require('../dist/test-utils/six/entities');
-const { entities: twelveEntities } = require('../dist/test-utils/twelve/entities');
-const { entities: thirteenEntities } = require('../dist/test-utils/thirteen/entities');
-const { entities: fourteenEntities } = require('../dist/test-utils/fourteen/entities');
+const {
+  entities: twelveEntities
+} = require('../dist/test-utils/twelve/entities');
+const {
+  entities: thirteenEntities
+} = require('../dist/test-utils/thirteen/entities');
+const {
+  entities: fourteenEntities
+} = require('../dist/test-utils/fourteen/entities');
 
 const two = require('../dist/test-utils/two/results');
 const three = require('../dist/test-utils/three/results');
@@ -139,7 +149,7 @@ const STRESS_SCENARIOS = [
 ];
 
 const createRng = (seed) => {
-  let state = (seed >>> 0) || 1;
+  let state = seed >>> 0 || 1;
   return () => {
     state = (state * 1664525 + 1013904223) >>> 0;
     return state / 0x100000000;
@@ -259,7 +269,9 @@ const buildStressRows = ({
   const rootTable = firstKey ? firstKey.split('#')[0] : 'order';
   for (let i = 0; i < multiplier; i++) {
     for (const row of sourceRows) {
-      let base = sparseJoins ? sparsifyRow({ row, rootTablePrefix: rootTable }) : row;
+      let base = sparseJoins
+        ? sparsifyRow({ row, rootTablePrefix: rootTable })
+        : row;
       if (unstableColumnOrder) {
         base = reorderRowKeys(base);
       }
@@ -334,7 +346,13 @@ const indexByLabel = (items) => {
   return index;
 };
 
-const printDeltaTable = ({ title, currentItems, baselineItems, metric, unit }) => {
+const printDeltaTable = ({
+  title,
+  currentItems,
+  baselineItems,
+  metric,
+  unit
+}) => {
   const baselineByLabel = indexByLabel(baselineItems);
   console.log(`\n${title}`);
   for (let i = 0; i < currentItems.length; i++) {
@@ -375,7 +393,9 @@ const loadBaseline = (inputPath) => {
 const main = () => {
   const rng = createRng(BENCH_SEED);
   console.log('Pure ORM core.createFromDatabase benchmark');
-  console.log('Coverage: all core.spec test-utils fixtures + stress scenarios\n');
+  console.log(
+    'Coverage: all core.spec test-utils fixtures + stress scenarios\n'
+  );
   console.log(
     `Sampling: ${SAMPLE_COUNT} samples/scenario, ${
       global.gc ? 'GC enabled' : 'GC not enabled'
@@ -403,25 +423,32 @@ const main = () => {
   console.log('Fixture scenarios');
   for (const r of fixtureResults) {
     console.log(
-      `${r.label.padEnd(22)} | rows=${String(r.rows).padStart(4)} | rounds=${String(
-        r.rounds
-      ).padStart(3)} | ${format(r.perIterMs, 4)} ms/iter | ${format(
-        r.rowsPerSecond,
-        0
-      )} rows/sec | med=${format(r.medianElapsedMs, 2)}ms mean=${format(
-        r.meanElapsedMs,
+      `${r.label.padEnd(22)} | rows=${String(r.rows).padStart(
+        4
+      )} | rounds=${String(r.rounds).padStart(3)} | ${format(
+        r.perIterMs,
+        4
+      )} ms/iter | ${format(r.rowsPerSecond, 0)} rows/sec | med=${format(
+        r.medianElapsedMs,
         2
-      )}ms min=${format(r.minElapsedMs, 2)}ms max=${format(r.maxElapsedMs, 2)}ms`
+      )}ms mean=${format(r.meanElapsedMs, 2)}ms min=${format(
+        r.minElapsedMs,
+        2
+      )}ms max=${format(r.maxElapsedMs, 2)}ms`
     );
   }
-  const fixtureGeomean = geometricMean(fixtureResults.map((r) => r.rowsPerSecond));
+  const fixtureGeomean = geometricMean(
+    fixtureResults.map((r) => r.rowsPerSecond)
+  );
   console.log(`fixture geomean rows/sec: ${format(fixtureGeomean, 0)}\n`);
 
   const stressResults = STRESS_SCENARIOS.map((scenario) => {
     let entities = scenario.entities;
     let rows;
     if (scenario.compositePk) {
-      const composite = createCompositePkScenario({ multiplier: scenario.multiplier });
+      const composite = createCompositePkScenario({
+        multiplier: scenario.multiplier
+      });
       entities = composite.entities;
       rows = composite.rows;
     } else {
@@ -439,18 +466,22 @@ const main = () => {
   console.log('Stress scenarios');
   for (const r of stressResults) {
     console.log(
-      `${r.label.padEnd(22)} | rows=${String(r.rows).padStart(5)} | rounds=${String(
-        r.rounds
-      ).padStart(2)} | ${format(r.perIterMs)} ms/iter | ${format(
-        r.rowsPerSecond,
-        0
-      )} rows/sec | med=${format(r.medianElapsedMs, 2)}ms mean=${format(
-        r.meanElapsedMs,
+      `${r.label.padEnd(22)} | rows=${String(r.rows).padStart(
+        5
+      )} | rounds=${String(r.rounds).padStart(2)} | ${format(
+        r.perIterMs
+      )} ms/iter | ${format(r.rowsPerSecond, 0)} rows/sec | med=${format(
+        r.medianElapsedMs,
         2
-      )}ms min=${format(r.minElapsedMs, 2)}ms max=${format(r.maxElapsedMs, 2)}ms`
+      )}ms mean=${format(r.meanElapsedMs, 2)}ms min=${format(
+        r.minElapsedMs,
+        2
+      )}ms max=${format(r.maxElapsedMs, 2)}ms`
     );
   }
-  const stressGeomean = geometricMean(stressResults.map((r) => r.rowsPerSecond));
+  const stressGeomean = geometricMean(
+    stressResults.map((r) => r.rowsPerSecond)
+  );
   console.log(`stress geomean rows/sec:  ${format(stressGeomean, 0)}`);
 
   const fakeDb = {
@@ -490,7 +521,12 @@ const main = () => {
       utmTerm: `term-${i % 9}`
     });
   });
-  const benchmarkProperties = ['updatedDate', 'email', 'totalPrice', 'utmCampaign'];
+  const benchmarkProperties = [
+    'updatedDate',
+    'email',
+    'totalPrice',
+    'utmCampaign'
+  ];
   const ormHelperScenarios = [
     {
       label: 'orm/getSqlInsertParts',
@@ -547,13 +583,13 @@ const main = () => {
       opsPerSec
     });
     console.log(
-      `${scenario.label.padEnd(30)} | ${format(medianMs, 2)} ms total (median) | ${format(
-        opsPerSec,
-        0
-      )} ops/sec | mean=${format(meanMs, 2)}ms min=${format(minMs, 2)}ms max=${format(
-        maxMs,
+      `${scenario.label.padEnd(30)} | ${format(
+        medianMs,
         2
-      )}ms`
+      )} ms total (median) | ${format(opsPerSec, 0)} ops/sec | mean=${format(
+        meanMs,
+        2
+      )}ms min=${format(minMs, 2)}ms max=${format(maxMs, 2)}ms`
     );
   }
 

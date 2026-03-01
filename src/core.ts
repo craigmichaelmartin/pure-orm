@@ -275,7 +275,10 @@ export const createCore = ({
     primaryKeyRowKeys: Array<string>;
   }
 
-  const getPkIdFromRow = (row: any, primaryKeyRowKeys: Array<string>): string => {
+  const getPkIdFromRow = (
+    row: any,
+    primaryKeyRowKeys: Array<string>
+  ): string => {
     let id = '';
     for (let i = 0; i < primaryKeyRowKeys.length; i++) {
       const part = row[primaryKeyRowKeys[i]];
@@ -391,7 +394,10 @@ export const createCore = ({
   type IModelsByEntity = Map<IEntityInternal<IModel>, Map<string, IModel>>;
   interface IRootScopeState {
     modelsByEntity: IModelsByEntity;
-    collectionMembership?: WeakMap<IModel, Map<IEntityInternal<IModel>, Set<string>>>;
+    collectionMembership?: WeakMap<
+      IModel,
+      Map<IEntityInternal<IModel>, Set<string>>
+    >;
   }
   type IRootScopeStateByKey = Map<string, IRootScopeState>;
 
@@ -450,17 +456,24 @@ export const createCore = ({
     sourceModelPkId: string;
     targetEntity: IEntityInternal<IModel>;
     targetModel: IModel;
-    collectionMembership: WeakMap<IModel, Map<IEntityInternal<IModel>, Set<string>>>;
+    collectionMembership: WeakMap<
+      IModel,
+      Map<IEntityInternal<IModel>, Set<string>>
+    >;
   }) => {
-    sourceModel[targetEntity.displayName as keyof typeof sourceModel] = targetModel;
+    sourceModel[targetEntity.displayName as keyof typeof sourceModel] =
+      targetModel;
 
     let collection =
-      targetModel[sourceEntity.collectionDisplayName as keyof typeof targetModel];
+      targetModel[
+        sourceEntity.collectionDisplayName as keyof typeof targetModel
+      ];
     if (!collection) {
       const Collection = sourceEntity.Collection;
       collection = new Collection({ models: [] });
-      targetModel[sourceEntity.collectionDisplayName as keyof typeof targetModel] =
-        collection;
+      targetModel[
+        sourceEntity.collectionDisplayName as keyof typeof targetModel
+      ] = collection;
     }
 
     let byCollection = collectionMembership.get(targetModel);
@@ -502,7 +515,9 @@ export const createCore = ({
     for (let i = 0; i < entityRowPlans.length; i++) {
       const entity = entityRowPlans[i].entity;
       const refs = entityReferencePlans.get(entity) || [];
-      const filteredRefs = refs.filter((ref) => selectedEntities.has(ref.targetEntity));
+      const filteredRefs = refs.filter((ref) =>
+        selectedEntities.has(ref.targetEntity)
+      );
       applicableRefPlans.set(entity, filteredRefs);
     }
     const rootEntity = entityRowPlans[0].entity;
@@ -522,7 +537,10 @@ export const createCore = ({
       const rootScopeKey = getRootScopeKey(row, rootEntity, rootPrimaryKeys);
       let rootScopeState: IRootScopeState | void = currentRootScopeState;
       if (!rootScopeState || rootScopeKey !== currentRootScopeKey) {
-        rootScopeState = ensureRootScopeState(rootScopeKey, rootScopeStateByKey);
+        rootScopeState = ensureRootScopeState(
+          rootScopeKey,
+          rootScopeStateByKey
+        );
         currentRootScopeKey = rootScopeKey;
         currentRootScopeState = rootScopeState;
       }
