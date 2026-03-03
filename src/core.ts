@@ -464,16 +464,20 @@ export const createCore = ({
     sourceModel[targetEntity.displayName as keyof typeof sourceModel] =
       targetModel;
 
-    let collection =
-      targetModel[
-        sourceEntity.collectionDisplayName as keyof typeof targetModel
-      ];
+    const collectionKey =
+      sourceEntity.collectionDisplayName as keyof typeof targetModel;
+    let collection = targetModel[collectionKey];
     if (!collection) {
       const Collection = sourceEntity.Collection;
-      collection = new Collection({ models: [] });
-      targetModel[
-        sourceEntity.collectionDisplayName as keyof typeof targetModel
-      ] = collection;
+      const createdCollection = new Collection({ models: [] });
+      // Keep ORM back-reference collections out of default JSON serialization.
+      Object.defineProperty(targetModel, collectionKey, {
+        value: createdCollection,
+        writable: true,
+        configurable: true,
+        enumerable: false
+      });
+      collection = createdCollection;
     }
 
     let byCollection = collectionMembership.get(targetModel);

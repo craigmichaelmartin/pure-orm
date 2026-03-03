@@ -29,6 +29,19 @@ const thirteen = require('../test-utils/thirteen/results.json');
 const fourteen = require('../test-utils/fourteen/results.json');
 
 describe('createFromDatabase', () => {
+  test('models can be JSON.stringified without circular errors', () => {
+    const core = createCore({ entities: orderEntities });
+    const orders = core.createFromDatabase(one);
+    const order = orders.models[0];
+
+    expect(() => JSON.stringify(order)).not.toThrow();
+    const serialized = JSON.parse(JSON.stringify(order));
+    expect(serialized.id).toEqual(3866);
+    expect(serialized.utmSource.id).toEqual(6);
+    // Reverse collections remain usable in-memory but are not serialized.
+    expect(serialized.utmSource.orders).toBeUndefined();
+  });
+
   test('multiple rows reduce to one nested object (with all one-to-one or one-to-many tables)', () => {
     const core = createCore({ entities: orderEntities });
     const orders = core.createFromDatabase(one);
