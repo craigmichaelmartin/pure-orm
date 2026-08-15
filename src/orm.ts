@@ -77,22 +77,45 @@ export const create = ({
   /* Helper Utilities for CRUD functions ------------------------------------*/
   /* ------------------------------------------------------------------------*/
 
+  /* The generated SQL fragments depend only on *which* properties of a model
+   * are set, never on their values. That "shape" is captured as a bit mask so
+   * the clause strings and `$n` placeholder arrays are built once per shape
+   * and reused, leaving only value collection on the hot path.
+   */
   interface IOrmHelperPlan {
+    entity: any;
+    propertyNames: Array<string>;
+    columnCount: number;
     quotedColumns: Array<string>;
     updateClausePrefixes: Array<string>;
     wherePositionalPrefixes: Array<string>;
     whereNamedPrefixes: Array<string>;
+    insertCache: Map<
+      number | string,
+      { columns: string; valuesVar: Array<string> }
+    >;
+    updateCache: Map<number | string, { clause: string; idVar: string }>;
+    matchingCache: Map<number | string, string>;
+    matchingObjectCache: Map<number | string, string>;
   }
 
-  const helperPlanByEntity = new Map<any, IOrmHelperPlan>();
-  const getHelperPlan = (entity: any): IOrmHelperPlan => {
-    let plan = helperPlanByEntity.get(entity);
-    if (!plan) {
-      const quotedColumns = new Array(entity.columnNames.length);
-      const updateClausePrefixes = new Array(entity.columnNames.length);
-      const wherePositionalPrefixes = new Array(entity.columnNames.length);
-      const whereNamedPrefixes = new Array(entity.columnNames.length);
-      for (let i = 0; i < entity.columnNames.length; i++) {
+  const MAX_SHAPE_CACHE = 512;
+  // Bit masks stay in SMI range; wider tables fall back to a packed string key.
+  const MASK_COLUMN_LIMIT = 30;
+  const WIDE_CHUNK_BITS = 15;
+
+  const helperPlanByConstructor = new Map<any, IOrmHelperPlan>();
+  const getHelperPlan = (model: IModel): IOrmHelperPlan => {
+    const constructor = model.constructor;
+    let plan = helperPlanByConstructor.get(constructor);
+    if (plan === void 0) {
+      const entity = orm.getEntityByModel(model);
+      const columnCount = entity.columnNames.length;
+      const quotedColumns = new Array(columnCount);
+      const updateClausePrefixes = new Array(columnCount);
+      const wherePositionalPrefixes = new Array(columnCount);
+      const whereNamedPrefixes = new Array(columnCount);
+      for (let i = 0; i < columnCount; i++) {
         const column = entity.columnNames[i];
         quotedColumns[i] = `"${column}"`;
         updateClausePrefixes[i] = `"${column}" = $`;
@@ -100,86 +123,192 @@ export const create = ({
         whereNamedPrefixes[i] = `"${entity.tableName}"."${column}" = $(`;
       }
       plan = {
+        entity,
+        propertyNames: entity.propertyNames,
+        columnCount,
         quotedColumns,
         updateClausePrefixes,
         wherePositionalPrefixes,
-        whereNamedPrefixes
+        whereNamedPrefixes,
+        insertCache: new Map(),
+        updateCache: new Map(),
+        matchingCache: new Map(),
+        matchingObjectCache: new Map()
       };
-      helperPlanByEntity.set(entity, plan);
+      helperPlanByConstructor.set(constructor, plan);
     }
     return plan;
+  };
+
+  const cacheShape = <T>(
+    cache: Map<number | string, T>,
+    shapeKey: number | string,
+    value: T
+  ): T => {
+    if (cache.size >= MAX_SHAPE_CACHE) {
+      cache.clear();
+    }
+    cache.set(shapeKey, value);
+    return value;
+  };
+
+  /* Wide-table fallback: pack the shape bits into a short string key. */
+  const collectWide = (
+    model: IModel,
+    propertyNames: Array<string>,
+    columnCount: number,
+    values: Array<any>,
+    skipNull: boolean
+  ): string => {
+    let shapeKey = '';
+    let chunk = 0;
+    let bit = 0;
+    for (let i = 0; i < columnCount; i++) {
+      const val = model[propertyNames[i] as keyof typeof model];
+      if (skipNull ? val != null : val !== void 0) {
+        chunk |= 1 << bit;
+        values.push(val);
+      }
+      bit++;
+      if (bit === WIDE_CHUNK_BITS) {
+        shapeKey += String.fromCharCode(chunk);
+        chunk = 0;
+        bit = 0;
+      }
+    }
+    if (bit > 0) {
+      shapeKey += String.fromCharCode(chunk);
+    }
+    return shapeKey;
   };
 
   const getSqlInsertParts = (
     model: IModel
   ): { columns: string; values: Array<string>; valuesVar: Array<string> } => {
-    const entity = orm.getEntityByModel(model);
-    const { columnNames, propertyNames } = entity;
-    const helperPlan = getHelperPlan(entity);
-    let columns = '';
+    const helperPlan = getHelperPlan(model);
+    const { propertyNames, columnCount } = helperPlan;
     const values: Array<any> = [];
-    const valuesVar: Array<string> = [];
-    let paramIndex = 1;
-    for (let i = 0; i < columnNames.length; i++) {
-      const val = model[propertyNames[i] as keyof typeof model];
-      if (val !== void 0) {
-        if (columns) {
-          columns += ', ';
+    let shapeKey: number | string;
+    if (columnCount <= MASK_COLUMN_LIMIT) {
+      let mask = 0;
+      for (let i = 0; i < columnCount; i++) {
+        const val = model[propertyNames[i] as keyof typeof model];
+        if (val !== void 0) {
+          mask |= 1 << i;
+          values.push(val);
         }
-        columns += helperPlan.quotedColumns[i];
-        values.push(val);
-        valuesVar.push(`$${paramIndex}`);
-        paramIndex++;
       }
+      shapeKey = mask;
+    } else {
+      shapeKey = collectWide(model, propertyNames, columnCount, values, false);
     }
-    return { columns, values, valuesVar };
+
+    let cached = helperPlan.insertCache.get(shapeKey);
+    if (cached === void 0) {
+      let columns = '';
+      const valuesVar: Array<string> = [];
+      let paramIndex = 1;
+      for (let i = 0; i < columnCount; i++) {
+        if (model[propertyNames[i] as keyof typeof model] !== void 0) {
+          if (columns) {
+            columns += ', ';
+          }
+          columns += helperPlan.quotedColumns[i];
+          valuesVar.push(`$${paramIndex}`);
+          paramIndex++;
+        }
+      }
+      cached = cacheShape(helperPlan.insertCache, shapeKey, {
+        columns,
+        valuesVar
+      });
+    }
+    return {
+      columns: cached.columns,
+      values,
+      valuesVar: cached.valuesVar.slice()
+    };
   };
 
   const getSqlUpdateParts = (
     model: IModel,
     on = 'id'
   ): { clause: string; idVar: string; values: Array<string> } => {
-    const entity = orm.getEntityByModel(model);
-    const { columnNames, propertyNames } = entity;
-    const helperPlan = getHelperPlan(entity);
-    let clause = '';
+    const helperPlan = getHelperPlan(model);
+    const { propertyNames, columnCount } = helperPlan;
     const values: Array<any> = [];
-    let paramIndex = 1;
-    for (let i = 0; i < columnNames.length; i++) {
-      const val = model[propertyNames[i] as keyof typeof model];
-      if (val !== void 0) {
-        if (clause) {
-          clause += ', ';
+    let shapeKey: number | string;
+    if (columnCount <= MASK_COLUMN_LIMIT) {
+      let mask = 0;
+      for (let i = 0; i < columnCount; i++) {
+        const val = model[propertyNames[i] as keyof typeof model];
+        if (val !== void 0) {
+          mask |= 1 << i;
+          values.push(val);
         }
-        clause += helperPlan.updateClausePrefixes[i] + paramIndex;
-        values.push(val);
-        paramIndex++;
       }
+      shapeKey = mask;
+    } else {
+      shapeKey = collectWide(model, propertyNames, columnCount, values, false);
     }
-    const idVar = `$${paramIndex}`;
+
+    let cached = helperPlan.updateCache.get(shapeKey);
+    if (cached === void 0) {
+      let clause = '';
+      let paramIndex = 1;
+      for (let i = 0; i < columnCount; i++) {
+        if (model[propertyNames[i] as keyof typeof model] !== void 0) {
+          if (clause) {
+            clause += ', ';
+          }
+          clause += helperPlan.updateClausePrefixes[i] + paramIndex;
+          paramIndex++;
+        }
+      }
+      cached = cacheShape(helperPlan.updateCache, shapeKey, {
+        clause,
+        idVar: `$${paramIndex}`
+      });
+    }
     values.push(model[on as keyof typeof model]);
-    return { clause, idVar, values };
+    return { clause: cached.clause, idVar: cached.idVar, values };
   };
 
   const getMatchingParts = (
     model: IModel
   ): { whereClause: string; values: Array<string> } => {
-    const entity = orm.getEntityByModel(model);
-    const { propertyNames, columnNames } = entity;
-    const helperPlan = getHelperPlan(entity);
+    const helperPlan = getHelperPlan(model);
+    const { propertyNames, columnCount } = helperPlan;
     const values: Array<any> = [];
-    let paramIndex = 1;
-    let whereClause = '';
-    for (let i = 0; i < propertyNames.length; i++) {
-      const val = model[propertyNames[i] as keyof typeof model];
-      if (val != null) {
-        if (whereClause) {
-          whereClause += ' AND ';
+    let shapeKey: number | string;
+    if (columnCount <= MASK_COLUMN_LIMIT) {
+      let mask = 0;
+      for (let i = 0; i < columnCount; i++) {
+        const val = model[propertyNames[i] as keyof typeof model];
+        if (val != null) {
+          mask |= 1 << i;
+          values.push(val);
         }
-        whereClause += helperPlan.wherePositionalPrefixes[i] + paramIndex;
-        values.push(val);
-        paramIndex++;
       }
+      shapeKey = mask;
+    } else {
+      shapeKey = collectWide(model, propertyNames, columnCount, values, true);
+    }
+
+    let whereClause = helperPlan.matchingCache.get(shapeKey);
+    if (whereClause === void 0) {
+      whereClause = '';
+      let paramIndex = 1;
+      for (let i = 0; i < columnCount; i++) {
+        if (model[propertyNames[i] as keyof typeof model] != null) {
+          if (whereClause) {
+            whereClause += ' AND ';
+          }
+          whereClause += helperPlan.wherePositionalPrefixes[i] + paramIndex;
+          paramIndex++;
+        }
+      }
+      cacheShape(helperPlan.matchingCache, shapeKey, whereClause);
     }
     return { whereClause, values };
   };
@@ -189,29 +318,58 @@ export const create = ({
   const getMatchingPartsObject = (
     model: IModel
   ): { whereClause: string; values: Array<string> } => {
-    const entity = orm.getEntityByModel(model);
-    const { propertyNames, columnNames } = entity;
-    const helperPlan = getHelperPlan(entity);
+    const helperPlan = getHelperPlan(model);
+    const { propertyNames, columnCount } = helperPlan;
     const values: any = {};
     let paramIndex = 1;
-    let whereClause = '';
-    for (let i = 0; i < propertyNames.length; i++) {
-      const val = model[propertyNames[i] as keyof typeof model];
-      if (val != null) {
-        if (whereClause) {
-          whereClause += ' AND ';
+    let shapeKey: number | string;
+    if (columnCount <= MASK_COLUMN_LIMIT) {
+      let mask = 0;
+      for (let i = 0; i < columnCount; i++) {
+        const val = model[propertyNames[i] as keyof typeof model];
+        if (val != null) {
+          mask |= 1 << i;
+          values[paramIndex] = val;
+          paramIndex++;
         }
-        whereClause += helperPlan.whereNamedPrefixes[i] + paramIndex + ')';
-        values[paramIndex] = val;
+      }
+      shapeKey = mask;
+    } else {
+      const wideValues: Array<any> = [];
+      shapeKey = collectWide(
+        model,
+        propertyNames,
+        columnCount,
+        wideValues,
+        true
+      );
+      for (let i = 0; i < wideValues.length; i++) {
+        values[paramIndex] = wideValues[i];
         paramIndex++;
       }
+    }
+
+    let whereClause = helperPlan.matchingObjectCache.get(shapeKey);
+    if (whereClause === void 0) {
+      whereClause = '';
+      let clauseIndex = 1;
+      for (let i = 0; i < columnCount; i++) {
+        if (model[propertyNames[i] as keyof typeof model] != null) {
+          if (whereClause) {
+            whereClause += ' AND ';
+          }
+          whereClause += helperPlan.whereNamedPrefixes[i] + clauseIndex + ')';
+          clauseIndex++;
+        }
+      }
+      cacheShape(helperPlan.matchingObjectCache, shapeKey, whereClause);
     }
     return { whereClause, values };
   };
 
   const getNewWith = (model: IModel, sqlColumns: any, values: any): IModel => {
     const Constructor = model.constructor as any;
-    const entity = orm.getEntityByModel(model);
+    const entity = getHelperPlan(model).entity;
     const modelData: any = {};
     for (let i = 0; i < sqlColumns.length; i++) {
       const propertyName = entity.columnToPropertyMap.get(sqlColumns[i]);
@@ -223,7 +381,7 @@ export const create = ({
   };
 
   const getValueBySqlColumn = (model: IModel, sqlColumn: string): string => {
-    const entity = orm.getEntityByModel(model);
+    const entity = getHelperPlan(model).entity;
     const propertyName = entity.columnToPropertyMap.get(sqlColumn);
     return propertyName
       ? model[propertyName as keyof typeof model]
@@ -234,7 +392,7 @@ export const create = ({
     model: IModel,
     propertyName: string
   ): string => {
-    const entity = orm.getEntityByModel(model);
+    const entity = getHelperPlan(model).entity;
     const column = entity.propertyToColumnMap.get(propertyName);
     return column as string;
   };

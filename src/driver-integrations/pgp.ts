@@ -59,12 +59,14 @@ export const createForPGP = ({
   ): Promise<T | void> => {
     return db
       .result(query, values)
-      .then((result: any) =>
-        core.createAnyFromDatabase(
+      .then((result: any) => {
+        const name = result.fields[0].name;
+        const hashIndex = name.indexOf('#');
+        return core.createAnyFromDatabase(
           result.rows,
-          result.fields[0].name.split('#')[0]
-        )
-      )
+          hashIndex === -1 ? name : name.substring(0, hashIndex)
+        );
+      })
       .catch(errorHandler);
   };
 

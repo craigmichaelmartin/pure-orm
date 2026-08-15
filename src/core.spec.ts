@@ -1682,3 +1682,107 @@ describe('tables property', () => {
     expect(Object.keys(core.tables).length).toEqual(1);
   });
 });
+
+/* -------------------------------------------------------------------------*/
+/* Row plan reuse ----------------------------------------------------------*/
+/* -------------------------------------------------------------------------*/
+
+describe('row plan reuse', () => {
+  test('repeated queries produce independent object graphs', () => {
+    const core = createCore({ entities: orderEntities });
+    const first = core.createFromDatabase(one);
+    const second = core.createFromDatabase(one);
+    expect(second.models.length).toEqual(first.models.length);
+    expect(second.models[0].id).toEqual(first.models[0].id);
+    expect(second.models[0]).not.toBe(first.models[0]);
+    expect(second.models[0].lineItems.models.length).toEqual(
+      first.models[0].lineItems.models.length
+    );
+    expect(second.models[0].lineItems.models[0]).not.toBe(
+      first.models[0].lineItems.models[0]
+    );
+    expect(second.models[0].utmSource).not.toBe(first.models[0].utmSource);
+  });
+
+  test('interleaved query shapes on one core stay correct', () => {
+    const core = createCore({ entities: nineEntities });
+    const wide = [
+      { 'feature_switch#id': 'a', 'feature_switch#label': 'A' },
+      { 'feature_switch#id': 'b', 'feature_switch#label': 'B' }
+    ];
+    const narrow = [{ 'feature_switch#id': 'c' }];
+    for (let i = 0; i < 3; i++) {
+      const wideResult = core.createFromDatabase(wide);
+      expect(wideResult.models.map((m: any) => m.id)).toEqual(['a', 'b']);
+      expect(wideResult.models[0].label).toEqual('A');
+
+      const narrowResult = core.createFromDatabase(narrow);
+      expect(narrowResult.models.length).toEqual(1);
+      expect(narrowResult.models[0].id).toEqual('c');
+      expect(narrowResult.models[0].label).toBeUndefined();
+    }
+  });
+
+  test('a reordered column list is treated as its own shape', () => {
+    const core = createCore({ entities: nineEntities });
+    const inOrder = core.createFromDatabase([
+      { 'feature_switch#id': 'x', 'feature_switch#on': true }
+    ]);
+    const reordered = core.createFromDatabase([
+      { 'feature_switch#on': false, 'feature_switch#id': 'y' }
+    ]);
+    expect(inOrder.models[0].id).toEqual('x');
+    expect(inOrder.models[0].on).toEqual(true);
+    expect(reordered.models[0].id).toEqual('y');
+    expect(reordered.models[0].on).toEqual(false);
+  });
+
+  test('rows of the same root are grouped when not contiguous', () => {
+    const core = createCore({ entities: orderEntities });
+    const other = one.map((row: any) => ({
+      ...row,
+      'order#id': 9999,
+      'line_item#order_id': 9999
+    }));
+    const interleaved: Array<any> = [];
+    for (let i = 0; i < one.length; i++) {
+      interleaved.push(one[i], other[i]);
+    }
+    const orders = core.createFromDatabase(interleaved);
+    expect(orders.models.length).toEqual(2);
+    expect(orders.models.map((m: any) => m.id)).toEqual([3866, 9999]);
+    expect(orders.models[0].lineItems.models.length).toEqual(6);
+    expect(orders.models[1].lineItems.models.length).toEqual(6);
+    expect(orders.models[0].lineItems.models[0]).not.toBe(
+      orders.models[1].lineItems.models[0]
+    );
+  });
+
+  test('two columns referencing the same table link the source once', () => {
+    const core = createCore({ entities: fourteenEntities });
+    const persons = core.createFromDatabase([
+      {
+        'person#id': 67,
+        'customer#id': 4,
+        'customer#locked_to_affiliate_id': 67,
+        'customer#locked_to_salesperson_id': 67
+      }
+    ]);
+    expect(persons.models.length).toEqual(1);
+    expect(persons.models[0].customers.models.length).toEqual(1);
+    expect(persons.models[0].customers.models[0].id).toEqual(4);
+  });
+
+  test('back-reference collections stay non-enumerable across calls', () => {
+    const core = createCore({ entities: orderEntities });
+    core.createFromDatabase(one);
+    const order = core.createFromDatabase(one).models[0];
+    expect(Object.keys(order)).not.toContain('lineItems');
+    expect(Object.getOwnPropertyDescriptor(order, 'lineItems')).toMatchObject({
+      enumerable: false,
+      writable: true,
+      configurable: true
+    });
+    expect(JSON.parse(JSON.stringify(order)).lineItems).toBeUndefined();
+  });
+});
