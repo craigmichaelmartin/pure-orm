@@ -18,7 +18,11 @@
     "build": "rm -rf dist && mkdir -p dist && cp -r test-utils dist/test-utils && tsc",
     "build:watch": "rm -rf dist && mkdir -p dist && cp -r test-utils dist/test-utils && tsc --watch",
     "bench:core": "npm run build && node scripts/bench-core.js",
-    "test:bench-guard": "node scripts/check-bench-scenarios.js"
+    "test:bench-guard": "node scripts/check-bench-scenarios.js",
+    "perf:ref": "node scripts/build-perf-ref.js",
+    "perf:ab": "npm run build && node scripts/bench-ab-run.js",
+    "perf:orm": "npm run build && node --expose-gc scripts/bench-orm-ab.js .perf-ref/dist-head ./dist/src",
+    "test:diff": "npm run build && node scripts/diff-core.js .perf-ref/core-head.js ./dist/src/core && node scripts/diff-core.js ./dist/src/core interpreted:./dist/src/core && node scripts/diff-orm.js .perf-ref/dist-head ./dist/src"
   },
   "dependencies": {
     "@babel/core": "^7.17.9",
@@ -42,7 +46,11 @@
   "jest": {
     "coverageDirectory": "./coverage/",
     "collectCoverage": true,
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/.perf-ref/"
+    ]
   },
   "prettier": {
     "printWidth": 80,

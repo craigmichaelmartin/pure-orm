@@ -90,6 +90,9 @@ export const create = ({
     updateClausePrefixes: Array<string>;
     wherePositionalPrefixes: Array<string>;
     whereNamedPrefixes: Array<string>;
+    collectDefined: (model: IModel, values: any) => number;
+    collectPresent: (model: IModel, values: any) => number;
+    collectPresentInto: (model: IModel, values: any) => number;
     insertCache: Map<
       number | string,
       { columns: string; valuesVar: Array<string> }
@@ -103,6 +106,88 @@ export const create = ({
   // Bit masks stay in SMI range; wider tables fall back to a packed string key.
   const MASK_COLUMN_LIMIT = 30;
   const WIDE_CHUNK_BITS = 15;
+
+  /* Constant-key bracket access: still a named (monomorphic) load to the JIT,
+   * and safe for property names that are not identifiers.
+   */
+  const propertyAccessSource = (name: string): string =>
+    '[' + JSON.stringify(name) + ']';
+
+  const CAN_COMPILE: boolean = ((): boolean => {
+    try {
+      // eslint-disable-next-line no-new-func
+      return new Function('return 1;')() === 1;
+    } catch (e) {
+      return false;
+    }
+  })();
+
+  /* Reading `model[propertyNames[i]]` in a loop is a dynamic keyed access per
+   * column, and every model class hitting the same loop keeps it megamorphic.
+   * Since the property list is fixed per model class, the shape scan is
+   * compiled once into straight-line named reads - the same trade the row
+   * processors in `core` make.
+   *
+   * `test` is the source for "this value counts": `!==undefined` for INSERT and
+   * UPDATE (which write explicit nulls), `!=null` for WHERE clauses (which
+   * cannot match on null with `=`).
+   */
+  const makeCollector = (
+    propertyNames: Array<string>,
+    test: string,
+    store: string
+  ): ((model: IModel, values: any) => number) | void => {
+    if (!CAN_COMPILE) {
+      return void 0;
+    }
+    try {
+      let source = "'use strict';var mask=0,n=1,v;";
+      for (let i = 0; i < propertyNames.length; i++) {
+        source +=
+          'v=m' +
+          propertyAccessSource(propertyNames[i]) +
+          ';if(v' +
+          test +
+          '){mask|=' +
+          (1 << i) +
+          ';' +
+          store +
+          '}';
+      }
+      // eslint-disable-next-line no-new-func
+      return new Function('m', 'values', source + 'return mask;') as (
+        model: IModel,
+        values: any
+      ) => number;
+    } catch (e) {
+      return void 0;
+    }
+  };
+
+  const makeInterpretedCollector = (
+    propertyNames: Array<string>,
+    skipNull: boolean,
+    intoObject: boolean
+  ): ((model: IModel, values: any) => number) => {
+    const count = propertyNames.length;
+    return (model: IModel, values: any): number => {
+      let mask = 0;
+      let n = 1;
+      for (let i = 0; i < count; i++) {
+        const value = model[propertyNames[i] as keyof typeof model];
+        if (skipNull ? value != null : value !== void 0) {
+          mask |= 1 << i;
+          if (intoObject) {
+            values[n] = value;
+            n++;
+          } else {
+            values.push(value);
+          }
+        }
+      }
+      return mask;
+    };
+  };
 
   const helperPlanByConstructor = new Map<any, IOrmHelperPlan>();
   const getHelperPlan = (model: IModel): IOrmHelperPlan => {
@@ -122,14 +207,30 @@ export const create = ({
         wherePositionalPrefixes[i] = `"${entity.tableName}"."${column}" = $`;
         whereNamedPrefixes[i] = `"${entity.tableName}"."${column}" = $(`;
       }
+      // Wider tables use a packed string shape key, which the bit-mask
+      // collectors cannot express; those keep the generic scan.
+      const canMask = columnCount <= MASK_COLUMN_LIMIT;
+      const propertyNames = entity.propertyNames;
       plan = {
         entity,
-        propertyNames: entity.propertyNames,
+        propertyNames,
         columnCount,
         quotedColumns,
         updateClausePrefixes,
         wherePositionalPrefixes,
         whereNamedPrefixes,
+        collectDefined: canMask
+          ? makeCollector(propertyNames, '!==undefined', 'values.push(v);') ||
+            makeInterpretedCollector(propertyNames, false, false)
+          : (null as any),
+        collectPresent: canMask
+          ? makeCollector(propertyNames, '!=null', 'values.push(v);') ||
+            makeInterpretedCollector(propertyNames, true, false)
+          : (null as any),
+        collectPresentInto: canMask
+          ? makeCollector(propertyNames, '!=null', 'values[n++]=v;') ||
+            makeInterpretedCollector(propertyNames, true, true)
+          : (null as any),
         insertCache: new Map(),
         updateCache: new Map(),
         matchingCache: new Map(),
@@ -188,20 +289,9 @@ export const create = ({
     const helperPlan = getHelperPlan(model);
     const { propertyNames, columnCount } = helperPlan;
     const values: Array<any> = [];
-    let shapeKey: number | string;
-    if (columnCount <= MASK_COLUMN_LIMIT) {
-      let mask = 0;
-      for (let i = 0; i < columnCount; i++) {
-        const val = model[propertyNames[i] as keyof typeof model];
-        if (val !== void 0) {
-          mask |= 1 << i;
-          values.push(val);
-        }
-      }
-      shapeKey = mask;
-    } else {
-      shapeKey = collectWide(model, propertyNames, columnCount, values, false);
-    }
+    const shapeKey: number | string = helperPlan.collectDefined
+      ? helperPlan.collectDefined(model, values)
+      : collectWide(model, propertyNames, columnCount, values, false);
 
     let cached = helperPlan.insertCache.get(shapeKey);
     if (cached === void 0) {
@@ -237,20 +327,9 @@ export const create = ({
     const helperPlan = getHelperPlan(model);
     const { propertyNames, columnCount } = helperPlan;
     const values: Array<any> = [];
-    let shapeKey: number | string;
-    if (columnCount <= MASK_COLUMN_LIMIT) {
-      let mask = 0;
-      for (let i = 0; i < columnCount; i++) {
-        const val = model[propertyNames[i] as keyof typeof model];
-        if (val !== void 0) {
-          mask |= 1 << i;
-          values.push(val);
-        }
-      }
-      shapeKey = mask;
-    } else {
-      shapeKey = collectWide(model, propertyNames, columnCount, values, false);
-    }
+    const shapeKey: number | string = helperPlan.collectDefined
+      ? helperPlan.collectDefined(model, values)
+      : collectWide(model, propertyNames, columnCount, values, false);
 
     let cached = helperPlan.updateCache.get(shapeKey);
     if (cached === void 0) {
@@ -280,20 +359,9 @@ export const create = ({
     const helperPlan = getHelperPlan(model);
     const { propertyNames, columnCount } = helperPlan;
     const values: Array<any> = [];
-    let shapeKey: number | string;
-    if (columnCount <= MASK_COLUMN_LIMIT) {
-      let mask = 0;
-      for (let i = 0; i < columnCount; i++) {
-        const val = model[propertyNames[i] as keyof typeof model];
-        if (val != null) {
-          mask |= 1 << i;
-          values.push(val);
-        }
-      }
-      shapeKey = mask;
-    } else {
-      shapeKey = collectWide(model, propertyNames, columnCount, values, true);
-    }
+    const shapeKey: number | string = helperPlan.collectPresent
+      ? helperPlan.collectPresent(model, values)
+      : collectWide(model, propertyNames, columnCount, values, true);
 
     let whereClause = helperPlan.matchingCache.get(shapeKey);
     if (whereClause === void 0) {
@@ -321,19 +389,9 @@ export const create = ({
     const helperPlan = getHelperPlan(model);
     const { propertyNames, columnCount } = helperPlan;
     const values: any = {};
-    let paramIndex = 1;
     let shapeKey: number | string;
-    if (columnCount <= MASK_COLUMN_LIMIT) {
-      let mask = 0;
-      for (let i = 0; i < columnCount; i++) {
-        const val = model[propertyNames[i] as keyof typeof model];
-        if (val != null) {
-          mask |= 1 << i;
-          values[paramIndex] = val;
-          paramIndex++;
-        }
-      }
-      shapeKey = mask;
+    if (helperPlan.collectPresentInto) {
+      shapeKey = helperPlan.collectPresentInto(model, values);
     } else {
       const wideValues: Array<any> = [];
       shapeKey = collectWide(
@@ -344,8 +402,7 @@ export const create = ({
         true
       );
       for (let i = 0; i < wideValues.length; i++) {
-        values[paramIndex] = wideValues[i];
-        paramIndex++;
+        values[i + 1] = wideValues[i];
       }
     }
 

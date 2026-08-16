@@ -107,13 +107,26 @@ export interface ICore {
  * column read, property store and reference hop goes through a dynamic
  * (megamorphic) keyed access.
  *
- * So a query shape is compiled once into a single specialized row processor.
- * All of the column names, property names, entity slots and reference targets
- * become literals, which turns dynamic keyed access into monomorphic named
- * access and gives every entity its own `new Model(...)` call site.
+ * So a query shape is compiled once into a single specialized processor for
+ * the whole result set - the row loop, root scope tracking, model lookup and
+ * reference linking all in one function. All of the column names, property
+ * names, entity slots and reference targets become literals, which turns
+ * dynamic keyed access into monomorphic named access, gives every entity its
+ * own `new Model(...)` call site, and lets the per-scope slot array stay in a
+ * local across rows instead of being re-fetched through a helper call.
  *
- * `makeInterpretedRowProcessor` is the semantically identical fallback used
- * where function construction is unavailable (a strict CSP, for example).
+ * The other half of the design is that primary key *strings* are lazy. Models
+ * are indexed by a stringified key (so that an int4 primary key `5` still
+ * matches an int8 foreign key `'5'`), but stringifying every key column of
+ * every row is pure overhead when the answer is "same model as the last row".
+ * So each slot remembers the raw column value it was stored under alongside
+ * its string key: a raw `===` hit skips stringification entirely, and anything
+ * else falls back to the exact string-keyed lookup, which keeps the coercion
+ * behaviour identical.
+ *
+ * `makeInterpretedRowsProcessor` is the semantically identical (string-only)
+ * fallback used where function construction is unavailable (a strict CSP, for
+ * example).
  */
 
 interface IRowColumnPlan {
@@ -138,26 +151,27 @@ interface IEntityRowPlan {
   Collection: new ({ models }: any) => ICollection<IModel>;
 }
 
-/* Per root scope, models are indexed by entity and primary key id. Most scopes
- * hold a single model per entity, so the first entry for an entity lives
- * inline in `slots` ([pkId, model] pairs) and a Map is only allocated for
- * entities that actually accumulate more than one model.
+/* Per root scope, models are indexed by entity and primary key id. A scope is
+ * just one flat array of [rawKey, pkId, model, overflow] per entity: most
+ * scopes hold a single model per entity, so the first one lives in the slot
+ * itself and the overflow Map is only allocated for entities that actually
+ * accumulate more than one model. Keeping it flat means a scope costs one
+ * allocation, and every probe is a constant-index load.
  */
-interface IRootScopeState {
-  slots: Array<any>;
-  maps: Array<Map<string, IModel> | void> | void;
-}
+type IRootScope = Array<any>;
+const SLOT_WIDTH = 4;
 interface IRowScratch {
   createdIndexes: Array<number>;
   createdModels: Array<IModel>;
   linkedTargets: Array<IModel>;
 }
-type IRowProcessor = (
-  row: any,
-  state: IRootScopeState,
-  rootScopeKey: string,
-  scratch: IRowScratch
-) => IModel;
+type IRowsProcessor = (rows: any, len: number, models: Array<IModel>) => void;
+
+/* Marks "no raw value here". A private object is never `===` to anything a
+ * database driver can hand back, so an unfilled slot can never be mistaken
+ * for a row whose key column is `undefined`.
+ */
+const EMPTY_SLOT: any = {};
 
 const CAN_COMPILE: boolean = ((): boolean => {
   try {
@@ -333,53 +347,72 @@ const makeModelBuilder = (
   };
 };
 
-/* Slot access is shared by the compiled and interpreted processors rather
- * than inlined into generated source: one small, always-hot function keeps
- * generated row processors small enough to reach the optimizing tier quickly.
+/* Slot access. The inline-slot probes are emitted straight into generated
+ * source (they are two array loads and a compare); only the rarer overflow-map
+ * paths stay behind these calls, which keeps generated processors small enough
+ * to reach the optimizing tier quickly.
  */
+const makeSlotTemplate = (planCount: number): Array<any> => {
+  const template = new Array(planCount * SLOT_WIDTH);
+  for (let i = 0; i < planCount * SLOT_WIDTH; i++) {
+    template[i] = i % SLOT_WIDTH === 0 ? EMPTY_SLOT : void 0;
+  }
+  return template;
+};
+
 const lookupModel = (
-  state: IRootScopeState,
+  scope: IRootScope,
   index: number,
   key: string
 ): IModel | void => {
-  const slots = state.slots;
-  const base = index << 1;
-  if (slots[base] === key) {
-    return slots[base + 1];
+  const base = index * SLOT_WIDTH;
+  if (scope[base + 1] === key) {
+    return scope[base + 2];
   }
-  const maps = state.maps;
-  if (maps === void 0) {
-    return void 0;
+  const overflow = scope[base + 3];
+  return overflow === void 0 ? void 0 : overflow.get(key);
+};
+
+/* Reference resolution from a raw foreign key value. The raw `===` probe is
+ * done by the caller; this is the string-keyed fallback that preserves the
+ * pk/fk coercion match. Deliberately not written in terms of `lookupModel`:
+ * this is the hot miss path for any entity holding several models in a scope,
+ * and it should cost one call, not two.
+ */
+const lookupModelByValue = (
+  scope: IRootScope,
+  index: number,
+  value: any
+): IModel | void => {
+  const key = typeof value === 'string' ? value : String(value);
+  const base = index * SLOT_WIDTH;
+  if (scope[base + 1] === key) {
+    return scope[base + 2];
   }
-  const map = maps[index];
-  return map === void 0 ? void 0 : map.get(key);
+  const overflow = scope[base + 3];
+  return overflow === void 0 ? void 0 : overflow.get(key);
 };
 
 const storeModel = (
-  state: IRootScopeState,
+  scope: IRootScope,
   index: number,
   key: string,
-  model: IModel,
-  planCount: number
+  raw: any,
+  model: IModel
 ): void => {
-  const slots = state.slots;
-  const base = index << 1;
-  if (slots[base] === void 0) {
-    slots[base] = key;
-    slots[base + 1] = model;
+  const base = index * SLOT_WIDTH;
+  if (scope[base + 1] === void 0) {
+    scope[base] = raw;
+    scope[base + 1] = key;
+    scope[base + 2] = model;
     return;
   }
-  let maps = state.maps;
-  if (maps === void 0) {
-    maps = new Array(planCount).fill(void 0);
-    state.maps = maps;
+  let overflow = scope[base + 3];
+  if (overflow === void 0) {
+    overflow = new Map<string, IModel>();
+    scope[base + 3] = overflow;
   }
-  let map = maps[index];
-  if (map === void 0) {
-    map = new Map<string, IModel>();
-    maps[index] = map;
-  }
-  map.set(key, model);
+  overflow.set(key, model);
 };
 
 const pkIdSource = (rowKeys: Array<string>, target: string): string => {
@@ -403,11 +436,18 @@ const pkIdSource = (rowKeys: Array<string>, target: string): string => {
   return source;
 };
 
-const makeCompiledRowProcessor = (
+/* Only primitives are remembered as raw slot keys. An object key would make
+ * the raw hit skip a `String()` call that is not guaranteed to return the same
+ * text twice, so those always take the string path.
+ */
+const rawOfSource = (value: string): string =>
+  'typeof ' + value + '==="object"?E:' + value;
+
+const makeCompiledRowsProcessor = (
   plans: Array<IEntityRowPlan>,
   planCount: number,
-  rootScopeKeyIsRootPkId: boolean
-): IRowProcessor | void => {
+  rootScopeRowKeys: Array<string>
+): IRowsProcessor | void => {
   if (!canCompileNow()) {
     return void 0;
   }
@@ -421,69 +461,61 @@ const makeCompiledRowProcessor = (
     }
   }
 
-  let prologue = '';
-  for (let p = 0; p < planCount; p++) {
-    prologue +=
-      'var M' + p + '=P[' + p + '].Model,C' + p + '=P[' + p + '].Collection;';
-  }
+  /* Source for the two cold operations, shared by the inline and outlined
+   * forms so the only difference between them is where the code lands.
+   */
+  const storeSource = (p: number, modelExpr: string): string => {
+    const base = p * SLOT_WIDTH;
+    return (
+      'if(S[' +
+      (base + 1) +
+      ']===undefined){S[' +
+      base +
+      ']=' +
+      rawOfSource('v') +
+      ';S[' +
+      (base + 1) +
+      ']=k;S[' +
+      (base + 2) +
+      ']=' +
+      modelExpr +
+      ';}else{if((o=S[' +
+      (base + 3) +
+      '])===undefined){o=S[' +
+      (base + 3) +
+      ']=new Map();}o.set(k,' +
+      modelExpr +
+      ');}'
+    );
+  };
 
-  let declarations = 'var e,v,k,t,col,s,root;';
-  for (let p = 0; p < planCount; p++) {
-    declarations += 'var m' + p + ';';
-  }
-  for (let l = 0; l < maxRefCount - 1; l++) {
-    declarations += 'var l' + l + ';';
-  }
-
-  // Phase 1: materialize (or reuse) this row's model instances. A model local
-  // is left undefined unless this row is the one that created it, which is
-  // also what phase 2 keys off.
-  let body = '';
-  for (let p = 0; p < planCount; p++) {
-    const plan = plans[p];
-    const modelVar = 'm' + p;
-    const construct = 'new M' + p + '(' + propsLiteral(plan.columnPlans) + ')';
-    body +=
-      p === 0 && rootScopeKeyIsRootPkId
-        ? 'k=rootScopeKey;'
-        : pkIdSource(plan.primaryKeyRowKeys, 'k');
-    body += modelVar + '=undefined;';
-    body += 'if(k!==""){';
-    body += 'if((e=LU(state,' + p + ',k))===undefined){';
-    body += modelVar + '=' + construct + ';';
-    body += 'ST(state,' + p + ',k,' + modelVar + ',' + planCount + ');';
-    body += p === 0 ? 'root=m0;}else{root=e;}}' : '}}';
-    if (p === 0) {
-      // A root without a primary key still yields a model; it just cannot be
-      // de-duplicated or linked to.
-      body += 'else{root=' + construct + ';}';
-    }
-  }
-
-  // Phase 2: link newly created models to the models they reference.
-  for (let p = 0; p < planCount; p++) {
+  const linkSource = (p: number): string => {
     const plan = plans[p];
     const refCount = plan.refCount;
-    if (refCount === 0) {
-      continue;
-    }
     const collectionKey = literal(plan.collectionDisplayName);
-    body += 'if(m' + p + '!==undefined){s=m' + p + ';';
+    let link = '';
     for (let l = 0; l < refCount - 1; l++) {
-      body += 'l' + l + '=undefined;';
+      link += 'l' + l + '=undefined;';
     }
     for (let r = 0; r < refCount; r++) {
       const ref = plan.refs[r];
-      body += 'if((v=s[' + literal(ref.property) + '])!=null){';
-      body +=
-        't=LU(state,' + ref.targetIndex + ',typeof v==="string"?v:String(v));';
-      body += 'if(t!==undefined){';
-      body += 's[' + literal(ref.targetDisplayName) + ']=t;';
-      body += 'if(!(col=t[' + collectionKey + '])){';
-      body +=
+      const targetBase = ref.targetIndex * SLOT_WIDTH;
+      link += 'if((v=s[' + literal(ref.property) + '])!=null){';
+      link +=
+        't=S[' +
+        targetBase +
+        ']===v?S[' +
+        (targetBase + 2) +
+        ']:LR(S,' +
+        ref.targetIndex +
+        ',v);';
+      link += 'if(t!==undefined){';
+      link += 's[' + literal(ref.targetDisplayName) + ']=t;';
+      link += 'if(!(col=t[' + collectionKey + '])){';
+      link +=
         'col=new C' + p + '({models:[]});DC(t,' + collectionKey + ',col);}';
       if (r === 0) {
-        body += 'col.models.push(s);';
+        link += 'col.models.push(s);';
       } else {
         // A model is only linked at creation time, so it can reach a given
         // collection twice only when it holds several references to the same
@@ -492,45 +524,243 @@ const makeCompiledRowProcessor = (
         for (let l = 1; l < r; l++) {
           guard += '&&t!==l' + l;
         }
-        body += 'if(' + guard + '){col.models.push(s);}';
+        link += 'if(' + guard + '){col.models.push(s);}';
       }
       if (r < refCount - 1) {
-        body += 'l' + r + '=t;';
+        link += 'l' + r + '=t;';
       }
-      body += '}}';
+      link += '}}';
     }
+    return link;
+  };
+
+  let prologue = '';
+  for (let p = 0; p < planCount; p++) {
+    const plan = plans[p];
+    prologue +=
+      'var M' + p + '=P[' + p + '].Model,C' + p + '=P[' + p + '].Collection;';
+    // K<p>: construct this entity's model for a row and index it in the scope.
+    prologue +=
+      'function K' +
+      p +
+      '(row,S,k,v){var o,m=new M' +
+      p +
+      '(' +
+      propsLiteral(plan.columnPlans) +
+      ');' +
+      storeSource(p, 'm') +
+      'return m;}';
+    if (p === 0) {
+      // R0: a root row with no primary key still yields a model, it just
+      // cannot be de-duplicated or linked to, so it is never indexed.
+      prologue +=
+        'function R0(row){return new M0(' +
+        propsLiteral(plan.columnPlans) +
+        ');}';
+    }
+    // L<p>: point a freshly created model at what it references.
+    if (plan.refCount > 0) {
+      let locals = 'var v,t,col;';
+      for (let l = 0; l < plan.refCount - 1; l++) {
+        locals += 'var l' + l + ';';
+      }
+      prologue += 'function L' + p + '(s,S){' + locals + linkSource(p) + '}';
+    }
+  }
+
+  // `st` is kept apart from `e` so that scope states and models never share a
+  // variable - mixing object shapes in one local costs more than it saves.
+  let declarations =
+    'var S,byKey,row,sk,st,e,o,v,k,root,isNew;var curRaw=E,curKey="";';
+  for (let p = 0; p < planCount; p++) {
+    declarations += 'var m' + p + ';';
+  }
+
+  /* Root scope resolution. Rows for one root arrive together, so the common
+   * case is "same raw key as the previous row" and never touches a string or
+   * a Map; the string comparison behind it is what actually defines scope
+   * identity, and the Map is only built once scopes interleave.
+   */
+  const rootIsSingleKey = rootScopeRowKeys.length === 1;
+  let resolveScope = 'if(S===undefined||sk!==curKey){';
+  resolveScope += 'st=undefined;';
+  resolveScope += 'if(S!==undefined){';
+  resolveScope += 'if(byKey===undefined){byKey=new Map();byKey.set(curKey,S);}';
+  resolveScope += 'st=byKey.get(sk);}';
+  resolveScope += 'if(st===undefined){st=NS();';
+  resolveScope += 'if(byKey!==undefined){byKey.set(sk,st);}isNew=true;}';
+  resolveScope += 'S=st;curKey=sk;}';
+
+  /* A composite root key gets the same treatment, one memo local per key
+   * column: while every column is unchanged the scope key string, and with it
+   * the root's own primary key id, are unchanged too.
+   */
+  let compositeRootScope = '';
+  if (!rootIsSingleKey) {
+    for (let i = 0; i < rootScopeRowKeys.length; i++) {
+      declarations += 'var q' + i + ',pr' + i + '=E;';
+      compositeRootScope +=
+        'q' + i + '=row[' + literal(rootScopeRowKeys[i]) + '];';
+    }
+    let changed = 'q0!==pr0';
+    for (let i = 1; i < rootScopeRowKeys.length; i++) {
+      changed += '||q' + i + '!==pr' + i;
+    }
+    let rebuild = 'sk="";pk0="";';
+    for (let i = 0; i < rootScopeRowKeys.length; i++) {
+      const part = 'q' + i;
+      if (i > 0) {
+        rebuild += 'sk+="@";';
+      }
+      rebuild +=
+        'if(' +
+        part +
+        '==null){}else{sk+=typeof ' +
+        part +
+        '==="string"?' +
+        part +
+        ':String(' +
+        part +
+        ');pk0+=typeof ' +
+        part +
+        '==="string"?' +
+        part +
+        ':String(' +
+        part +
+        ');}';
+      rebuild += 'pr' + i + '=typeof ' + part + '==="object"?E:' + part + ';';
+    }
+    compositeRootScope += 'if(' + changed + '){' + rebuild + resolveScope + '}';
+    declarations += 'var pk0="";';
+  }
+
+  const scopeBlock = rootIsSingleKey
+    ? 'if((v=row[' +
+      literal(rootScopeRowKeys[0]) +
+      '])!==curRaw){' +
+      'sk=v==null?"":typeof v==="string"?v:String(v);' +
+      resolveScope +
+      'curRaw=' +
+      rawOfSource('v') +
+      ';}'
+    : compositeRootScope;
+
+  // Phase 1: materialize (or reuse) this row's model instances. A model local
+  // is left undefined unless this row is the one that created it, which is
+  // also what phase 2 keys off.
+  let body = '';
+  for (let p = 0; p < planCount; p++) {
+    const plan = plans[p];
+    const modelVar = 'm' + p;
+    const base = p * SLOT_WIDTH;
+    const singleKey = plan.primaryKeyRowKeys.length === 1;
+    /* A raw `===` hit on the inline slot means this entity's model is already
+     * the one an earlier row put there - no key string, no lookup call. The
+     * null test comes first so that an outer join that matched nothing costs
+     * one column read and nothing else.
+     */
+    const readKeyColumn = '(v=row[' + literal(plan.primaryKeyRowKeys[0]) + '])';
+    // True when the inline slot already holds this row's model.
+    const rawHit = readKeyColumn + '!=null&&S[' + base + ']===v';
+    // True when the string-keyed path has to run.
+    const rawMiss = readKeyColumn + '!=null&&S[' + base + ']!==v';
+    const buildKey = singleKey
+      ? 'k=(v=row[' +
+        literal(plan.primaryKeyRowKeys[0]) +
+        '])==null?"":typeof v==="string"?v:String(v);'
+      : pkIdSource(plan.primaryKeyRowKeys, 'k') + 'v=E;';
+    // After the raw probe the key column is known non-null and read into `v`.
+    const buildKeyFromV = singleKey
+      ? 'k=typeof v==="string"?v:String(v);'
+      : buildKey;
+    const useRawProbe = singleKey;
+    // Assigns `target` the freshly created, freshly indexed model.
+    const createInto = (target: string): string =>
+      target + '=K' + p + '(row,S,k,v);';
+
+    body += modelVar + '=undefined;';
+    if (p === 0) {
+      /* With a single key column the root scope key and the root's primary key
+       * id are the same string, and `sk` always holds the current scope's key
+       * (it is only rewritten when the scope changes), so the root never needs
+       * a second `String()`.
+       *
+       * A root without a primary key still yields a model; it just cannot be
+       * de-duplicated or linked to.
+       */
+      let rootLookup = 'if(k===""){root=R0(row);}';
+      rootLookup += 'else if(S[1]===k){root=S[2];}';
+      rootLookup +=
+        'else if((o=S[3])!==undefined&&(e=o.get(k))!==undefined){root=e;}';
+      rootLookup += 'else{' + createInto('m0') + 'root=m0;}';
+      body += useRawProbe
+        ? 'if(' + rawHit + '){root=S[2];}else{k=sk;' + rootLookup + '}'
+        : 'k=pk0;v=E;' + rootLookup;
+    } else {
+      let lookup = 'if(k!==""&&S[' + (base + 1) + ']!==k';
+      lookup +=
+        '&&((o=S[' + (base + 3) + '])===undefined||o.get(k)===undefined)){';
+      lookup += createInto(modelVar) + '}';
+      body += useRawProbe
+        ? 'if(' + rawMiss + '){' + buildKeyFromV + lookup + '}'
+        : buildKey + lookup;
+    }
+  }
+
+  // Phase 2: link newly created models to the models they reference.
+  for (let p = 0; p < planCount; p++) {
+    if (plans[p].refCount === 0) {
+      continue;
+    }
+    body += 'if(m' + p + '!==undefined){';
+    body += 'L' + p + '(m' + p + ',S);';
     body += '}';
   }
+
+  const slotTemplate = makeSlotTemplate(planCount);
+  const newSlots = (): Array<any> => slotTemplate.slice();
 
   try {
     compileBudget--;
     // eslint-disable-next-line no-new-func
     return new Function(
       'P',
-      'LU',
-      'ST',
+      'LR',
       'DC',
+      'NS',
+      'E',
       USE_STRICT +
         prologue +
-        'return function processRow(row,state,rootScopeKey){' +
+        'return function processRows(rows,len,models){' +
         declarations +
+        'for(var i=0;i<len;i++){row=rows[i];isNew=false;' +
+        scopeBlock +
         body +
-        'return root;};'
-    )(plans, lookupModel, storeModel, defineCollection) as IRowProcessor | void;
+        'if(isNew){models.push(root);}}};'
+    )(
+      plans,
+      lookupModelByValue,
+      defineCollection,
+      newSlots,
+      EMPTY_SLOT
+    ) as IRowsProcessor | void;
   } catch (e) {
     return void 0;
   }
 };
 
-const makeInterpretedRowProcessor = (
+const makeInterpretedRowsProcessor = (
   plans: Array<IEntityRowPlan>,
   planCount: number,
-  rootScopeKeyIsRootPkId: boolean
-): IRowProcessor => {
+  rootScopeKeyIsRootPkId: boolean,
+  getRootScopeKey: (row: any) => string
+): IRowsProcessor => {
   const rootGetPkId = plans[0].getPkId;
-  return (
+  const slotTemplate = makeSlotTemplate(planCount);
+
+  const processRow = (
     row: any,
-    state: IRootScopeState,
+    scope: IRootScope,
     rootScopeKey: string,
     scratch: IRowScratch
   ): IModel => {
@@ -547,7 +777,7 @@ const makeInterpretedRowProcessor = (
             : rootGetPkId(row)
           : plan.getPkId(row);
       if (pkId !== '') {
-        const existing = lookupModel(state, p, pkId);
+        const existing = lookupModel(scope, p, pkId);
         if (existing !== void 0) {
           if (p === 0) {
             rootModel = existing;
@@ -565,7 +795,17 @@ const makeInterpretedRowProcessor = (
         rootModel = model;
       }
       if (pkId !== '') {
-        storeModel(state, p, pkId, model, planCount);
+        const raw =
+          plan.primaryKeyRowKeys.length === 1
+            ? row[plan.primaryKeyRowKeys[0]]
+            : EMPTY_SLOT;
+        storeModel(
+          scope,
+          p,
+          pkId,
+          typeof raw === 'object' ? EMPTY_SLOT : raw,
+          model
+        );
         createdIndexes[createdCount] = p;
         createdModels[createdCount] = model;
         createdCount++;
@@ -589,8 +829,7 @@ const makeInterpretedRowProcessor = (
         if (refId === void 0 || refId === null) {
           continue;
         }
-        const targetPkId = typeof refId === 'string' ? refId : String(refId);
-        const targetModel = lookupModel(state, ref.targetIndex, targetPkId);
+        const targetModel = lookupModelByValue(scope, ref.targetIndex, refId);
         if (targetModel === void 0) {
           continue;
         }
@@ -623,6 +862,53 @@ const makeInterpretedRowProcessor = (
     }
 
     return rootModel as IModel;
+  };
+
+  return (rows: any, len: number, models: Array<IModel>): void => {
+    const scratch: IRowScratch = {
+      createdIndexes: new Array(planCount),
+      createdModels: new Array(planCount),
+      linkedTargets: []
+    };
+    let rootScopeByKey: Map<string, IRootScope> | void = void 0;
+    let currentRootScopeKey = '';
+    let currentScope: IRootScope | void = void 0;
+
+    for (let i = 0; i < len; i++) {
+      const row = rows[i];
+      const rootScopeKey = getRootScopeKey(row);
+
+      let scope: IRootScope;
+      let isNewScope = false;
+      if (currentScope !== void 0 && rootScopeKey === currentRootScopeKey) {
+        scope = currentScope;
+      } else {
+        let existingScope: IRootScope | void = void 0;
+        if (currentScope !== void 0) {
+          if (rootScopeByKey === void 0) {
+            rootScopeByKey = new Map<string, IRootScope>();
+            rootScopeByKey.set(currentRootScopeKey, currentScope);
+          }
+          existingScope = rootScopeByKey.get(rootScopeKey);
+        }
+        if (existingScope === void 0) {
+          scope = slotTemplate.slice();
+          if (rootScopeByKey !== void 0) {
+            rootScopeByKey.set(rootScopeKey, scope);
+          }
+          isNewScope = true;
+        } else {
+          scope = existingScope;
+        }
+        currentRootScopeKey = rootScopeKey;
+        currentScope = scope;
+      }
+
+      const rootModel = processRow(row, scope, rootScopeKey, scratch);
+      if (isNewScope) {
+        models.push(rootModel);
+      }
+    }
   };
 };
 
@@ -797,9 +1083,7 @@ export const createCore = ({
     keys: Array<string>;
     planCount: number;
     rootEntity: IEntityInternal<IModel>;
-    getRootScopeKey: (row: any) => string;
-    processRow: IRowProcessor;
-    needsScratch: boolean;
+    processRows: IRowsProcessor;
   }
 
   const buildQueryPlan = (keys: Array<string>): IQueryPlan => {
@@ -878,38 +1162,35 @@ export const createCore = ({
     const rootEntity = plans[0].entity;
     const rootPrimaryKeyRowKeys = plans[0].primaryKeyRowKeys;
     // With a single primary key the root scope key and the root model's
-    // primary key id are the same string, so it only gets built once per row.
+    // primary key id are the same string.
     const rootScopeKeyIsRootPkId = rootPrimaryKeyRowKeys.length === 1;
 
-    let processRow = makeCompiledRowProcessor(
+    let processRows = makeCompiledRowsProcessor(
       plans,
       planCount,
-      rootScopeKeyIsRootPkId
+      rootPrimaryKeyRowKeys
     );
-    let needsScratch = false;
-    if (processRow === void 0) {
+    if (processRows === void 0) {
       for (let i = 0; i < planCount; i++) {
         const plan = plans[i];
         plan.getPkId = makePkIdGetter(plan.primaryKeyRowKeys);
         plan.buildModel = makeModelBuilder(plan.Model, plan.columnPlans);
       }
-      processRow = makeInterpretedRowProcessor(
+      processRows = makeInterpretedRowsProcessor(
         plans,
         planCount,
+        rootScopeKeyIsRootPkId,
         rootScopeKeyIsRootPkId
+          ? makePkIdGetter(rootPrimaryKeyRowKeys)
+          : makeRootScopeKeyGetter(rootPrimaryKeyRowKeys)
       );
-      needsScratch = true;
     }
 
     return {
       keys,
       planCount,
       rootEntity,
-      getRootScopeKey: rootScopeKeyIsRootPkId
-        ? makePkIdGetter(rootPrimaryKeyRowKeys)
-        : makeRootScopeKeyGetter(rootPrimaryKeyRowKeys),
-      processRow,
-      needsScratch
+      processRows
     };
   };
 
@@ -958,73 +1239,19 @@ export const createCore = ({
 
   /*
    * createFromDatabase architecture:
-   * 1) Look up (or compile) the row processor for this query shape.
+   * 1) Look up (or compile) the result-set processor for this query shape.
    * 2) Materialize models per row with scoped de-duplication by root scope key.
    * 3) Index models by root scope + entity + entity primary key.
    * 4) Link refs incrementally as new models appear.
    * 5) Return root models in first-seen root scope order.
+   *
+   * Steps 2-4 are one compiled function per query shape, so the per-row loop,
+   * the scope tracking and the slot array all stay inside it.
    */
   const createFromDatabase = <T extends ICollection<IModel>>(rows: any): T => {
     const result = Array.isArray(rows) ? rows : [rows];
-    const len = result.length;
-    const queryPlan = getQueryPlan(result[0]);
-    const planCount = queryPlan.planCount;
-    const getRootScopeKey = queryPlan.getRootScopeKey;
-    const processRow = queryPlan.processRow;
-    const scratch: IRowScratch = queryPlan.needsScratch
-      ? {
-          createdIndexes: new Array(planCount),
-          createdModels: new Array(planCount),
-          linkedTargets: []
-        }
-      : (void 0 as any);
-
     const models: Array<IModel> = [];
-    const slotCount = planCount << 1;
-    /* Rows for one root arrive together, so the current scope is tracked
-     * directly and the lookup map is only built once a second distinct root
-     * scope shows up - single-root results never allocate it.
-     */
-    let rootScopeStateByKey: Map<string, IRootScopeState> | void = void 0;
-    let currentRootScopeKey = '';
-    let currentState: IRootScopeState | void = void 0;
-
-    for (let i = 0; i < len; i++) {
-      const row = result[i];
-      const rootScopeKey = getRootScopeKey(row);
-
-      let state: IRootScopeState;
-      let isNewScope = false;
-      if (currentState !== void 0 && rootScopeKey === currentRootScopeKey) {
-        state = currentState;
-      } else {
-        let existingState: IRootScopeState | void = void 0;
-        if (currentState !== void 0) {
-          if (rootScopeStateByKey === void 0) {
-            rootScopeStateByKey = new Map<string, IRootScopeState>();
-            rootScopeStateByKey.set(currentRootScopeKey, currentState);
-          }
-          existingState = rootScopeStateByKey.get(rootScopeKey);
-        }
-        if (existingState === void 0) {
-          state = { slots: new Array(slotCount).fill(void 0), maps: void 0 };
-          if (rootScopeStateByKey !== void 0) {
-            rootScopeStateByKey.set(rootScopeKey, state);
-          }
-          isNewScope = true;
-        } else {
-          state = existingState;
-        }
-        currentRootScopeKey = rootScopeKey;
-        currentState = state;
-      }
-
-      const rootModel = processRow(row, state, rootScopeKey, scratch);
-      if (isNewScope) {
-        models.push(rootModel);
-      }
-    }
-
+    getQueryPlan(result[0]).processRows(result, result.length, models);
     const Collection = getEntityByModel(models[0]).Collection;
     return <T>new Collection({ models });
   };
