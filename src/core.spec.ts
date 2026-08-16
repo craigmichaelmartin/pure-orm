@@ -1737,6 +1737,134 @@ describe('row plan reuse', () => {
     expect(reordered.models[0].on).toEqual(false);
   });
 
+  test('alternating shapes whose column order swaps the root stay apart', () => {
+    class Writer implements IModel {
+      id: number;
+      name: string;
+      constructor(props: any) {
+        this.id = props.id;
+        this.name = props.name;
+      }
+    }
+    class Writers implements ICollection<Writer> {
+      models: Array<Writer>;
+      constructor({ models }: any) {
+        this.models = models;
+      }
+    }
+    class Post implements IModel {
+      id: number;
+      writerId: number;
+      title: string;
+      constructor(props: any) {
+        this.id = props.id;
+        this.writerId = props.writerId;
+        this.title = props.title;
+      }
+    }
+    class Posts implements ICollection<Post> {
+      models: Array<Post>;
+      constructor({ models }: any) {
+        this.models = models;
+      }
+    }
+    const core = createCore({
+      entities: [
+        {
+          tableName: 'writer',
+          columns: ['id', 'name'],
+          Model: Writer,
+          Collection: Writers
+        },
+        {
+          tableName: 'post',
+          columns: ['id', { column: 'writer_id', references: Writer }, 'title'],
+          Model: Post,
+          Collection: Posts
+        }
+      ]
+    });
+    // The same column set in a different order is a different shape with a
+    // different root entity; alternating the two on one core must resolve
+    // each to its own plan every time.
+    const writerFirst = [
+      {
+        'writer#id': 1,
+        'writer#name': 'w',
+        'post#id': 10,
+        'post#writer_id': 1,
+        'post#title': 't'
+      }
+    ];
+    const postFirst = [
+      {
+        'post#id': 10,
+        'post#writer_id': 1,
+        'post#title': 't',
+        'writer#id': 1,
+        'writer#name': 'w'
+      }
+    ];
+    for (let i = 0; i < 3; i++) {
+      const writers = core.createFromDatabase(writerFirst);
+      expect(writers).toBeInstanceOf(Writers);
+      expect(writers.models[0]).toBeInstanceOf(Writer);
+      expect(writers.models[0].posts.models[0].title).toEqual('t');
+
+      const posts = core.createFromDatabase(postFirst);
+      expect(posts).toBeInstanceOf(Posts);
+      expect(posts.models[0]).toBeInstanceOf(Post);
+      expect(posts.models[0].writer.name).toEqual('w');
+    }
+  });
+
+  test('plans evicted from the shape cache rebuild correctly', () => {
+    class Row_ implements IModel {
+      constructor(props: any) {
+        Object.assign(this, props);
+      }
+    }
+    class Rows_ implements ICollection<IModel> {
+      models: Array<IModel>;
+      constructor({ models }: any) {
+        this.models = models;
+      }
+    }
+    const core = createCore({
+      entities: [
+        { tableName: 'item', columns: ['id'], Model: Row_, Collection: Rows_ }
+      ]
+    });
+    // More distinct shapes than the plan cache holds, then a full replay:
+    // evicted shapes must rebuild and map their columns identically.
+    const shape = (n: number, id: string) => [
+      { 'item#id': id, [`item#meta_shape_${n}`]: n }
+    ];
+    const expectShape = (result: any, n: number, id: string) => {
+      const model = result.models[0];
+      expect(model.id).toEqual(id);
+      const metaKeys = Object.keys(model).filter((k) =>
+        k.startsWith('metaShape')
+      );
+      expect(metaKeys.length).toEqual(1);
+      expect(model[metaKeys[0]]).toEqual(n);
+    };
+    for (let n = 0; n < 70; n++) {
+      expectShape(
+        core.createFromDatabase(shape(n, `first-${n}`)),
+        n,
+        `first-${n}`
+      );
+    }
+    for (let n = 0; n < 70; n++) {
+      expectShape(
+        core.createFromDatabase(shape(n, `again-${n}`)),
+        n,
+        `again-${n}`
+      );
+    }
+  });
+
   test('rows of the same root are grouped when not contiguous', () => {
     const core = createCore({ entities: orderEntities });
     const other = one.map((row: any) => ({

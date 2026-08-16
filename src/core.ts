@@ -1687,13 +1687,16 @@ export const createCore = ({
   const MAX_QUERY_PLAN_CACHE = 64;
   const queryPlanCache: Array<IQueryPlan> = [];
 
-  /* Shape identity for the most-recent plan, checked without materializing
-   * `Object.keys`: for small result sets that array is a real fraction of the
-   * whole call. `for..in` walks the same own enumerable keys in the same
-   * order, then any inherited ones after them - so anything unusual (a
-   * polluted prototype included) fails the comparison and falls through to
-   * the exact `Object.keys` path below, which is also where the answer comes
-   * from whenever this says no.
+  /* Shape identity for the two most-recently used plans, checked without
+   * materializing `Object.keys`: for small result sets that array is a real
+   * fraction of the whole call, and an application alternating between two
+   * hot queries would otherwise pay for it on every single call. A hit on
+   * the second entry deliberately does not promote it, so two shapes taking
+   * turns settle one per slot and stop moving. `for..in` walks the same own
+   * enumerable keys in the same order, then any inherited ones after them -
+   * so anything unusual (a polluted prototype included) fails the comparison
+   * and falls through to the exact `Object.keys` path below, which is also
+   * where the answer comes from whenever this says no.
    */
   const rowKeysMatch = (candidateKeys: Array<string>, row: any): boolean => {
     const count = candidateKeys.length;
@@ -1708,13 +1711,19 @@ export const createCore = ({
   };
 
   const getQueryPlan = (sampleRow: any): IQueryPlan => {
-    if (
-      queryPlanCache.length !== 0 &&
-      sampleRow !== void 0 &&
-      sampleRow !== null &&
-      rowKeysMatch(queryPlanCache[0].keys, sampleRow)
-    ) {
-      return queryPlanCache[0];
+    if (sampleRow !== void 0 && sampleRow !== null) {
+      if (
+        queryPlanCache.length !== 0 &&
+        rowKeysMatch(queryPlanCache[0].keys, sampleRow)
+      ) {
+        return queryPlanCache[0];
+      }
+      if (
+        queryPlanCache.length > 1 &&
+        rowKeysMatch(queryPlanCache[1].keys, sampleRow)
+      ) {
+        return queryPlanCache[1];
+      }
     }
     const keys: Array<string> =
       sampleRow === void 0 || sampleRow === null ? [] : Object.keys(sampleRow);
