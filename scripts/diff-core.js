@@ -420,6 +420,56 @@ for (const [label, entities, rows] of cases) {
       }
     ]
   ]);
+  /* Key values whose raw identity and string identity disagree. Models are
+   * defined as being indexed by their key's *string* form, so two distinct
+   * Date objects for the same instant, or two NaNs, are one model - which is
+   * the whole reason the raw-value index has to know when to stop trusting
+   * itself.
+   */
+  const sameInstant = () => new Date(1700000000000);
+  derived.push([
+    'date-ids',
+    entities,
+    [
+      { 'node#id': sameInstant(), 'node#parent_id': null, 'node#name': 'a' },
+      { 'node#id': sameInstant(), 'node#parent_id': null, 'node#name': 'dup' },
+      {
+        'node#id': new Date(1800000000000),
+        'node#parent_id': String(sameInstant()),
+        'node#name': 'child'
+      }
+    ]
+  ]);
+  derived.push([
+    'nan-ids',
+    entities,
+    [
+      { 'node#id': NaN, 'node#parent_id': null, 'node#name': 'a' },
+      { 'node#id': NaN, 'node#parent_id': null, 'node#name': 'dup' },
+      { 'node#id': 2, 'node#parent_id': 'NaN', 'node#name': 'child' }
+    ]
+  ]);
+  derived.push([
+    'boolean-ids',
+    entities,
+    [
+      { 'node#id': true, 'node#parent_id': null, 'node#name': 'yes' },
+      { 'node#id': false, 'node#parent_id': 'true', 'node#name': 'no' }
+    ]
+  ]);
+  // A root key column that only turns mixed part-way through the result set:
+  // the scope index has to re-key itself without merging or splitting scopes.
+  derived.push([
+    'late-mixed-root-ids',
+    entities,
+    [
+      { 'node#id': 1, 'node#parent_id': null, 'node#name': 'a' },
+      { 'node#id': 2, 'node#parent_id': 1, 'node#name': 'b' },
+      { 'node#id': '2', 'node#parent_id': 1, 'node#name': 'b-again' },
+      { 'node#id': '3', 'node#parent_id': '2', 'node#name': 'c' },
+      { 'node#id': 1, 'node#parent_id': null, 'node#name': 'a-again' }
+    ]
+  ]);
 }
 
 // Multiple references from one entity to the same target entity.

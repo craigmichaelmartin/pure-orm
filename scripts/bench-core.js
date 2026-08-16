@@ -277,8 +277,21 @@ const buildStressRows = ({
       }
       const cloned = { ...base };
       if (distributeRoots) {
-        const rootIdKey = `${rootTable}#id`;
-        cloned[rootIdKey] = row[rootIdKey] + (i + 1) * 10000;
+        /* Every key column has to move together, not just `<root>#id`:
+         * shifting the root id alone leaves the child rows pointing at the
+         * original one, so nothing resolves and the copies measure a graph the
+         * ORM would never build.
+         */
+        const offset = (i + 1) * 1000000;
+        for (const key in cloned) {
+          const value = cloned[key];
+          if (
+            (key.endsWith('#id') || key.endsWith('_id')) &&
+            typeof value === 'number'
+          ) {
+            cloned[key] = value + offset;
+          }
+        }
       }
       rows.push(cloned);
     }

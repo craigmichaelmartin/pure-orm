@@ -1785,4 +1785,179 @@ describe('row plan reuse', () => {
     });
     expect(JSON.parse(JSON.stringify(order)).lineItems).toBeUndefined();
   });
+
+  /* Models are indexed by the *string* form of their key, which is what lets
+   * an int4 primary key `5` match an int8 foreign key `'5'`. The index reaches
+   * that answer through raw column values wherever they are an exact stand-in
+   * for that string, so these cases pin down the places where they are not.
+   */
+  describe('key identity', () => {
+    class Parent implements IModel {
+      id: any;
+      name: string;
+      constructor(props: any) {
+        this.id = props.id;
+        this.name = props.name;
+      }
+    }
+    class Parents implements ICollection<Parent> {
+      models: Array<Parent>;
+      constructor({ models }: any) {
+        this.models = models;
+      }
+    }
+    class Child implements IModel {
+      id: any;
+      parentId: any;
+      tag: string;
+      constructor(props: any) {
+        this.id = props.id;
+        this.parentId = props.parentId;
+        this.tag = props.tag;
+      }
+    }
+    class Children implements ICollection<Child> {
+      models: Array<Child>;
+      constructor({ models }: any) {
+        this.models = models;
+      }
+    }
+    const keyEntities = [
+      {
+        tableName: 'parent',
+        columns: ['id', 'name'],
+        Model: Parent,
+        Collection: Parents
+      },
+      {
+        tableName: 'child',
+        collectionDisplayName: 'children',
+        columns: ['id', { column: 'parent_id', references: Parent }, 'tag'],
+        Model: Child,
+        Collection: Children
+      }
+    ];
+    const parents = (...specs: Array<Array<any>>) =>
+      createCore({ entities: keyEntities }).createFromDatabase<
+        ICollection<Parent>
+      >(
+        specs.map(([id, name, childId, parentId, tag]) => ({
+          'parent#id': id,
+          'parent#name': name,
+          'child#id': childId,
+          'child#parent_id': parentId,
+          'child#tag': tag
+        }))
+      );
+
+    test('a number key and its string spelling are one model', () => {
+      const result = parents([5, 'num', 1, 5, 'a'], ['5', 'again', 2, 5, 'b']);
+      expect(result.models.length).toEqual(1);
+      expect(result.models[0].name).toEqual('num');
+      expect((result.models[0] as any).children.models.length).toEqual(2);
+    });
+
+    test('a string foreign key resolves a number primary key', () => {
+      const result = parents([5, 'p', 1, '5', 'a']);
+      const child = (result.models[0] as any).children.models[0];
+      expect(child.parent).toBe(result.models[0]);
+    });
+
+    test('equal-but-distinct object keys are one model', () => {
+      const at = () => new Date(1700000000000);
+      const result = parents(
+        [at(), 'first', 1, null, 'a'],
+        [at(), 'dup', 2, null, 'b']
+      );
+      expect(result.models.length).toEqual(1);
+      expect(result.models[0].name).toEqual('first');
+    });
+
+    test('NaN keys are one model', () => {
+      const result = parents(
+        [NaN, 'first', 1, null, 'a'],
+        [NaN, 'dup', 2, null, 'b']
+      );
+      expect(result.models.length).toEqual(1);
+      expect(result.models[0].name).toEqual('first');
+    });
+
+    test('a key column that turns mixed part-way through still de-dupes', () => {
+      const result = parents(
+        [1, 'a', 1, 1, 'x'],
+        [2, 'b', 2, 2, 'y'],
+        ['2', 'b-again', 3, '2', 'z'],
+        ['1', 'a-again', 4, 1, 'w']
+      );
+      expect(result.models.map((model: Parent) => model.name)).toEqual([
+        'a',
+        'b'
+      ]);
+      expect((result.models[1] as any).children.models.length).toEqual(2);
+    });
+
+    test('an empty-string key yields one un-referenceable model', () => {
+      const result = parents(
+        ['', 'first', 1, null, 'a'],
+        ['', 'second', 2, null, 'b']
+      );
+      expect(result.models.length).toEqual(1);
+      expect(result.models[0].name).toEqual('first');
+    });
+  });
+
+  /* The generated processor tracks which entities a row created in a bit mask,
+   * which only reaches so far. Past that it falls back to one flag per entity,
+   * and nothing else in the suite is wide enough to run that code.
+   */
+  test('a query joining more linking entities than fit a bit mask', () => {
+    const width = 40;
+    const entities: Array<any> = [];
+    const models: Array<any> = [];
+    for (let i = 0; i < width; i++) {
+      const Model = class {
+        id: any;
+        rootId: any;
+        constructor(props: any) {
+          this.id = props.id;
+          this.rootId = props.rootId;
+        }
+      };
+      const Collection = class {
+        models: Array<any>;
+        constructor({ models: m }: any) {
+          this.models = m;
+        }
+      };
+      models.push(Model);
+      entities.push({
+        tableName: `t${i}`,
+        displayName: `t${i}`,
+        columns:
+          i === 0
+            ? ['id']
+            : ['id', { column: 'root_id', references: models[0] }],
+        Model,
+        Collection
+      });
+    }
+    const rows = [];
+    for (let root = 1; root <= 3; root++) {
+      for (let repeat = 0; repeat < 2; repeat++) {
+        const row: any = { 't0#id': root };
+        for (let i = 1; i < width; i++) {
+          row[`t${i}#id`] = root * 100 + i * 10 + repeat;
+          row[`t${i}#root_id`] = root;
+        }
+        rows.push(row);
+      }
+    }
+    const result = createCore({ entities }).createFromDatabase<
+      ICollection<IModel>
+    >(rows);
+    expect(result.models.length).toEqual(3);
+    for (let i = 1; i < width; i++) {
+      expect((result.models[0] as any)[`t${i}s`].models.length).toEqual(2);
+    }
+  });
 });

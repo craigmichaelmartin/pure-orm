@@ -46,6 +46,13 @@ const sparsifyRow = (row, prefix) => {
   for (const k in row) s[k] = k.startsWith(prefix + '#') ? row[k] : null;
   return s;
 };
+/* `distributeRoots` turns N copies of one fixture into N independent result
+ * sets rather than N copies of the same one. Every key column has to move
+ * together for that: shifting only `<root>#id` leaves the child rows pointing
+ * at the original root id, so every child-to-root reference fails to resolve
+ * and the copies measure a graph the ORM would never actually build.
+ */
+const isKeyColumn = (key) => key.endsWith('#id') || key.endsWith('_id');
 const build = ({
   baseRows,
   baseRowsSet,
@@ -61,11 +68,17 @@ const build = ({
   ).split('#')[0];
   const rows = [];
   for (let i = 0; i < multiplier; i++) {
+    const offset = (i + 1) * 1000000;
     for (const row of src) {
       const base = sparseJoins ? sparsifyRow(row, rootTable) : row;
       const cloned = { ...base };
       if (distributeRoots) {
-        cloned[rootTable + '#id'] = row[rootTable + '#id'] + (i + 1) * 10000;
+        for (const key in cloned) {
+          const value = cloned[key];
+          if (isKeyColumn(key) && typeof value === 'number') {
+            cloned[key] = value + offset;
+          }
+        }
       }
       rows.push(cloned);
     }
