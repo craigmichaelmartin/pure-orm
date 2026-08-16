@@ -283,6 +283,18 @@ export const create = ({
     return shapeKey;
   };
 
+  /* On a cache miss the clause builders decide which columns are in the shape
+   * from the shape key itself rather than reading the model a second time: a
+   * property getter is read exactly once per call, and the clause can never
+   * disagree with the values the collector already gathered.
+   */
+  const shapeHasColumn = (shapeKey: number | string, i: number): boolean =>
+    typeof shapeKey === 'number'
+      ? (shapeKey & (1 << i)) !== 0
+      : (shapeKey.charCodeAt((i / WIDE_CHUNK_BITS) | 0) &
+          (1 << i % WIDE_CHUNK_BITS)) !==
+        0;
+
   const getSqlInsertParts = (
     model: IModel
   ): { columns: string; values: Array<string>; valuesVar: Array<string> } => {
@@ -299,7 +311,7 @@ export const create = ({
       const valuesVar: Array<string> = [];
       let paramIndex = 1;
       for (let i = 0; i < columnCount; i++) {
-        if (model[propertyNames[i] as keyof typeof model] !== void 0) {
+        if (shapeHasColumn(shapeKey, i)) {
           if (columns) {
             columns += ', ';
           }
@@ -336,7 +348,7 @@ export const create = ({
       let clause = '';
       let paramIndex = 1;
       for (let i = 0; i < columnCount; i++) {
-        if (model[propertyNames[i] as keyof typeof model] !== void 0) {
+        if (shapeHasColumn(shapeKey, i)) {
           if (clause) {
             clause += ', ';
           }
@@ -368,7 +380,7 @@ export const create = ({
       whereClause = '';
       let paramIndex = 1;
       for (let i = 0; i < columnCount; i++) {
-        if (model[propertyNames[i] as keyof typeof model] != null) {
+        if (shapeHasColumn(shapeKey, i)) {
           if (whereClause) {
             whereClause += ' AND ';
           }
@@ -411,7 +423,7 @@ export const create = ({
       whereClause = '';
       let clauseIndex = 1;
       for (let i = 0; i < columnCount; i++) {
-        if (model[propertyNames[i] as keyof typeof model] != null) {
+        if (shapeHasColumn(shapeKey, i)) {
           if (whereClause) {
             whereClause += ' AND ';
           }
