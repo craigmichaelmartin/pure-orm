@@ -1961,3 +1961,105 @@ describe('row plan reuse', () => {
     }
   });
 });
+
+/* A composite primary key on a NON-root entity (a junction-table shape). Its
+ * key is the concatenation of its parts' string forms, per root scope - so
+ * the same tuple within one scope is one model, the same tuple in another
+ * scope is another model, an all-null tuple is no model at all, and tuples
+ * whose concatenations collide ("1020" from (1020, null) and from (10, 20))
+ * are, by definition, one model.
+ */
+describe('composite primary keys on a non-root entity', () => {
+  class JRoot implements IModel {
+    id: number;
+    constructor(props: any) {
+      this.id = props.id;
+    }
+  }
+  class JRoots implements ICollection<JRoot> {
+    models: Array<JRoot>;
+    constructor({ models }: any) {
+      this.models = models;
+    }
+  }
+  class JChild implements IModel {
+    leftId: any;
+    rightId: any;
+    rootId: any;
+    note: string;
+    constructor(props: any) {
+      this.leftId = props.leftId;
+      this.rightId = props.rightId;
+      this.rootId = props.rootId;
+      this.note = props.note;
+    }
+  }
+  class JChildren implements ICollection<JChild> {
+    models: Array<JChild>;
+    constructor({ models }: any) {
+      this.models = models;
+    }
+  }
+  const entities = [
+    {
+      tableName: 'j_root',
+      columns: ['id'] as IColumns,
+      Model: JRoot,
+      Collection: JRoots
+    },
+    {
+      tableName: 'j_child',
+      columns: [
+        { column: 'left_id', primaryKey: true },
+        { column: 'right_id', primaryKey: true },
+        { column: 'root_id', references: JRoot },
+        'note'
+      ] as IColumns,
+      Model: JChild,
+      Collection: JChildren
+    }
+  ];
+  const row = (rootId: any, leftId: any, rightId: any, note: string): any => ({
+    'j_root#id': rootId,
+    'j_child#left_id': leftId,
+    'j_child#right_id': rightId,
+    'j_child#root_id': rootId,
+    'j_child#note': note
+  });
+
+  test('deduplicates per scope, keeps scopes apart, skips keyless rows', () => {
+    const core = createCore({ entities });
+    const roots = core.createFromDatabase<ICollection<IModel>>([
+      row(1, 10, 20, 'a'),
+      row(1, 10, 20, 'a-dup'), // same tuple, same scope: one model
+      row(1, 10, 21, 'b'),
+      row(2, 10, 21, 'c'), // same tuple as previous row, new scope: new model
+      row(1, 10, 21, 'revisit'), // back to scope 1: its existing model
+      row(2, null, null, 'no-key') // all-null key: no model at all
+    ]);
+    expect(roots.models.length).toEqual(2);
+    const childNotes = (root: any): Array<string> =>
+      root.jChilds.models.map((child: any) => child.note);
+    expect(childNotes(roots.models[0])).toEqual(['a', 'b']);
+    expect(childNotes(roots.models[1])).toEqual(['c']);
+    // First-wins within a scope; the scopes' equal tuples stay distinct models.
+    expect(roots.models[0].jChilds.models[1]).not.toBe(
+      roots.models[1].jChilds.models[0]
+    );
+  });
+
+  test('key identity is the concatenated string form of the parts', () => {
+    const core = createCore({ entities });
+    const roots = core.createFromDatabase<ICollection<IModel>>([
+      row(1, 1020, null, 'concat-a'), // key "1020" from one part...
+      row(1, 10, 20, 'concat-b'), // ...and "1020" from two: one model
+      row(1, '10', 21, 'string-part'), // "1021" via a string part...
+      row(1, 10, '21', 'string-part-dup') // ...is "1021" either way
+    ]);
+    expect(roots.models.length).toEqual(1);
+    const notes = roots.models[0].jChilds.models.map(
+      (child: any) => child.note
+    );
+    expect(notes).toEqual(['concat-a', 'string-part']);
+  });
+});

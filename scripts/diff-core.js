@@ -351,6 +351,139 @@ for (const [label, entities, rows] of cases) {
       i % 3 === 0 ? { ...r, 'comp_root#order_id': null } : { ...r }
     )
   ]);
+  /* Scope identity is defined by the "@"-joined string form of the root key
+   * parts, so tuples whose joins collide are ONE scope: a part containing the
+   * separator, or a number/string kind flip that lands on the same join. Any
+   * raw-tuple index has to detect these and merge exactly like the string
+   * form does.
+   */
+  derived.push([
+    'composite-pk#separator-collision',
+    entities,
+    [
+      {
+        'comp_root#tenant_id': 'a@b',
+        'comp_root#order_id': 'c',
+        'comp_root#label': 'first',
+        'comp_child#id': 1,
+        'comp_child#root_key': 'a@bc',
+        'comp_child#value': 'v1'
+      },
+      {
+        'comp_root#tenant_id': 'a',
+        'comp_root#order_id': 'b@c',
+        'comp_root#label': 'second',
+        'comp_child#id': 2,
+        'comp_child#root_key': 'ab@c',
+        'comp_child#value': 'v2'
+      }
+    ]
+  ]);
+  derived.push([
+    'composite-pk#kind-flip-merge',
+    entities,
+    [
+      {
+        'comp_root#tenant_id': 5,
+        'comp_root#order_id': 77,
+        'comp_root#label': 'num',
+        'comp_child#id': 1,
+        'comp_child#root_key': '577',
+        'comp_child#value': 'v1'
+      },
+      {
+        'comp_root#tenant_id': '5',
+        'comp_root#order_id': 77,
+        'comp_root#label': 'str-dup',
+        'comp_child#id': 2,
+        'comp_child#root_key': '577',
+        'comp_child#value': 'v2'
+      },
+      {
+        'comp_root#tenant_id': 6,
+        'comp_root#order_id': NaN,
+        'comp_root#label': 'nan-part',
+        'comp_child#id': 3,
+        'comp_child#root_key': '6NaN',
+        'comp_child#value': 'v3'
+      }
+    ]
+  ]);
+}
+
+// Composite primary keys on a NON-root entity (a junction-table shape): the
+// child's key string is a concatenation of several columns, and consecutive
+// rows repeating the same child tuple - including across a root boundary,
+// where the same tuple must yield a NEW model - pin the per-scope reuse
+// exactly.
+{
+  class JunctionRoot {
+    constructor(props) {
+      this.id = props.id;
+      this.name = props.name;
+    }
+  }
+  class JunctionRoots {
+    constructor({ models }) {
+      this.models = models;
+    }
+  }
+  class JunctionChild {
+    constructor(props) {
+      Object.assign(this, props);
+    }
+  }
+  class JunctionChildren {
+    constructor({ models }) {
+      this.models = models;
+    }
+  }
+  const entities = [
+    {
+      tableName: 'j_root',
+      columns: ['id', 'name'],
+      Model: JunctionRoot,
+      Collection: JunctionRoots
+    },
+    {
+      tableName: 'j_child',
+      columns: [
+        { column: 'left_id', primaryKey: true },
+        { column: 'right_id', primaryKey: true },
+        { column: 'root_id', references: JunctionRoot },
+        'note'
+      ],
+      Model: JunctionChild,
+      Collection: JunctionChildren
+    }
+  ];
+  const row = (rootId, leftId, rightId, note) => ({
+    'j_root#id': rootId,
+    'j_root#name': `root-${rootId}`,
+    'j_child#left_id': leftId,
+    'j_child#right_id': rightId,
+    'j_child#root_id': rootId,
+    'j_child#note': note
+  });
+  const rows = [
+    row(1, 10, 20, 'a'),
+    row(1, 10, 20, 'a-dup'), // same tuple, same scope: one child model
+    row(1, 10, 21, 'b'),
+    row(2, 10, 21, 'c'), // same tuple as previous row, NEW scope: new model
+    row(2, 10, 21, 'c-dup'),
+    row(1, 10, 21, 'revisit'), // back to scope 1: its existing model
+    row(2, null, null, 'no-key'), // keyless child row: no model at all
+    row(2, 1020, null, 'concat-a'), // "1020" via one part...
+    row(2, 10, 20, 'concat-b'), // ...collides with "10"+"20" - one model
+    row(3, '10', 20, 'string-part') // key parts arriving as strings
+  ];
+  derived.push(['junction-composite-child', entities, rows]);
+  derived.push([
+    'junction-composite-child#shuffled',
+    entities,
+    shuffle([...rows], rng)
+  ]);
+  derived.push(['junction-composite-child#x2', entities, [...rows, ...rows]]);
 }
 
 // Null / undefined / falsy primary key values and self-referencing rows.

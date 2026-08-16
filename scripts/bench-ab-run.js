@@ -17,6 +17,7 @@ const SCENARIOS = process.env.BENCH_SCENARIOS
       'thirteen',
       'six',
       'composite-pk',
+      'composite-child',
       'tiny-1row',
       'tiny-24row',
       'multi-shape',

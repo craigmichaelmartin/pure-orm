@@ -151,6 +151,89 @@ const compositePk = (multiplier) => {
   return { entities, rows };
 };
 
+/* A junction-table shape: the composite-keyed entity is NOT the root, so its
+ * concatenated key is (re)computed per row on the hot path, and each key
+ * tuple repeats for a run of rows as the join fans out below it.
+ */
+const compositeChild = (multiplier) => {
+  class CcRoot {
+    constructor(props) {
+      Object.assign(this, props);
+    }
+  }
+  class CcRoots {
+    constructor({ models }) {
+      this.models = models;
+    }
+  }
+  class CcLine {
+    constructor(props) {
+      Object.assign(this, props);
+    }
+  }
+  class CcLines {
+    constructor({ models }) {
+      this.models = models;
+    }
+  }
+  class CcFulfillment {
+    constructor(props) {
+      Object.assign(this, props);
+    }
+  }
+  class CcFulfillments {
+    constructor({ models }) {
+      this.models = models;
+    }
+  }
+  const entities = [
+    {
+      tableName: 'cc_root',
+      columns: ['id', 'label'],
+      Model: CcRoot,
+      Collection: CcRoots
+    },
+    {
+      tableName: 'cc_line',
+      columns: [
+        { column: 'order_id', primaryKey: true },
+        { column: 'line_no', primaryKey: true },
+        { column: 'root_id', references: CcRoot },
+        'sku'
+      ],
+      Model: CcLine,
+      Collection: CcLines
+    },
+    {
+      tableName: 'cc_ful',
+      columns: ['id', { column: 'line_key', references: CcLine }, 'qty'],
+      Model: CcFulfillment,
+      Collection: CcFulfillments
+    }
+  ];
+  const rows = [];
+  let fulId = 1;
+  for (let m = 0; m < multiplier; m++) {
+    const rootId = m + 1;
+    for (let line = 1; line <= 4; line++) {
+      for (let f = 1; f <= 2; f++) {
+        rows.push({
+          'cc_root#id': rootId,
+          'cc_root#label': `r-${rootId}`,
+          'cc_line#order_id': rootId,
+          'cc_line#line_no': line,
+          'cc_line#root_id': rootId,
+          'cc_line#sku': `sku-${line}`,
+          'cc_ful#id': fulId++,
+          'cc_ful#line_key': `${rootId}${line}`,
+          'cc_ful#qty': f
+        });
+      }
+    }
+  }
+  return { entities, rows };
+};
+
 const rng = createRng(1337);
 
 const SCENARIOS = {
@@ -207,6 +290,10 @@ const SCENARIOS = {
   }),
   'composite-pk': () => {
     const c = compositePk(120);
+    return { entities: c.entities, rows: c.rows, rounds: 8 };
+  },
+  'composite-child': () => {
+    const c = compositeChild(600);
     return { entities: c.entities, rows: c.rows, rounds: 8 };
   },
   'tiny-1row': () => ({

@@ -507,8 +507,12 @@ const resolveModel = (
 /* Reference resolution from a foreign key value. Unlike model identity, a
  * foreign key is a *different column* from the primary key it names, so its
  * type genuinely can differ - an int4 primary key `5` has to match an int8
- * foreign key `'5'`. A raw miss therefore always falls through to the string
- * index, which is what defines that match.
+ * foreign key `'5'`. A raw miss therefore falls through to the string index,
+ * which is what defines that match - but only when the types actually do
+ * differ (or the slot has already been forced onto strings): a raw miss
+ * between two numbers, or two strings, already proves the string forms
+ * cannot match either, so a reference to a model that simply is not in the
+ * result set stays off the string index entirely.
  */
 const lookupModelByValue = (
   scope: IRootScope,
@@ -538,7 +542,9 @@ const lookupModelByValue = (
       return model;
     }
   }
-  return lookupByString(scope, base, value);
+  return rawKeyIsExact(scope, base, value)
+    ? void 0
+    : lookupByString(scope, base, value);
 };
 
 /* Re-keys a raw-keyed scope map into a string-keyed one, for `Map.forEach`
@@ -554,6 +560,37 @@ function restringifyScopeKey(
 ): void {
   this.set(stringKeyOf(raw), scope);
 }
+
+/* The composite analog: re-keys the raw-tuple scope index into the
+ * string-keyed map that *defines* composite scope identity, for the first
+ * root tuple whose raw parts cannot stand in for their joined string form.
+ * `entries` records every scope as its parts followed by the scope itself;
+ * parts were normalized (null and undefined to `""`) when stored, so joining
+ * their string forms rebuilds each scope key exactly as the string path
+ * builds it. Runs at most once per result set.
+ */
+const migrateCompositeScopes = (
+  entries: Array<any> | void,
+  partCount: number
+): Map<string, IRootScope> => {
+  const byKey = new Map<string, IRootScope>();
+  if (entries === void 0) {
+    return byKey;
+  }
+  const width = partCount + 1;
+  for (let i = 0; i < entries.length; i += width) {
+    let scopeKey = '';
+    for (let j = 0; j < partCount; j++) {
+      if (j > 0) {
+        scopeKey += '@';
+      }
+      const part = entries[i + j];
+      scopeKey += typeof part === 'string' ? part : String(part);
+    }
+    byKey.set(scopeKey, entries[i + partCount]);
+  }
+  return byKey;
+};
 
 const storeModel = (
   scope: IRootScope,
@@ -579,27 +616,6 @@ const storeModel = (
   if (byString !== void 0) {
     byString.set(stringKeyOf(raw), model);
   }
-};
-
-const pkIdSource = (rowKeys: Array<string>, target: string): string => {
-  if (rowKeys.length === 1) {
-    return (
-      target +
-      '=(v=row[' +
-      literal(rowKeys[0]) +
-      '])==null?"":typeof v==="string"?v:String(v);'
-    );
-  }
-  let source = target + '="";';
-  for (let i = 0; i < rowKeys.length; i++) {
-    source +=
-      'if((v=row[' +
-      literal(rowKeys[i]) +
-      '])!=null){' +
-      target +
-      '+=typeof v==="string"?v:String(v);}';
-  }
-  return source;
 };
 
 const makeCompiledRowsProcessor = (
@@ -824,6 +840,27 @@ const makeCompiledRowsProcessor = (
     }
   }
 
+  /* Composite-keyed non-root entities memoize the raw parts of the last
+   * primary key they resolved: while every part is `===`-unchanged the row
+   * belongs to the model the entity just resolved, so nothing runs at all -
+   * in particular the joined key string is not rebuilt. Equal raw parts
+   * always join to the equal string, so the skip is exact without any type
+   * guards; a change in any part rebuilds the string and takes the normal
+   * probes. The memo only holds within one root scope, so the scope-change
+   * branches reset the first part to the empty sentinel (which no row value
+   * can ever be `===` to).
+   */
+  let compositeMemoResets = '';
+  for (let p = 1; p < planCount; p++) {
+    const partCount = plans[p].primaryKeyRowKeys.length;
+    if (partCount > 1) {
+      for (let i = 0; i < partCount; i++) {
+        declarations += 'var w' + p + '_' + i + ',pw' + p + '_' + i + '=E;';
+      }
+      compositeMemoResets += 'pw' + p + '_0=E;';
+    }
+  }
+
   /* Root scope resolution. Rows for one root arrive together, so the common
    * case is "same raw key as the previous row" and never touches a string or
    * a Map; the string comparison behind it is what actually defines scope
@@ -863,58 +900,157 @@ const makeCompiledRowsProcessor = (
     rootCreate +
     '}';
 
-  /* A composite root key gets the same treatment, one memo local per key
-   * column: while every column is unchanged the scope key string, and with it
-   * the root's own primary key id, are unchanged too.
+  /* A composite root gets the same memo treatment, one local per key column:
+   * while every column is `===`-unchanged, the scope, the root model and the
+   * root's primary key id are all already in hand and the row costs the part
+   * loads and compares alone.
+   *
+   * When the tuple does change, scope identity is *defined* by the string the
+   * parts join to ("@"-separated, null and undefined as ""), but the scopes
+   * are indexed by the raw parts themselves in nested maps, so no key string
+   * is built and - the expensive half - no freshly built string is retained
+   * as a Map key. Raw tuples stand in exactly for their joined string while,
+   * per column, every part is a non-NaN number or every part is an "@"-free
+   * string: `String()` is injective over each kind on its own, and with the
+   * separator in place equal joins then require equal tuples. The first part
+   * that breaks that (a mixed column, an object, NaN, a string containing the
+   * separator) migrates the index onto real string keys, once, and the shape
+   * stays there - exactly the trade the single-key scope index makes.
    */
   let compositeRootScope = '';
   if (!rootIsSingleKey) {
-    for (let i = 0; i < rootScopeRowKeys.length; i++) {
-      declarations += 'var q' + i + ',pr' + i + '=E;';
+    const partCount = rootScopeRowKeys.length;
+    declarations += 'var cm=0,byKC,spL,u,pk0="";';
+    for (let i = 0; i < partCount; i++) {
+      declarations += 'var q' + i + ',n' + i + ',pr' + i + '=E,ck' + i + '=0;';
       compositeRootScope +=
         'q' + i + '=row[' + literal(rootScopeRowKeys[i]) + '];';
     }
     let changed = 'q0!==pr0';
-    for (let i = 1; i < rootScopeRowKeys.length; i++) {
+    for (let i = 1; i < partCount; i++) {
       changed += '||q' + i + '!==pr' + i;
     }
-    let rebuild = 'isNew=false;sk="";pk0="";';
-    for (let i = 0; i < rootScopeRowKeys.length; i++) {
-      const part = 'q' + i;
+
+    // Commit the memo and normalize the parts (null/undefined read as "",
+    // which is what they contribute to the key string).
+    let commit = 'isNew=false;' + compositeMemoResets;
+    for (let i = 0; i < partCount; i++) {
+      commit +=
+        'pr' + i + '=q' + i + ';n' + i + '=q' + i + '==null?"":q' + i + ';';
+    }
+
+    /* Exactness guard, run once per distinct tuple: per column the parts must
+     * stay one kind - non-NaN numbers (kind 1) or separator-free strings
+     * (kind 2). Anything else flips the index to string keys for good.
+     */
+    let guards = '';
+    for (let i = 0; i < partCount; i++) {
+      const part = 'n' + i;
+      const kind = 'ck' + i;
+      guards +=
+        'if(typeof ' +
+        part +
+        '==="number"){if(' +
+        part +
+        '!==' +
+        part +
+        '){cm=1;}else if(' +
+        kind +
+        '===0){' +
+        kind +
+        '=1;}else if(' +
+        kind +
+        '!==1){cm=1;}}else if(typeof ' +
+        part +
+        '==="string"){if(' +
+        part +
+        '.indexOf("@")>=0){cm=1;}else if(' +
+        kind +
+        '===0){' +
+        kind +
+        '=2;}else if(' +
+        kind +
+        '!==2){cm=1;}}else{cm=1;}';
+    }
+    guards +=
+      'if(cm===1){byKey=MG(spL,' +
+      partCount +
+      ');byKC=undefined;spL=undefined;}';
+
+    // Probe the nested raw index, creating the levels a new tuple needs.
+    let rawLookup = 'st=undefined;if(byKC!==undefined){u=byKC.get(n0);';
+    let rawLookupClose = '}';
+    for (let i = 1; i < partCount - 1; i++) {
+      rawLookup += 'if(u!==undefined){u=u.get(n' + i + ');';
+      rawLookupClose += '}';
+    }
+    rawLookup +=
+      'if(u!==undefined){st=u.get(n' + (partCount - 1) + ');}' + rawLookupClose;
+
+    let rawCreate =
+      'st=NS();if(byKC===undefined){byKC=new Map();spL=[];}u=byKC;';
+    for (let i = 0; i < partCount - 1; i++) {
+      rawCreate +=
+        'if((o=u.get(n' +
+        i +
+        '))===undefined){o=new Map();u.set(n' +
+        i +
+        ',o);}u=o;';
+    }
+    rawCreate += 'u.set(n' + (partCount - 1) + ',st);spL.push(n0';
+    for (let i = 1; i < partCount; i++) {
+      rawCreate += ',n' + i;
+    }
+    rawCreate += ',st);isNew=true;';
+
+    // The string path: scope identity as literally defined.
+    let strResolve = 'sk="";';
+    for (let i = 0; i < partCount; i++) {
       if (i > 0) {
-        rebuild += 'sk+="@";';
+        strResolve += 'sk+="@";';
       }
-      rebuild +=
+      strResolve +=
+        'sk+=typeof n' + i + '==="string"?n' + i + ':String(n' + i + ');';
+    }
+    strResolve +=
+      'st=byKey.get(sk);if(st===undefined){st=NS();byKey.set(sk,st);isNew=true;}';
+
+    // The root's own key id keeps its historical form: the parts' string
+    // forms concatenated with no separator, skipping null and undefined.
+    let pkBuild = 'pk0="";';
+    for (let i = 0; i < partCount; i++) {
+      const part = 'q' + i;
+      pkBuild +=
         'if(' +
         part +
-        '==null){}else{sk+=typeof ' +
-        part +
-        '==="string"?' +
-        part +
-        ':String(' +
-        part +
-        ');pk0+=typeof ' +
+        '==null){}else{pk0+=typeof ' +
         part +
         '==="string"?' +
         part +
         ':String(' +
         part +
         ');}';
-      rebuild += 'pr' + i + '=' + part + ';';
     }
-    // A composite key has no single column value to index by, so the key its
-    // parts concatenate to stands in as the raw key - it is a string, which is
-    // its own exact string key.
+
     compositeRootScope +=
       'if(' +
       changed +
       '){' +
-      rebuild +
-      resolveScope +
+      commit +
+      'if(cm===0){' +
+      guards +
+      '}' +
+      'if(cm===0){' +
+      rawLookup +
+      'if(st===undefined){' +
+      rawCreate +
+      '}S=st;}else{' +
+      strResolve +
+      'S=st;}' +
+      pkBuild +
       'v=pk0;' +
       makeRootResolve('v===""') +
       'if(isNew){models.push(root);}}';
-    declarations += 'var pk0="";';
   }
 
   /* Scope identity is defined by the root key's *string* form, but building
@@ -943,6 +1079,7 @@ const makeCompiledRowsProcessor = (
     ? 'v=row[' +
       literal(rootScopeRowKeys[0]) +
       '];if(v!==curRaw){isNew=false;curRaw=v;' +
+      compositeMemoResets +
       'if(sm===0&&typeof v===rk&&v===v){sk=v;}else{' +
       slowScopeKey +
       '}' +
@@ -988,9 +1125,38 @@ const makeCompiledRowsProcessor = (
         create +
         '}}';
     } else {
-      // The concatenated key is a string, so it is its own exact raw key.
+      /* The concatenated key is a string, so it is its own exact raw key. The
+       * raw-parts memo in front of it (see its declaration site) means a run
+       * of rows for one composite-keyed model never rebuilds the key at all.
+       */
+      let partLoads = '';
+      let partsChanged = '';
+      let partCommit = '';
+      let buildKey = 'v="";';
+      for (let i = 0; i < plan.primaryKeyRowKeys.length; i++) {
+        const cur = 'w' + p + '_' + i;
+        const prev = 'pw' + p + '_' + i;
+        partLoads += cur + '=row[' + literal(plan.primaryKeyRowKeys[i]) + '];';
+        partsChanged += (i === 0 ? '' : '||') + cur + '!==' + prev;
+        partCommit += prev + '=' + cur + ';';
+        buildKey +=
+          'if(' +
+          cur +
+          '!=null){v+=typeof ' +
+          cur +
+          '==="string"?' +
+          cur +
+          ':String(' +
+          cur +
+          ');}';
+      }
       body +=
-        pkIdSource(plan.primaryKeyRowKeys, 'v') +
+        partLoads +
+        'if(' +
+        partsChanged +
+        '){' +
+        partCommit +
+        buildKey +
         'if(v!==""&&S[' +
         base +
         ']!==v){' +
@@ -1000,7 +1166,8 @@ const makeCompiledRowsProcessor = (
           create
         ) +
         create +
-        '}}';
+        '}}' +
+        '}';
     }
   }
 
@@ -1040,6 +1207,7 @@ const makeCompiledRowsProcessor = (
       'LS',
       'LA',
       'SK',
+      'MG',
       'OD',
       'NS',
       'E',
@@ -1059,6 +1227,7 @@ const makeCompiledRowsProcessor = (
       resolveModel,
       resolveAmbiguousModel,
       restringifyScopeKey,
+      migrateCompositeScopes,
       Object.defineProperty,
       newSlots,
       EMPTY_SLOT
@@ -1518,7 +1687,35 @@ export const createCore = ({
   const MAX_QUERY_PLAN_CACHE = 64;
   const queryPlanCache: Array<IQueryPlan> = [];
 
+  /* Shape identity for the most-recent plan, checked without materializing
+   * `Object.keys`: for small result sets that array is a real fraction of the
+   * whole call. `for..in` walks the same own enumerable keys in the same
+   * order, then any inherited ones after them - so anything unusual (a
+   * polluted prototype included) fails the comparison and falls through to
+   * the exact `Object.keys` path below, which is also where the answer comes
+   * from whenever this says no.
+   */
+  const rowKeysMatch = (candidateKeys: Array<string>, row: any): boolean => {
+    const count = candidateKeys.length;
+    let i = 0;
+    for (const key in row) {
+      if (i === count || candidateKeys[i] !== key) {
+        return false;
+      }
+      i++;
+    }
+    return i === count;
+  };
+
   const getQueryPlan = (sampleRow: any): IQueryPlan => {
+    if (
+      queryPlanCache.length !== 0 &&
+      sampleRow !== void 0 &&
+      sampleRow !== null &&
+      rowKeysMatch(queryPlanCache[0].keys, sampleRow)
+    ) {
+      return queryPlanCache[0];
+    }
     const keys: Array<string> =
       sampleRow === void 0 || sampleRow === null ? [] : Object.keys(sampleRow);
     const keyCount = keys.length;
