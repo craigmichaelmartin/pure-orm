@@ -1317,12 +1317,6 @@ const makeInterpretedRowsProcessor = (
         sourceModel[ref.targetDisplayName as keyof typeof sourceModel] =
           targetModel;
 
-        let collection = targetModel[collectionKey];
-        if (!collection) {
-          collection = new plan.Collection({ models: [] });
-          defineCollection(targetModel, collectionKey, collection);
-        }
-
         if (refCount > 1) {
           let alreadyLinked = false;
           for (let l = 0; l < linkedCount; l++) {
@@ -1337,7 +1331,20 @@ const makeInterpretedRowsProcessor = (
           linkedTargets[linkedCount] = targetModel;
           linkedCount++;
         }
-        collection.models.push(sourceModel);
+
+        const collection = targetModel[collectionKey];
+        if (collection) {
+          collection.models.push(sourceModel);
+        } else {
+          // Like the compiled path, a collection that does not exist yet is
+          // created already holding the model that caused it to exist, so
+          // user Collection constructors see identical input on both paths.
+          defineCollection(
+            targetModel,
+            collectionKey,
+            new plan.Collection({ models: [sourceModel] })
+          );
+        }
       }
     }
 
