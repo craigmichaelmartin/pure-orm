@@ -1,6 +1,6 @@
 {
   "name": "pure-orm",
-  "version": "4.1.5",
+  "version": "5.0.0",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
   "files": [
