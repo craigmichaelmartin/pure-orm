@@ -1,6 +1,72 @@
 # Changelog
 
-## Unreleased
+## Unreleased (5.0.0)
+
+### Breaking: back-reference collection storage
+
+Back-reference collections (`order.lineItems` and the like) are no longer
+own non-enumerable string-keyed properties. They are stored as own
+**symbol-keyed** data properties - `Symbol.for('pure-orm:collection:' + collectionDisplayName)`, a documented, stable namespace - and exposed under
+the collection display name by a getter/setter pair installed once per
+(model prototype, collection name) at `createCore` time.
+
+Why: `Object.defineProperty` is the only primitive that creates an own
+non-enumerable data property, it costs ~110ns per call on V8 (~35x a plain
+store), and one call per output collection made it the single largest cost
+in `createFromDatabase`. The symbol store is a plain assignment. Measured
+against the same build with v4 storage (A/B harness, min of 3 repeats per
+scenario, Node 20.13): **1.74x geomean across the 19-scenario matrix**;
+link-dense shapes gain the most (tiny-1row 4.7x, thirteen 3.8x, six 3.3x,
+tiny-24row 3.2x, many-roots 2.9x, blog-three 2.5x, multi-core 2.2x); wide
+captured production pages gain 1.35-1.4x; scenarios that link little or
+are bound by user constructors sit at 1.0-1.1x (sparse-joins, sparse-many,
+kujo-parcel-one, kujo-account-orders).
+
+Everything the non-enumerable property existed to protect still holds:
+
+- `JSON.stringify` output is **byte-for-byte identical** (cyclic graphs
+  still serialize; symbol properties are invisible to JSON),
+- `Object.keys`, `for..in`, `Object.getOwnPropertyNames`, and
+  `Object.entries` still never show collection names,
+- reading and assigning `model.lineItems` behaves as before (assignment goes
+  through the prototype setter into the symbol slot).
+
+What breaks - own-property introspection under the collection name:
+
+- `model.hasOwnProperty('lineItems')` is now `false`; test for presence with
+  `model.lineItems !== undefined`.
+- `Object.getOwnPropertyDescriptor(model, 'lineItems')` is now `undefined`;
+  the descriptor lives on the prototype as an accessor pair, and the data
+  property lives under the collection symbol.
+- `delete model.lineItems` no longer clears the collection (there is no own
+  string-keyed property to delete); assign `model.lineItems = undefined`
+  instead.
+- `'lineItems' in model` is now `true` for every instance of a class that
+  can be linked (the accessor is on the prototype), not just linked ones.
+- Own **symbol** introspection now sees the storage:
+  `Object.getOwnPropertySymbols(model)` includes the collection symbols, and
+  because the symbol property is enumerable, `{ ...model }`,
+  `Object.assign(target, model)`, and deep-equality assertions that include
+  enumerable own symbols (`assert.deepStrictEqual`, jest's `toEqual`) now
+  see collections they previously ignored. Spread-copies of models therefore
+  retain a reference to the linked subgraph (invisibly to JSON and key
+  enumeration).
+- A model's ordering of collections _among_ its string-keyed properties no
+  longer exists (symbol keys are ordered after all string keys); the order
+  of the collection symbols themselves still follows link order.
+
+The exported `collectionSymbolFor(collectionDisplayName)` returns the
+storage symbol for a collection name, for deliberate introspection.
+
+Name collisions keep the v4 own-property define, so the accessor can never
+observably interfere: if the collection display name equals one of the
+target class's column property names, a forward-reference display name
+stored on that class, or any user-defined member anywhere on the target's
+prototype chain, that (class, name) pair links exactly as v4 did.
+
+Migration: audit for the five introspection patterns above under collection
+display names. `for..in`-with-`hasOwnProperty`-guard copy loops are safe
+unchanged (collections never appeared in `for..in` and still don't).
 
 ### Testing & benchmarks
 
@@ -40,10 +106,14 @@ interpreted fallback. The ORM SQL helpers (`getSqlInsertParts`,
 `getSqlUpdateParts`, `getMatchingParts`, `getMatchingPartsObject`) memoize
 their clause strings per model shape, keyed by which properties are set.
 
-Returned object graphs are unchanged: validated structurally identical to
-v4.1.5 - property order, descriptor attributes, prototypes, cycle topology,
-JSON serialization, and error behavior - across a differential suite of
-fixtures and stress shapes, on both the compiled and interpreted paths.
+Returned object graphs are unchanged up to the documented storage change:
+validated against v4.1.5 across a differential suite of fixtures and stress
+shapes (950 graph comparisons), on both the compiled and interpreted paths -
+values, own-property order, prototypes, cycle topology, error behavior, and
+byte-for-byte JSON serialization, with back-reference collections compared
+by name across the two storage forms (`scripts/diff-core.js --logical`).
+The compiled and interpreted paths of this release are additionally
+byte-for-byte identical to each other, descriptors and symbols included.
 
 Wide tables (past the 30-column bit-mask limit) now compile their SQL-helper
 shape scan too: per model class, the collector becomes the same
