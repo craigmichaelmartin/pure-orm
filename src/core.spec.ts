@@ -1901,17 +1901,204 @@ describe('row plan reuse', () => {
     expect(persons.models[0].customers.models[0].id).toEqual(4);
   });
 
-  test('back-reference collections stay non-enumerable across calls', () => {
+  /* The v5 back-reference storage contract: collections live in an own
+   * symbol-keyed data property exposed through a non-enumerable prototype
+   * accessor. Everything the v4 non-enumerable own property protected -
+   * `Object.keys`, `for..in`, spread and JSON invisibility - still holds;
+   * what changed is own-property introspection under the collection name.
+   */
+  test('back-reference collections stay JSON- and key-invisible across calls', () => {
     const core = createCore({ entities: orderEntities });
     core.createFromDatabase(one);
     const order = core.createFromDatabase(one).models[0];
+    expect(order.lineItems.models.length).toBeGreaterThan(0);
     expect(Object.keys(order)).not.toContain('lineItems');
-    expect(Object.getOwnPropertyDescriptor(order, 'lineItems')).toMatchObject({
-      enumerable: false,
-      writable: true,
-      configurable: true
-    });
+    const forInKeys: Array<string> = [];
+    // eslint-disable-next-line guard-for-in
+    for (const key in order) {
+      forInKeys.push(key);
+    }
+    expect(forInKeys).not.toContain('lineItems');
     expect(JSON.parse(JSON.stringify(order)).lineItems).toBeUndefined();
+    // Cyclic graphs stay serializable: the child's forward reference is the
+    // enumerable half, the parent's collection is the invisible half.
+    expect(
+      JSON.parse(JSON.stringify(order.lineItems.models[0])).order.id
+    ).toEqual(order.id);
+  });
+
+  test('back-reference collections are symbol-stored behind a prototype accessor', () => {
+    const core = createCore({ entities: orderEntities });
+    const order = core.createFromDatabase(one).models[0];
+    // No own string-keyed property anymore - the store is an own symbol.
+    expect(Object.getOwnPropertyDescriptor(order, 'lineItems')).toBeUndefined();
+    expect(Object.prototype.hasOwnProperty.call(order, 'lineItems')).toBe(
+      false
+    );
+    expect(Object.getOwnPropertyNames(order)).not.toContain('lineItems');
+    const sym = Symbol.for('pure-orm:collection:lineItems');
+    expect((order as any)[sym]).toBe(order.lineItems);
+    expect(Object.getOwnPropertySymbols(order)).toContain(sym);
+    // The accessor pair lives on the prototype, non-enumerably, and writes
+    // land back in the symbol slot, so assignment still behaves.
+    const descriptor = Object.getOwnPropertyDescriptor(
+      Object.getPrototypeOf(order),
+      'lineItems'
+    ) as PropertyDescriptor;
+    expect(typeof descriptor.get).toBe('function');
+    expect(typeof descriptor.set).toBe('function');
+    expect(descriptor.enumerable).toBe(false);
+    const collection = order.lineItems;
+    order.lineItems = undefined;
+    expect(order.lineItems).toBeUndefined();
+    order.lineItems = collection;
+    expect(order.lineItems).toBe(collection);
+  });
+
+  /* Name collisions keep the v4 own-property define so the accessor can never
+   * observably interfere: a user-defined prototype member, a column property,
+   * or a forward-reference display name under the collection name.
+   */
+  describe('collection name collisions fall back to the own-property define', () => {
+    test('a user-defined prototype member keeps its unlinked behavior', () => {
+      class GuardedParent implements IModel {
+        [key: string]: any;
+        constructor(props: any) {
+          Object.assign(this, props);
+        }
+        /* Falsy, so a link clobbers it with the own-property store exactly as
+         * v4 did; a truthy value here crashed the link in v4 and still does. */
+        get children(): string {
+          return '';
+        }
+      }
+      class GuardedParents implements ICollection<IModel> {
+        models: Array<IModel>;
+        constructor({ models }: any) {
+          this.models = models;
+        }
+      }
+      class GuardedChild implements IModel {
+        [key: string]: any;
+        constructor(props: any) {
+          Object.assign(this, props);
+        }
+      }
+      class GuardedChildren implements ICollection<IModel> {
+        models: Array<IModel>;
+        constructor({ models }: any) {
+          this.models = models;
+        }
+      }
+      const core = createCore({
+        entities: [
+          {
+            tableName: 'g_parent',
+            columns: ['id'],
+            Model: GuardedParent,
+            Collection: GuardedParents
+          },
+          {
+            tableName: 'g_child',
+            collectionDisplayName: 'children',
+            columns: [
+              'id',
+              { column: 'g_parent_id', references: GuardedParent }
+            ],
+            Model: GuardedChild,
+            Collection: GuardedChildren
+          }
+        ]
+      });
+      const unlinked = core.createFromDatabase([
+        { 'g_parent#id': 1, 'g_child#id': null, 'g_child#g_parent_id': null }
+      ]).models[0];
+      expect(unlinked.children).toEqual('');
+      // No symbol store was installed for this pair.
+      expect(
+        (unlinked as any)[Symbol.for('pure-orm:collection:children')]
+      ).toBeUndefined();
+      const linked = core.createFromDatabase([
+        { 'g_parent#id': 2, 'g_child#id': 7, 'g_child#g_parent_id': 2 }
+      ]).models[0];
+      // Linking shadows the user getter with the v4 own non-enumerable store.
+      expect(linked.children.models.length).toEqual(1);
+      expect(Object.getOwnPropertyDescriptor(linked, 'children')).toMatchObject(
+        { enumerable: false, writable: true, configurable: true }
+      );
+    });
+
+    test('a column property under the collection name keeps the v4 store', () => {
+      class ColParent implements IModel {
+        [key: string]: any;
+        constructor(props: any) {
+          Object.assign(this, props);
+        }
+      }
+      class ColParents implements ICollection<IModel> {
+        models: Array<IModel>;
+        constructor({ models }: any) {
+          this.models = models;
+        }
+      }
+      class ColChild implements IModel {
+        [key: string]: any;
+        constructor(props: any) {
+          Object.assign(this, props);
+        }
+      }
+      class ColChildren implements ICollection<IModel> {
+        models: Array<IModel>;
+        constructor({ models }: any) {
+          this.models = models;
+        }
+      }
+      const core = createCore({
+        entities: [
+          {
+            tableName: 'c_parent',
+            // A real column named exactly like the back-reference collection.
+            columns: ['id', { column: 'kids', property: 'kids' }],
+            Model: ColParent,
+            Collection: ColParents
+          },
+          {
+            tableName: 'c_kid',
+            collectionDisplayName: 'kids',
+            columns: ['id', { column: 'c_parent_id', references: ColParent }],
+            Model: ColChild,
+            Collection: ColChildren
+          }
+        ]
+      });
+      const unlinked = core.createFromDatabase([
+        {
+          'c_parent#id': 1,
+          'c_parent#kids': 'column-value',
+          'c_kid#id': null,
+          'c_kid#c_parent_id': null
+        }
+      ]).models[0];
+      // The column keeps flowing through the constructor and out to JSON.
+      expect(unlinked.kids).toEqual('column-value');
+      expect(JSON.parse(JSON.stringify(unlinked)).kids).toEqual('column-value');
+      // A null column value is clobbered by the link exactly as in v4: an own
+      // non-enumerable data property holding the collection.
+      const linked = core.createFromDatabase([
+        {
+          'c_parent#id': 2,
+          'c_parent#kids': null,
+          'c_kid#id': 9,
+          'c_kid#c_parent_id': 2
+        }
+      ]).models[0];
+      expect(linked.kids.models.length).toEqual(1);
+      expect(Object.getOwnPropertyDescriptor(linked, 'kids')).toMatchObject({
+        enumerable: false,
+        writable: true,
+        configurable: true
+      });
+    });
   });
 
   /* Models are indexed by the *string* form of their key, which is what lets

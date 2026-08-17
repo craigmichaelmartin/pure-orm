@@ -2,13 +2,38 @@
 /* Differential test: runs every fixture and stress shape through two core
  * implementations and deep-compares the resulting object graphs - structure,
  * own-property order, property descriptors (enumerable/writable/configurable),
- * prototypes and cycle topology. Behaviour-preserving refactors of
- * createFromDatabase must produce byte-for-byte equivalent graphs, and unit
- * tests alone don't check descriptor attributes or property order.
+ * prototypes, symbol-keyed properties and cycle topology. Behaviour-preserving
+ * refactors of createFromDatabase must produce byte-for-byte equivalent
+ * graphs, and unit tests alone don't check descriptor attributes or property
+ * order.
  *
  *   node scripts/diff-core.js <coreA> <coreB>
+ *
+ * `--logical` compares across the v4->v5 back-reference storage change: v4
+ * stores a collection as an own non-enumerable string-keyed property, v5 as
+ * an own symbol-keyed property (namespace `pure-orm:collection:`) behind a
+ * prototype accessor. In logical mode each object's entries are normalized to
+ * (string own properties in order, then collections in link order by name),
+ * descriptor attributes are only compared for non-collection properties, and
+ * the JSON-equivalence check - the user-visible contract - still runs
+ * byte-for-byte. Prototype identity failures for accessor-bearing prototypes
+ * are expected only if the two sides load different entity modules; here both
+ * sides share them, so prototypes still compare by identity.
+ *
+ *   node scripts/diff-core.js --logical dist/orig-core.js ./dist/src/core
  */
 const path = require('path');
+
+const LOGICAL = process.argv.includes('--logical');
+const coreArgs = process.argv.slice(2).filter((a) => a !== '--logical');
+
+const COLLECTION_SYMBOL_PREFIX = 'pure-orm:collection:';
+const collectionNameOfSymbol = (sym) => {
+  const description = String(sym.description || '');
+  return description.startsWith(COLLECTION_SYMBOL_PREFIX)
+    ? description.slice(COLLECTION_SYMBOL_PREFIX.length)
+    : null;
+};
 
 /* Prefix a path with `interpreted:` to load that build with function
  * construction disabled, which is the only way to reach the non-compiled
@@ -39,8 +64,8 @@ const requireCore = (spec) => {
   }
 };
 
-const A = requireCore(process.argv[2] || '.perf-ref/core-head.js');
-const B = requireCore(process.argv[3] || './dist/src/core');
+const A = requireCore(coreArgs[0] || '.perf-ref/core-head.js');
+const B = requireCore(coreArgs[1] || './dist/src/core');
 
 const load = (p) => require(path.resolve(__dirname, '..', p));
 
@@ -134,6 +159,75 @@ const compare = (a, b, pathStr, seen, problems) => {
     return;
   }
 
+  if (LOGICAL) {
+    /* Normalize both storage forms to one logical view: enumerable string own
+     * entries in order, plus collections as a name-keyed set. In v4 a
+     * collection is an own non-enumerable string property whose *position*
+     * among the own names depends on plan order (a collection created in the
+     * same row as the model can precede its forward references); in v5 that
+     * position does not exist at all - collections are symbol-keyed - so
+     * collection order is deliberately not part of the logical contract.
+     */
+    const ea = logicalEntriesOf(a);
+    const eb = logicalEntriesOf(b);
+    const namesA = ea.plain.map((e) => e.key);
+    const namesB = eb.plain.map((e) => e.key);
+    if (
+      namesA.length !== namesB.length ||
+      namesA.some((k, i) => k !== namesB[i])
+    ) {
+      problems.push(
+        `${pathStr}: own property names differ\n    A: ${namesA.join(
+          ','
+        )}\n    B: ${namesB.join(',')}`
+      );
+      return;
+    }
+    for (let i = 0; i < ea.plain.length; i++) {
+      const strA = describeDescriptor(ea.plain[i].descriptor);
+      const strB = describeDescriptor(eb.plain[i].descriptor);
+      if (strA !== strB) {
+        problems.push(
+          `${pathStr}.${ea.plain[i].key}: descriptor ${strA} !== ${strB}`
+        );
+        continue;
+      }
+      if (ea.plain[i].descriptor.get || ea.plain[i].descriptor.set) {
+        continue;
+      }
+      compare(
+        ea.plain[i].value,
+        eb.plain[i].value,
+        `${pathStr}.${ea.plain[i].key}`,
+        seen,
+        problems
+      );
+    }
+    const collectionNamesA = ea.collections.map((e) => e.key);
+    const collectionNamesB = eb.collections.map((e) => e.key);
+    if (
+      collectionNamesA.length !== collectionNamesB.length ||
+      collectionNamesA.some((k, i) => k !== collectionNamesB[i])
+    ) {
+      problems.push(
+        `${pathStr}: collection names differ\n    A: ${collectionNamesA.join(
+          ','
+        )}\n    B: ${collectionNamesB.join(',')}`
+      );
+      return;
+    }
+    for (let i = 0; i < ea.collections.length; i++) {
+      compare(
+        ea.collections[i].value,
+        eb.collections[i].value,
+        `${pathStr}.${ea.collections[i].key}`,
+        seen,
+        problems
+      );
+    }
+    return;
+  }
+
   const ka = Object.getOwnPropertyNames(a);
   const kb = Object.getOwnPropertyNames(b);
   if (ka.length !== kb.length || ka.some((k, i) => k !== kb[i])) {
@@ -152,6 +246,16 @@ const compare = (a, b, pathStr, seen, problems) => {
     );
     return;
   }
+  for (let i = 0; i < sa.length; i++) {
+    if (sa[i] !== sb[i]) {
+      problems.push(
+        `${pathStr}: own symbol order differs at ${i} (${String(
+          sa[i]
+        )} vs ${String(sb[i])})`
+      );
+      return;
+    }
+  }
   for (let i = 0; i < ka.length; i++) {
     const key = ka[i];
     const da = Object.getOwnPropertyDescriptor(a, key);
@@ -167,6 +271,48 @@ const compare = (a, b, pathStr, seen, problems) => {
     }
     compare(da.value, db.value, `${pathStr}.${key}`, seen, problems);
   }
+  for (let i = 0; i < sa.length; i++) {
+    const da = Object.getOwnPropertyDescriptor(a, sa[i]);
+    const db = Object.getOwnPropertyDescriptor(b, sb[i]);
+    const strA = describeDescriptor(da);
+    const strB = describeDescriptor(db);
+    const label = `${pathStr}[${String(sa[i])}]`;
+    if (strA !== strB) {
+      problems.push(`${label}: descriptor ${strA} !== ${strB}`);
+      continue;
+    }
+    if (da.get || da.set) {
+      continue;
+    }
+    compare(da.value, db.value, label, seen, problems);
+  }
+};
+
+/* Logical view of an object's own entries for `--logical` mode. `plain` holds
+ * the enumerable string-keyed entries in own order; `collections` holds
+ * back-reference collections sorted by name, whichever way they are stored -
+ * v4's own non-enumerable string properties, v5's namespaced own symbol
+ * properties, or the v5 collision fallback (which is the v4 form).
+ */
+const logicalEntriesOf = (o) => {
+  const plain = [];
+  const collections = [];
+  for (const key of Object.getOwnPropertyNames(o)) {
+    const descriptor = Object.getOwnPropertyDescriptor(o, key);
+    if (descriptor.enumerable === false) {
+      collections.push({ key, value: descriptor.value });
+    } else {
+      plain.push({ key, value: descriptor.value, descriptor });
+    }
+  }
+  for (const sym of Object.getOwnPropertySymbols(o)) {
+    const name = collectionNameOfSymbol(sym);
+    if (name !== null) {
+      collections.push({ key: name, value: o[sym] });
+    }
+  }
+  collections.sort((x, y) => (x.key < y.key ? -1 : x.key > y.key ? 1 : 0));
+  return { plain, collections };
 };
 
 const compareGraphs = (a, b, label) => {

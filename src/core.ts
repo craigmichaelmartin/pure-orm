@@ -152,6 +152,9 @@ interface IRefPlan {
   property: string;
   targetIndex: number;
   targetDisplayName: string;
+  /* False when this source's collection name collides with something on the
+   * target class, which keeps that pair on the v4 own-property define. */
+  useSymbolStore: boolean;
 }
 interface IEntityRowPlan {
   entity: IEntityInternal<IModel>;
@@ -162,6 +165,7 @@ interface IEntityRowPlan {
   refs: Array<IRefPlan>;
   refCount: number;
   collectionDisplayName: string;
+  collectionSymbol: symbol;
   Model: new (props: any) => IModel;
   Collection: new ({ models }: any) => ICollection<IModel>;
 }
@@ -233,6 +237,84 @@ const defineCollection = (
   // Keep ORM back-reference collections out of default JSON serialization.
   Object.defineProperty(target, collectionKey, COLLECTION_DESCRIPTOR);
   COLLECTION_DESCRIPTOR.value = void 0;
+};
+
+/* Back-reference collection storage.
+ *
+ * A back-reference collection has to stay out of `Object.keys`, `for..in`,
+ * spread and JSON - it is what makes a cyclic model graph JSON-serializable -
+ * while still reading and writing as `model.lineItems`. Through v4 that meant
+ * an own non-enumerable data property, and `Object.defineProperty` is the one
+ * primitive that creates one: ~110ns per call on V8, by far the largest cost
+ * in `createFromDatabase` (a 1.9x geomean against a plain store).
+ *
+ * v5 stores the collection as an own *symbol-keyed* data property instead - a
+ * plain store - and exposes it under the collection display name through a
+ * getter/setter pair installed once per (model prototype, collection name).
+ * Symbol-keyed properties are invisible to `Object.keys`, `for..in`,
+ * `JSON.stringify` and `Object.getOwnPropertyNames`, so everything the
+ * non-enumerable property protected stays protected. What changes - the
+ * breaking part - is own-property introspection under the collection name:
+ * `hasOwnProperty` is false, `getOwnPropertyDescriptor` is undefined, `delete`
+ * no longer clears the collection (assign `undefined` instead), and the name
+ * answers `in` for every instance of a linked class. The symbols live in the
+ * global symbol registry (`Symbol.for`) under a documented namespace, so the
+ * storage itself is inspectable and two copies of pure-orm in one process
+ * agree on it.
+ *
+ * A name collision falls back to the v4 own-property define, keeping v4
+ * semantics exactly where the accessor could observably interfere: a column
+ * property or forward-reference display name that equals the collection name
+ * on the target class (the accessor's setter would swallow constructor and
+ * link stores into the symbol slot), or any user-defined prototype member of
+ * that name.
+ */
+const COLLECTION_SYMBOL_PREFIX = 'pure-orm:collection:';
+
+export const collectionSymbolFor = (collectionDisplayName: string): symbol =>
+  Symbol.for(COLLECTION_SYMBOL_PREFIX + collectionDisplayName);
+
+interface ICollectionGetter {
+  (): any;
+  pureOrmCollectionAccessor?: boolean;
+}
+
+/* Returns true when the symbol store may be used for this (prototype, name)
+ * pair: either the accessor was just installed, or an earlier core (or the
+ * other copy of pure-orm in a duplicated dependency tree - the marker is a
+ * plain property and the symbol comes from the global registry) already
+ * installed it. Any unmarked property found anywhere on the chain belongs to
+ * the user, and the pair stays on the v4 own-property define.
+ */
+const installCollectionAccessor = (
+  proto: any,
+  collectionKey: string,
+  sym: symbol
+): boolean => {
+  let ancestor = proto;
+  while (ancestor !== null && ancestor !== void 0) {
+    const existing = Object.getOwnPropertyDescriptor(ancestor, collectionKey);
+    if (existing !== void 0) {
+      return (
+        existing.get !== void 0 &&
+        (existing.get as ICollectionGetter).pureOrmCollectionAccessor === true
+      );
+    }
+    ancestor = Object.getPrototypeOf(ancestor);
+  }
+  const getter: ICollectionGetter = function (this: any): any {
+    return this[sym];
+  };
+  getter.pureOrmCollectionAccessor = true;
+  Object.defineProperty(proto, collectionKey, {
+    get: getter,
+    set: function (this: any, value: any): void {
+      this[sym] = value;
+    },
+    enumerable: false,
+    configurable: true
+  });
+  return true;
 };
 
 const makePkIdGetter = (rowKeys: Array<string>): ((row: any) => string) => {
@@ -758,15 +840,27 @@ const makeCompiledRowsProcessor = (
        * caused it to exist. Building it empty and pushing would make V8 grow
        * the (zero-capacity) literal array to sixteen slots, which is most of
        * what a typical single-member back-reference collection costs.
+       *
+       * The store itself is a plain assignment to the plan's collection
+       * symbol - the prototype accessor exposes it under the display name -
+       * except where the name collided on this target at core creation, which
+       * keeps the v4 own-property define.
        */
-      link +=
-        'if(!(col=t[' +
-        collectionKey +
-        '])){col=new C' +
-        p +
-        '({models:[s]});D.value=col;OD(t,' +
-        collectionKey +
-        ',D);}else ';
+      link += ref.useSymbolStore
+        ? 'if(!(col=t[Y' +
+          p +
+          '])){col=new C' +
+          p +
+          '({models:[s]});t[Y' +
+          p +
+          ']=col;}else '
+        : 'if(!(col=t[' +
+          collectionKey +
+          '])){col=new C' +
+          p +
+          '({models:[s]});D.value=col;OD(t,' +
+          collectionKey +
+          ',D);}else ';
       if (r === 0) {
         link += 'col.models.push(s);';
       } else {
@@ -792,6 +886,9 @@ const makeCompiledRowsProcessor = (
     const plan = plans[p];
     prologue +=
       'var M' + p + '=P[' + p + '].Model,C' + p + '=P[' + p + '].Collection;';
+    if (plan.refCount > 0) {
+      prologue += 'var Y' + p + '=P[' + p + '].collectionSymbol;';
+    }
     // K<p>: construct this entity's model for a row and index it in the scope.
     prologue +=
       'function K' +
@@ -1332,18 +1429,29 @@ const makeInterpretedRowsProcessor = (
           linkedCount++;
         }
 
-        const collection = targetModel[collectionKey];
-        if (collection) {
-          collection.models.push(sourceModel);
+        if (ref.useSymbolStore) {
+          const collection = targetModel[plan.collectionSymbol as any];
+          if (collection) {
+            collection.models.push(sourceModel);
+          } else {
+            // Like the compiled path, a collection that does not exist yet is
+            // created already holding the model that caused it to exist, so
+            // user Collection constructors see identical input on both paths.
+            targetModel[plan.collectionSymbol as any] = new plan.Collection({
+              models: [sourceModel]
+            });
+          }
         } else {
-          // Like the compiled path, a collection that does not exist yet is
-          // created already holding the model that caused it to exist, so
-          // user Collection constructors see identical input on both paths.
-          defineCollection(
-            targetModel,
-            collectionKey,
-            new plan.Collection({ models: [sourceModel] })
-          );
+          const collection = targetModel[collectionKey];
+          if (collection) {
+            collection.models.push(sourceModel);
+          } else {
+            defineCollection(
+              targetModel,
+              collectionKey,
+              new plan.Collection({ models: [sourceModel] })
+            );
+          }
         }
       }
     }
@@ -1548,23 +1656,66 @@ export const createCore = ({
 
   const entityReferencePlans = new Map<
     IEntityInternal<IModel>,
-    Array<{ property: string; targetEntity: IEntityInternal<IModel> }>
+    Array<{
+      property: string;
+      targetEntity: IEntityInternal<IModel>;
+      useSymbolStore: boolean;
+    }>
   >();
   for (let i = 0; i < entities.length; i++) {
     const entity = entities[i];
     const plans = new Array<{
       property: string;
       targetEntity: IEntityInternal<IModel>;
+      useSymbolStore: boolean;
     }>(entity.referencesEntries.length);
     for (let j = 0; j < entity.referencesEntries.length; j++) {
       const ref = entity.referencesEntries[j];
       plans[j] = {
         property: ref.property,
-        targetEntity: getEntityByModelClass(ref.ModelClass)
+        targetEntity: getEntityByModelClass(ref.ModelClass),
+        useSymbolStore: false
       };
     }
     entityReferencePlans.set(entity, plans);
   }
+
+  /* Settle back-reference storage per (source collection name, target class)
+   * and install the prototype accessors, once, ahead of any row processing.
+   * The symbol store is only safe when nothing else writes the collection
+   * name on the target: a column property or a forward-reference display name
+   * of that name would hit the accessor's setter and vanish into the symbol
+   * slot, so those pairs - and any user-defined prototype member - keep the
+   * v4 own-property define instead.
+   */
+  entityReferencePlans.forEach((refPlans, sourceEntity) => {
+    const collectionKey = sourceEntity.collectionDisplayName;
+    const sym = collectionSymbolFor(collectionKey);
+    for (let j = 0; j < refPlans.length; j++) {
+      const target = refPlans[j].targetEntity;
+      if (target.propertyNames.indexOf(collectionKey) !== -1) {
+        continue;
+      }
+      const targetRefs = entityReferencePlans.get(target);
+      let collides = false;
+      if (targetRefs !== void 0) {
+        for (let r = 0; r < targetRefs.length; r++) {
+          if (targetRefs[r].targetEntity.displayName === collectionKey) {
+            collides = true;
+            break;
+          }
+        }
+      }
+      if (collides) {
+        continue;
+      }
+      refPlans[j].useSymbolStore = installCollectionAccessor(
+        target.Model.prototype,
+        collectionKey,
+        sym
+      );
+    }
+  });
 
   interface IQueryPlan {
     keys: Array<string>;
@@ -1600,6 +1751,7 @@ export const createCore = ({
           refs: [],
           refCount: 0,
           collectionDisplayName: entity.collectionDisplayName,
+          collectionSymbol: collectionSymbolFor(entity.collectionDisplayName),
           Model: entity.Model,
           Collection: entity.Collection
         };
@@ -1639,7 +1791,8 @@ export const createCore = ({
             plan.refs.push({
               property: ref.property,
               targetIndex,
-              targetDisplayName: ref.targetEntity.displayName
+              targetDisplayName: ref.targetEntity.displayName,
+              useSymbolStore: ref.useSymbolStore
             });
           }
         }

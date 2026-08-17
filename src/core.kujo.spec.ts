@@ -126,7 +126,7 @@ describe('kujo product page', () => {
     expect(secondProduct).not.toBe(variant.product);
 
     // The full page graph serializes without cycles (back-reference
-    // collections are non-enumerable).
+    // collections are symbol-stored, invisible to JSON).
     expect(() => JSON.stringify(variants.models)).not.toThrow();
     const serialized = JSON.parse(JSON.stringify(first));
     expect(serialized.inventoryLevels).toBeUndefined();

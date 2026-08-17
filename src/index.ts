@@ -1,5 +1,6 @@
 export {
   createCore,
+  collectionSymbolFor,
   ICreateCoreOptions,
   ICore,
   IModel,
