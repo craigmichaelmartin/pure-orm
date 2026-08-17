@@ -1,3 +1,4 @@
 dist
 .perf-ref
 .perf-ref-415
+.perf-probes
