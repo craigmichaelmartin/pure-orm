@@ -578,6 +578,56 @@ interface PureORM {
 }
 ```
 
+### `createFromDatabaseArrays`
+
+```typescript
+createFromDatabaseArrays<T extends ICollection<IModel>>(
+  rows: Array<Array<any>>,
+  fields: Array<string | { name: string }>,
+  parseKinds?: Array<0 | 1 | 2 | 3 | 4 | ((text: string) => any)>
+): T;
+```
+
+The positional twin of `createFromDatabase`, on the core (`createCore`)
+instance: rows arrive as arrays of cells in field order - the shape a
+driver's array mode returns - and build exactly the graph object rows
+would. For wide joined queries this is dramatically faster end to end,
+because the driver never materializes a row object per row (at 68+ columns
+those objects live in V8 dictionary mode, and building them dwarfs the
+mapping itself). With node-postgres:
+
+```javascript
+const result = await client.query({
+  text: `SELECT ${orm.tables.order.columns}, ${orm.tables.lineItem.columns}
+         FROM ...`,
+  rowMode: 'array'
+});
+const orders = core.createFromDatabaseArrays(result.rows, result.fields);
+```
+
+`fields` may be the driver's field descriptors (anything carrying a
+`name`) or plain strings; reusing one `fields` array across calls makes
+plan lookup a single WeakMap probe. An explicit shape also makes an empty
+result set valid - it returns an empty collection, no `rootKey` needed.
+
+`parseKinds` (optional) moves the driver's per-cell _type parsing_ into the
+row processor, where it only runs for cells of models actually being
+created. On a joined result set the same parent cells repeat on every child
+row - 70-95% of all cells on captured production pages - and parsing a cell
+whose model already exists is pure waste. Each entry describes one field
+position: `0` leaves the cell untouched, `1` parses a number, `2` a
+timestamp (`new Date`), `3` a postgres text-protocol boolean (`'t'`), `4`
+JSON, and a function runs as that field's parser; SQL `NULL` passes
+through. This is for the layer where cells are still `string | null` - in
+node-postgres, a custom [`Submittable`](https://node-postgres.com/apis/client#clientquery)
+whose `handleDataRow(msg)` collects `msg.fields` raw, before the driver
+parses types or builds objects. Measured on the captured production result
+sets in `test-utils/kujo` (`npm run bench:pipeline`), that path builds the
+same output graph **15.7x** faster than `parseRow` + `createFromDatabase`
+on the product-page capture and **3.3x** on the order-history capture;
+shapes whose cost is dominated by user model constructors see less (the
+parcel capture, 1.5x), and narrow queries are unchanged (see CHANGELOG).
+
 ## FAQ
 
 ### Can you show the business objects of a more complex entity?

@@ -1,6 +1,80 @@
 # Changelog
 
-## Unreleased (5.0.0)
+## Unreleased (5.1.0)
+
+### Positional result-set ingestion: `createFromDatabaseArrays`
+
+New core method (additive; object-mode `createFromDatabase` is unchanged and
+revalidated byte-for-byte against 5.0.0 across the differential suite):
+
+```typescript
+createFromDatabaseArrays<T extends ICollection<IModel>>(
+  rows: Array<Array<any>>,
+  fields: Array<string | { name: string }>,
+  parseKinds?: Array<0 | 1 | 2 | 3 | 4 | ((text: string) => any)>
+): T;
+```
+
+It consumes rows as arrays of cells in field order - the shape a driver's
+array mode returns (node-postgres `rowMode: 'array'`) - and builds exactly
+the graph `createFromDatabase` builds from the equivalent object rows.
+`fields` names each position (plain strings or driver field descriptors);
+an explicit shape also makes an empty result set valid, returning an empty
+root collection.
+
+Why it exists: pure-orm's own row loop stopped being the cost of a query
+long ago. Measured on captured production result sets (Node 20.13, min of 3
+isolated repeats), the full JS-side pipeline for the 2394-row × 68-column
+product-page query spends ~80% of its time in the driver's row
+materialization - type-parsing every cell and assigning it into a fresh
+68-property row object per row (which V8 typically holds in dictionary
+mode) - before mapping begins. On joined result sets most of that work is
+for cells whose model already exists: 71% of cells on the captured
+order-history page are repeats, 95% on the product page. Positional
+ingestion skips the row object entirely, and `parseKinds` goes further by
+compiling the type parsing into the row processor, where it runs only for
+cells of models actually being created - on the product page that removes
+~94% of the pipeline's total time.
+
+Each `parseKinds` entry describes one field position: `0` leaves the cell
+untouched, `1` parses a number, `2` a timestamp (`new Date`), `3` a
+postgres text-protocol boolean (`'t'`), `4` JSON, and a function runs as
+that field's parser. SQL `NULL` (and a missing cell) passes through
+unparsed. With `parseKinds`, rows are expected to carry `string | null`
+cells exactly as a postgres text-protocol `DataRow` arrives - the layer a
+custom node-postgres `Submittable` receives in `handleDataRow`, before the
+driver's own parsing and object building run.
+
+Measured against the production pipeline they replace (driver `parseRow`
+simulation + `createFromDatabase`, identical output graphs asserted):
+
+- product-page capture (2394 rows × 68 cols): **15.7x** with `parseKinds`
+  via the DataRow layer (19.9x in the best-observed process regime - V8
+  settles pg-style row objects bimodally per process, which is itself a
+  hazard the positional path removes); **3.1x** with plain
+  `rowMode: 'array'` rows.
+- account-orders capture ×40 (4040 rows × 174 cols): **3.3x** / 2.4x
+  (constructor-bound; user model constructors dominate what remains).
+- parcel-tracking capture (9 rows × 183 cols): 1.5x / 1.3x.
+- narrow six-entity fixture (1600 rows × 10 cols): ~1.0x / 1.2x - narrow
+  rows build cheap, parse little, and stay in fast-properties mode, so
+  there is little boundary cost to remove.
+
+Positional plans are cached by `fields` array identity (a WeakMap probe per
+call when the caller reuses one fields list), with a content-keyed fallback
+so fresh field-descriptor arrays still compile each (shape, parsing) pair
+once. Distinct `parseKinds` over the same fields are distinct plans. Where
+function construction is blocked (strict CSP), a semantically identical
+interpreted path handles array rows too.
+
+Validation: array-mode graphs compare identical to object-mode graphs at
+full descriptor depth (own-property order, descriptors, symbols, prototypes,
+cycle topology, JSON) across the differential corpus, on the compiled and
+interpreted paths (`scripts/diff-core.js --arrays`); object mode itself is
+unchanged vs 5.0.0 (950/950), the SQL helpers are untouched (diff-orm
+4397/4397), and the object-mode A/B benchmark matrix is neutral.
+
+## 5.0.0 (2026-08-17)
 
 ### Breaking: back-reference collection storage
 
