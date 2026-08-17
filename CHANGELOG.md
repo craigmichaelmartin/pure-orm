@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### Testing & benchmarks
+
+Added `test-utils/kujo`: captured result sets and faithfully mirrored entity
+definitions from pure-orm's heaviest production consumer (see that
+directory's README for provenance and sanitization). New workloads the
+hand-built fixtures never represented: a 2394-row × 68-column product-page
+query over 11 entities whose ORDER BY systematically defeats
+most-recently-used scope caching, a 174-column order-history page whose
+joined product graph is entirely null, a 183-column 17-entity single-root
+lookup, a 46-column entity driving the wide-table (>30 column) SQL-helper
+path, models that build with `Object.assign` and derive data in their
+constructors, a lazy circular `columns` function, and a duplicated column in
+an entity definition.
+
+Coverage added on top of them: `core.kujo.spec.ts` (page-graph structure,
+per-scope identity, joined-but-null entities, dual references to one entity,
+exactly-once construction), `orm.kujo.spec.ts` (wide-table and mask-boundary
+helper shapes, previously untested), new `kujo/*` scenarios in `bench:core`
+(plus a pages/sec product-render composite and wide-46 helper microbench),
+`kujo-*` scenarios in the A/B harness, wide-46 cases in `bench-orm-ab`, and
+kujo cases (with derived variants) in the differential graph suite -
+guarded against drift by `test:bench-guard`.
+
 ### Performance
 
 `createFromDatabase` now compiles a specialized row processor per query

@@ -1,0 +1,164 @@
+[
+  {
+    "product_specification#id": 154,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Footwear Height",
+    "product_specification#spec_value": "Over-the-ankle",
+    "product_specification#position": 1,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 155,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Footwear Height (in.)",
+    "product_specification#spec_value": "5 inches",
+    "product_specification#position": 2,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 156,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Footwear Closure",
+    "product_specification#spec_value": "Lace-up",
+    "product_specification#position": 3,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 157,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Lace Color",
+    "product_specification#spec_value": "Includes both bright and neutral laces",
+    "product_specification#position": 4,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 158,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Outsole Material",
+    "product_specification#spec_value": "Kujo TurfGrip rubber outsole",
+    "product_specification#position": 5,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 159,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Grip",
+    "product_specification#spec_value": "Dynamic 6mm rubber lugs in flex groove system",
+    "product_specification#position": 6,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 160,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Midsole Material",
+    "product_specification#spec_value": "Cushioned Ethylene-Vinyl Acetate molded for all day comfort",
+    "product_specification#position": 7,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 161,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Insole Material",
+    "product_specification#spec_value": "Cushioned Foam",
+    "product_specification#position": 8,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 162,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Insole Support",
+    "product_specification#spec_value": "Neutral",
+    "product_specification#position": 9,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 163,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Width",
+    "product_specification#spec_value": "Medium",
+    "product_specification#position": 10,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 164,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Toe Cap Material",
+    "product_specification#spec_value": "Kujo DewGuard Siloxane Polyurethane fabric soft toe",
+    "product_specification#position": 11,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 165,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Upper Material",
+    "product_specification#spec_value": "Air Mesh with Transparent Sonic Welding",
+    "product_specification#position": 12,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 166,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Lining Material",
+    "product_specification#spec_value": "Breathable Antimicrobial Mesh",
+    "product_specification#position": 13,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 167,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Antimicrobial Liner",
+    "product_specification#spec_value": "Yes",
+    "product_specification#position": 14,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 168,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Water Resistent",
+    "product_specification#spec_value": "Yes",
+    "product_specification#position": 15,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 169,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Waterproof",
+    "product_specification#spec_value": "No",
+    "product_specification#position": 16,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 170,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Safety Toe",
+    "product_specification#spec_value": "No",
+    "product_specification#position": 17,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  },
+  {
+    "product_specification#id": 171,
+    "product_specification#product_id": 11,
+    "product_specification#spec_key": "Weight",
+    "product_specification#spec_value": "13 oz (.81 lbs)",
+    "product_specification#position": 18,
+    "product_specification#created_date": "2026-02-10T00:23:07.526Z",
+    "product_specification#updated_date": "2026-02-10T00:23:07.526Z"
+  }
+]

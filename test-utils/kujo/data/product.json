@@ -1,0 +1,20 @@
+[
+  {
+    "product#id": 11,
+    "product#vendor_id": 1,
+    "product#shopify_id": "6632508653670",
+    "product#value": "kujo_yard_shoe",
+    "product#label": "Kujo Yard Shoe",
+    "product#slug": "yard-shoe",
+    "product#description": "A hybrid shoe that is built like a boot and fits like a shoe. The Kujo Yard Shoe is made for lawn care, landscaping, gardening, and working in the yard - specifically designed for lawn care professionals and homeowners to be comfortable, breathable, water-resistant, lightweight, durable, and have good grip.",
+    "product#google_product_category": "Apparel & Accessories > Shoes",
+    "product#fb_product_category": "clothing & accessories > shoes & footwear",
+    "product#product_type": "shoes",
+    "product#created_date": "2021-09-17T12:53:58.098Z",
+    "product#updated_date": "2021-09-17T12:53:58.098Z",
+    "product#published_date": null,
+    "product#category": null,
+    "product#default_fit_id": 3,
+    "product#uses_colisted_gender_shoe_sizes": true
+  }
+]

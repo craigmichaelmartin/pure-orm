@@ -23,6 +23,10 @@ const {
   entities: fourteenEntities
 } = require('../dist/test-utils/fourteen/entities');
 
+const { entities: kujoEntities } = require('../dist/test-utils/kujo/entities');
+const { Order: KujoOrder } = require('../dist/test-utils/kujo/orders');
+const kujoRows = require('../dist/test-utils/kujo/rows');
+
 const two = require('../dist/test-utils/two/results');
 const three = require('../dist/test-utils/three/results');
 const one = require('../dist/test-utils/one/results.json');
@@ -59,7 +63,40 @@ const FIXTURE_CASES = [
   { label: 'order-more/eleven', entities: orderMoreEntities, rows: eleven },
   { label: 'twelve/twelve', entities: twelveEntities, rows: twelve },
   { label: 'thirteen/thirteen', entities: thirteenEntities, rows: thirteen },
-  { label: 'fourteen/fourteen', entities: fourteenEntities, rows: fourteen }
+  { label: 'fourteen/fourteen', entities: fourteenEntities, rows: fourteen },
+  /* Captured kujo workloads (test-utils/kujo/README.md): the shapes and
+   * scales pure-orm's heaviest real consumer actually runs.
+   */
+  {
+    label: 'kujo/product-page',
+    entities: kujoEntities,
+    rows: kujoRows.productPageRetail(),
+    rounds: 20
+  },
+  {
+    label: 'kujo/product-page-whsl',
+    entities: kujoEntities,
+    rows: kujoRows.productPageWholesale(),
+    rounds: 20
+  },
+  {
+    label: 'kujo/product-page-mid',
+    entities: kujoEntities,
+    rows: kujoRows.productPageMid(),
+    rounds: 100
+  },
+  {
+    label: 'kujo/account-orders',
+    entities: kujoEntities,
+    rows: kujoRows.accountOrders(),
+    rounds: 200
+  },
+  {
+    label: 'kujo/parcel-tracking',
+    entities: kujoEntities,
+    rows: kujoRows.parcelTracking(),
+    rounds: 400
+  }
 ];
 
 const STRESS_SCENARIOS = [
@@ -424,7 +461,7 @@ const main = () => {
 
   const fixtureResults = FIXTURE_CASES.map((fixture) => {
     const core = createCore({ entities: fixture.entities });
-    const rounds = 200;
+    const rounds = fixture.rounds || 200;
     return runBench({
       label: fixture.label,
       rows: fixture.rows,
@@ -497,6 +534,72 @@ const main = () => {
   );
   console.log(`stress geomean rows/sec:  ${format(stressGeomean, 0)}`);
 
+  /* One kujo product-page render, as the server performs it: the giant
+   * variant query plus seven small side queries, eight shapes rotating
+   * through one core. The pages/sec number is the end-to-end ORM cost of the
+   * hottest real page pure-orm serves.
+   */
+  const kujoPageCore = createCore({ entities: kujoEntities });
+  const pageSets = {
+    retail: kujoRows.productPageRetail(),
+    product: kujoRows.product(),
+    sizes: kujoRows.sizes(),
+    colors: kujoRows.colors(),
+    instagrams: kujoRows.instagrams(),
+    notes: kujoRows.productNotes(),
+    features: kujoRows.productFeatures(),
+    specifications: kujoRows.productSpecifications()
+  };
+  const renderProductPage = () => {
+    kujoPageCore.createFromDatabase(pageSets.retail);
+    kujoPageCore.createOneFromDatabase(pageSets.product);
+    kujoPageCore.createFromDatabase(pageSets.sizes);
+    kujoPageCore.createFromDatabase(pageSets.colors);
+    kujoPageCore.createFromDatabase(pageSets.instagrams);
+    kujoPageCore.createFromDatabase(pageSets.notes);
+    kujoPageCore.createFromDatabase(pageSets.features);
+    kujoPageCore.createFromDatabase(pageSets.specifications);
+  };
+  const pageRounds = 30;
+  renderProductPage();
+  const pageSamples = [];
+  for (let sample = 0; sample < SAMPLE_COUNT; sample++) {
+    if (global.gc) {
+      global.gc();
+    }
+    const start = process.hrtime.bigint();
+    for (let i = 0; i < pageRounds; i++) {
+      renderProductPage();
+    }
+    pageSamples.push(Number(process.hrtime.bigint() - start) / 1e6);
+  }
+  const pageSorted = [...pageSamples].sort((a, b) => a - b);
+  const pageMedianMs = pageSorted[Math.floor(pageSorted.length / 2)];
+  const pageResults = [
+    {
+      label: 'page/kujo-product-render',
+      rounds: pageRounds,
+      samples: SAMPLE_COUNT,
+      medianElapsedMs: pageMedianMs,
+      minElapsedMs: pageSorted[0],
+      maxElapsedMs: pageSorted[pageSorted.length - 1],
+      perPageMs: pageMedianMs / pageRounds,
+      pagesPerSecond: (pageRounds * 1000) / pageMedianMs
+    }
+  ];
+  console.log('\nPage scenarios');
+  for (const r of pageResults) {
+    console.log(
+      `${r.label.padEnd(30)} | ${format(r.perPageMs, 3)} ms/page | ${format(
+        r.pagesPerSecond,
+        0
+      )} pages/sec | med=${format(r.medianElapsedMs, 2)}ms min=${format(
+        r.minElapsedMs,
+        2
+      )}ms max=${format(r.maxElapsedMs, 2)}ms`
+    );
+  }
+
   const fakeDb = {
     $config: { pgp: true },
     many: () => Promise.resolve([]),
@@ -566,6 +669,51 @@ const main = () => {
         )
     }
   ];
+  /* kujo's order is 46 columns - past the 30-column bit-mask limit - so its
+   * helpers run the wide-table path (packed string shape keys, generic column
+   * scan). That path is what kujo's hottest writes actually pay.
+   */
+  const kujoOrm = createOrm({ entities: kujoEntities, db: fakeDb });
+  const wideOrders = Array.from({ length: 32 }, (_, i) => {
+    const ts = 1700000000000 + i * 86400000;
+    return new KujoOrder({
+      id: i + 1,
+      customerId: 5000 + (i % 9),
+      financialStatusId: (i % 4) + 1,
+      shippingAddressId: 9000 + i,
+      billingAddressId: i % 2 === 0 ? 9000 + i : 9500 + i,
+      shippingFirstName: `First${i % 5}`,
+      shippingLastName: `Last${i % 5}`,
+      shopifyId: `${4000000000 + i}`,
+      shopifyName: `#9${String(i).padStart(3, '0')}`,
+      email: `wide${i}@example.com`,
+      browserIp: `203.0.113.${(i % 250) + 1}`,
+      createdDate: new Date(ts),
+      updatedDate: new Date(ts + 2000),
+      subtotalPrice: `${80 + i}`,
+      totalDiscounts: '0',
+      totalPrice: `${85 + i}`,
+      totalTax: `${(i % 7).toFixed(2)}`,
+      totalWeight: i * 100,
+      orderStatusUrl: `https://checkout.example.com/orders/${i}/status`,
+      utmSourceId: (i % 4) + 1,
+      cancelled: i % 11 === 0
+    });
+  });
+  ormHelperScenarios.push(
+    {
+      label: 'orm/getSqlInsertParts-wide46',
+      fn: (i) => kujoOrm.getSqlInsertParts(wideOrders[i & 31])
+    },
+    {
+      label: 'orm/getSqlUpdateParts-wide46',
+      fn: (i) => kujoOrm.getSqlUpdateParts(wideOrders[i & 31], 'id')
+    },
+    {
+      label: 'orm/getMatchingParts-wide46',
+      fn: (i) => kujoOrm.getMatchingParts(wideOrders[i & 31])
+    }
+  );
   console.log('\nORM helper microbench');
   const ormHelperResults = [];
   for (const scenario of ormHelperScenarios) {
@@ -612,6 +760,7 @@ const main = () => {
     helperIterations: HELPER_ITERATIONS,
     fixtureResults,
     stressResults,
+    pageResults,
     ormHelperResults
   };
 
@@ -635,6 +784,13 @@ const main = () => {
       baselineItems: baseline.data.stressResults || [],
       metric: 'rowsPerSecond',
       unit: 'rows/sec'
+    });
+    printDeltaTable({
+      title: 'Page pages/sec delta vs baseline',
+      currentItems: pageResults,
+      baselineItems: baseline.data.pageResults || [],
+      metric: 'pagesPerSecond',
+      unit: 'pages/sec'
     });
     printDeltaTable({
       title: 'ORM helper ops/sec delta vs baseline',

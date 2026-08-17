@@ -21,7 +21,12 @@ const SCENARIOS = process.env.BENCH_SCENARIOS
       'tiny-1row',
       'tiny-24row',
       'multi-shape',
-      'multi-core'
+      'multi-core',
+      'kujo-product-page',
+      'kujo-wholesale',
+      'kujo-account-orders',
+      'kujo-parcel-one',
+      'kujo-page'
     ];
 
 const A = process.argv[2] || '.perf-ref/core-head.js';

@@ -53,8 +53,11 @@ const entitySets = {
   six: load('dist/test-utils/six/entities').entities,
   twelve: load('dist/test-utils/twelve/entities').entities,
   thirteen: load('dist/test-utils/thirteen/entities').entities,
-  fourteen: load('dist/test-utils/fourteen/entities').entities
+  fourteen: load('dist/test-utils/fourteen/entities').entities,
+  kujo: load('dist/test-utils/kujo/entities').entities
 };
+
+const kujoRows = load('dist/test-utils/kujo/rows');
 
 const fixtures = {
   one: load('dist/test-utils/one/results.json'),
@@ -217,7 +220,15 @@ const cases = [
   ['order-more/eleven', entitySets.orderMore, fixtures.eleven],
   ['twelve/twelve', entitySets.twelve, fixtures.twelve],
   ['thirteen/thirteen', entitySets.thirteen, fixtures.thirteen],
-  ['fourteen/fourteen', entitySets.fourteen, fixtures.fourteen]
+  ['fourteen/fourteen', entitySets.fourteen, fixtures.fourteen],
+  /* Captured kujo workloads (test-utils/kujo/README.md); the two full-size
+   * product-page captures join as direct cases below, past the derived loop.
+   */
+  ['kujo/product-page-mid', entitySets.kujo, kujoRows.productPageMid()],
+  ['kujo/account-orders', entitySets.kujo, kujoRows.accountOrders()],
+  ['kujo/parcel-tracking', entitySets.kujo, kujoRows.parcelTracking()],
+  ['kujo/sizes', entitySets.kujo, kujoRows.sizes()],
+  ['kujo/product-notes', entitySets.kujo, kujoRows.productNotes()]
 ];
 
 const rng = createRng(20260815);
@@ -281,6 +292,20 @@ for (const [label, entities, rows] of cases) {
   derived.push([`${label}#single-row`, entities, [rows[0]]]);
   derived.push([`${label}#not-an-array`, entities, rows[0]]);
 }
+
+// The full-size page captures run as direct cases only: at 2394 rows each,
+// the derived variants would multiply diff time for little extra coverage
+// beyond what product-page-mid's variants already give.
+derived.push([
+  'kujo/product-page',
+  entitySets.kujo,
+  kujoRows.productPageRetail()
+]);
+derived.push([
+  'kujo/product-page-wholesale',
+  entitySets.kujo,
+  kujoRows.productPageWholesale()
+]);
 
 // Composite primary keys, plus a mixed int/text key pairing.
 {

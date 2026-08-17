@@ -1,0 +1,41 @@
+[
+  {
+    "product_note#id": 1,
+    "product_note#product_id": 11,
+    "product_note#color_id": 4,
+    "product_note#note_text": "Our all black colorway is being discontinued, we will not be restocking sizes.",
+    "product_note#created_at": "2026-02-13T04:16:07.801Z",
+    "product_note#updated_at": "2026-02-13T04:16:07.801Z",
+    "color#id": 4,
+    "color#value": "black_black",
+    "color#label": "Black Out",
+    "color#position": 4,
+    "color#image_url": "https://cloud.kujo.com/coloroptionblackblack-c5489256cc.jpg"
+  },
+  {
+    "product_note#id": 2,
+    "product_note#product_id": 11,
+    "product_note#color_id": 13,
+    "product_note#note_text": "Our desert sand shoes are great.",
+    "product_note#created_at": "2026-02-14T22:38:53.488Z",
+    "product_note#updated_at": "2026-02-14T22:38:53.488Z",
+    "color#id": 13,
+    "color#value": "desert_sand",
+    "color#label": "Desert Sand",
+    "color#position": 3,
+    "color#image_url": "https://cloud.kujo.com/desertsandcolorswatch-fc41a36efd.jpg"
+  },
+  {
+    "product_note#id": 6,
+    "product_note#product_id": 11,
+    "product_note#color_id": null,
+    "product_note#note_text": "These are great",
+    "product_note#created_at": "2026-02-14T22:58:29.457Z",
+    "product_note#updated_at": "2026-02-14T22:58:29.457Z",
+    "color#id": null,
+    "color#value": null,
+    "color#label": null,
+    "color#position": null,
+    "color#image_url": null
+  }
+]

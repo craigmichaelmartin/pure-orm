@@ -1,0 +1,92 @@
+[
+  {
+    "size#id": 26,
+    "size#label": "5 Mens / 6.5 Womens",
+    "size#value": "5 Mens / 6.5 Womens"
+  },
+  {
+    "size#id": 27,
+    "size#label": "5.5 Mens / 7 Womens",
+    "size#value": "5.5 Mens / 7 Womens"
+  },
+  {
+    "size#id": 28,
+    "size#label": "6 Mens / 7.5 Womens",
+    "size#value": "6 Mens / 7.5 Womens"
+  },
+  {
+    "size#id": 29,
+    "size#label": "6.5 Mens / 8 Womens",
+    "size#value": "6.5 Mens / 8 Womens"
+  },
+  {
+    "size#id": 30,
+    "size#label": "7 Mens / 8.5 Womens",
+    "size#value": "7 Mens / 8.5 Womens"
+  },
+  {
+    "size#id": 31,
+    "size#label": "7.5 Mens / 9 Womens",
+    "size#value": "7.5 Mens / 9 Womens"
+  },
+  {
+    "size#id": 32,
+    "size#label": "8 Mens / 9.5 Womens",
+    "size#value": "8 Mens / 9.5 Womens"
+  },
+  {
+    "size#id": 33,
+    "size#label": "8.5 Mens / 10 Womens",
+    "size#value": "8.5 Mens / 10 Womens"
+  },
+  {
+    "size#id": 34,
+    "size#label": "9 Mens / 10.5 Womens",
+    "size#value": "9 Mens / 10.5 Womens"
+  },
+  {
+    "size#id": 35,
+    "size#label": "9.5 Mens / 11 Womens",
+    "size#value": "9.5 Mens / 11 Womens"
+  },
+  {
+    "size#id": 36,
+    "size#label": "10 Mens / 11.5 Womens",
+    "size#value": "10 Mens / 11.5 Womens"
+  },
+  {
+    "size#id": 37,
+    "size#label": "10.5 Mens / 12 Womens",
+    "size#value": "10.5 Mens / 12 Womens"
+  },
+  {
+    "size#id": 38,
+    "size#label": "11 Mens / 12.5 Womens",
+    "size#value": "11 Mens / 12.5 Womens"
+  },
+  {
+    "size#id": 39,
+    "size#label": "11.5 Mens",
+    "size#value": "11.5 Mens"
+  },
+  {
+    "size#id": 40,
+    "size#label": "12 Mens",
+    "size#value": "12 Mens"
+  },
+  {
+    "size#id": 41,
+    "size#label": "13 Mens",
+    "size#value": "13 Mens"
+  },
+  {
+    "size#id": 42,
+    "size#label": "14 Mens",
+    "size#value": "14 Mens"
+  },
+  {
+    "size#id": 61,
+    "size#label": "15 Mens",
+    "size#value": "15 Mens"
+  }
+]

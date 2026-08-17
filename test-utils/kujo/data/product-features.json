@@ -1,0 +1,90 @@
+[
+  {
+    "product_feature#id": 54,
+    "product_feature#product_id": 11,
+    "product_feature#feature": "Dynamic TurfGrip sole with aggressive 6mm lugs for responsive traction.",
+    "product_feature#position": 1,
+    "product_feature#created_date": "2026-02-10T00:23:07.520Z",
+    "product_feature#updated_date": "2026-02-10T00:23:07.520Z"
+  },
+  {
+    "product_feature#id": 55,
+    "product_feature#product_id": 11,
+    "product_feature#feature": "Natural Flex bi-directional flex groove system with mirrored Flex Window fabric on upper for enhanced agility and movement.",
+    "product_feature#position": 2,
+    "product_feature#created_date": "2026-02-10T00:23:07.520Z",
+    "product_feature#updated_date": "2026-02-10T00:23:07.520Z"
+  },
+  {
+    "product_feature#id": 56,
+    "product_feature#product_id": 11,
+    "product_feature#feature": "True Form compressed EVA midsole with molded cushioning for all day comfort.",
+    "product_feature#position": 3,
+    "product_feature#created_date": "2026-02-10T00:23:07.520Z",
+    "product_feature#updated_date": "2026-02-10T00:23:07.520Z"
+  },
+  {
+    "product_feature#id": 57,
+    "product_feature#product_id": 11,
+    "product_feature#feature": "True Shape construction contoured for natural alignment with asymmetric toe boxes for true fit.",
+    "product_feature#position": 4,
+    "product_feature#created_date": "2026-02-10T00:23:07.520Z",
+    "product_feature#updated_date": "2026-02-10T00:23:07.520Z"
+  },
+  {
+    "product_feature#id": 58,
+    "product_feature#product_id": 11,
+    "product_feature#feature": "Aero Strength anti-fatigue technology utilizing durable Transparent Sonic Welding for lightweight support and stability.",
+    "product_feature#position": 5,
+    "product_feature#created_date": "2026-02-10T00:23:07.520Z",
+    "product_feature#updated_date": "2026-02-10T00:23:07.520Z"
+  },
+  {
+    "product_feature#id": 59,
+    "product_feature#product_id": 11,
+    "product_feature#feature": "Gusseted Tongue keeps debris out and socks clean.",
+    "product_feature#position": 6,
+    "product_feature#created_date": "2026-02-10T00:23:07.520Z",
+    "product_feature#updated_date": "2026-02-10T00:23:07.520Z"
+  },
+  {
+    "product_feature#id": 60,
+    "product_feature#product_id": 11,
+    "product_feature#feature": "Smart Fit Design cradles foot for stability and comfort during all day wear.",
+    "product_feature#position": 7,
+    "product_feature#created_date": "2026-02-10T00:23:07.520Z",
+    "product_feature#updated_date": "2026-02-10T00:23:07.520Z"
+  },
+  {
+    "product_feature#id": 61,
+    "product_feature#product_id": 11,
+    "product_feature#feature": "Waterproof fabric DewGuard protects the toecap and lower from water while providing durable lightweight support.",
+    "product_feature#position": 8,
+    "product_feature#created_date": "2026-02-10T00:23:07.520Z",
+    "product_feature#updated_date": "2026-02-10T00:23:07.520Z"
+  },
+  {
+    "product_feature#id": 62,
+    "product_feature#product_id": 11,
+    "product_feature#feature": "Air Mesh upper provides flexibility, breathability, and lightweight comfort.",
+    "product_feature#position": 9,
+    "product_feature#created_date": "2026-02-10T00:23:07.520Z",
+    "product_feature#updated_date": "2026-02-10T00:23:07.520Z"
+  },
+  {
+    "product_feature#id": 63,
+    "product_feature#product_id": 11,
+    "product_feature#feature": "Antimicrobial Wicking Liner provides breathability for fresh and cool wear.",
+    "product_feature#position": 10,
+    "product_feature#created_date": "2026-02-10T00:23:07.520Z",
+    "product_feature#updated_date": "2026-02-10T00:23:07.520Z"
+  },
+  {
+    "product_feature#id": 127,
+    "product_feature#product_id": 11,
+    "product_feature#feature": "Craig's new feature",
+    "product_feature#position": 11,
+    "product_feature#created_date": "2026-02-10T00:34:39.256Z",
+    "product_feature#updated_date": "2026-02-10T00:34:39.256Z"
+  }
+]

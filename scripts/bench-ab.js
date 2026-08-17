@@ -25,6 +25,8 @@ const eight = load('dist/test-utils/eight/results.json');
 const six = load('dist/test-utils/six/results.json');
 const three = load('dist/test-utils/three/results');
 const thirteen = load('dist/test-utils/thirteen/results.json');
+const kujo = load('dist/test-utils/kujo/entities').entities;
+const kujoRows = load('dist/test-utils/kujo/rows');
 
 const createRng = (seed) => {
   let state = seed >>> 0 || 1;
@@ -305,6 +307,49 @@ const SCENARIOS = {
     entities: orderMore,
     rows: eleven,
     rounds: 800
+  }),
+  /* Captured kujo workloads (test-utils/kujo/README.md). */
+  'kujo-product-page': () => ({
+    entities: kujo,
+    rows: kujoRows.productPageRetail(),
+    rounds: 8
+  }),
+  'kujo-wholesale': () => ({
+    entities: kujo,
+    rows: kujoRows.productPageWholesale(),
+    rounds: 8
+  }),
+  'kujo-account-orders': () => ({
+    entities: kujo,
+    rows: build({
+      baseRows: kujoRows.accountOrders(),
+      multiplier: 40,
+      distributeRoots: true
+    }),
+    rounds: 8
+  }),
+  // 9 rows x 183 columns reducing to one root: per-call overhead at the
+  // widest shape kujo issues (consumed via orm.one in the application).
+  'kujo-parcel-one': () => ({
+    entities: kujo,
+    rows: kujoRows.parcelTracking(),
+    rounds: 3000
+  }),
+  // A whole page render: the giant query plus its seven small side queries
+  // rotating through one core, exactly as the server issues them.
+  'kujo-page': () => ({
+    entities: kujo,
+    rowSets: [
+      kujoRows.productPageRetail(),
+      kujoRows.product(),
+      kujoRows.sizes(),
+      kujoRows.colors(),
+      kujoRows.instagrams(),
+      kujoRows.productNotes(),
+      kujoRows.productFeatures(),
+      kujoRows.productSpecifications()
+    ],
+    rounds: 6
   }),
   /* Real applications issue many different SELECTs against one ORM instance,
    * so the row processor call site is megamorphic rather than monomorphic.

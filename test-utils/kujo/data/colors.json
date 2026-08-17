@@ -1,0 +1,51 @@
+[
+  {
+    "color#id": 1,
+    "color#label": "Grey + Green",
+    "color#value": "grey_green",
+    "color#position": 1,
+    "color#image_url": "https://cloud.kujo.com/coloroptiongreygreen-09865c1e11.jpg"
+  },
+  {
+    "color#id": 14,
+    "color#label": "Black + Scag Cat's Eye Gold",
+    "color#value": "black_scag",
+    "color#position": 2,
+    "color#image_url": null
+  },
+  {
+    "color#id": 13,
+    "color#label": "Desert Sand",
+    "color#value": "desert_sand",
+    "color#position": 3,
+    "color#image_url": "https://cloud.kujo.com/desertsandcolorswatch-fc41a36efd.jpg"
+  },
+  {
+    "color#id": 4,
+    "color#label": "Black Out",
+    "color#value": "black_black",
+    "color#position": 4,
+    "color#image_url": "https://cloud.kujo.com/coloroptionblackblack-c5489256cc.jpg"
+  },
+  {
+    "color#id": 3,
+    "color#label": "Black + Green",
+    "color#value": "black_green",
+    "color#position": 5,
+    "color#image_url": "https://cloud.kujo.com/coloroptionblackgreen-f745d5cdf2.jpg"
+  },
+  {
+    "color#id": 2,
+    "color#label": "Grey + Purple",
+    "color#value": "grey_purple",
+    "color#position": 5,
+    "color#image_url": "https://cloud.kujo.com/coloroptiongreypurple-54049a2be5.jpg"
+  },
+  {
+    "color#id": 27,
+    "color#label": "Stripe Life",
+    "color#value": "stripe_life",
+    "color#position": 6,
+    "color#image_url": null
+  }
+]

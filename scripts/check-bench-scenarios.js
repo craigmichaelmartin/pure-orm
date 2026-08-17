@@ -33,6 +33,29 @@ requirePattern(
   'Missing shuffled-row stress coverage (shuffleRows: true).'
 );
 
+// Guardrail: keep the captured kujo workloads (test-utils/kujo/README.md) -
+// the realistic shapes optimization work is judged against.
+requirePattern(
+  /label:\s*'kujo\/product-page'/,
+  "Missing fixture scenario 'kujo/product-page'."
+);
+requirePattern(
+  /label:\s*'kujo\/account-orders'/,
+  "Missing fixture scenario 'kujo/account-orders'."
+);
+requirePattern(
+  /label:\s*'kujo\/parcel-tracking'/,
+  "Missing fixture scenario 'kujo/parcel-tracking'."
+);
+requirePattern(
+  /label:\s*'page\/kujo-product-render'/,
+  "Missing page scenario 'page/kujo-product-render'."
+);
+requirePattern(
+  /label:\s*'orm\/getSqlInsertParts-wide46'/,
+  'Missing wide-table (46-column) ORM helper scenario.'
+);
+
 if (failures.length > 0) {
   console.error('\nBenchmark scenario guard failed:');
   for (const failure of failures) {

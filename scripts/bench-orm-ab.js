@@ -11,6 +11,8 @@ const dirs = [
 const load = (p) => require(path.resolve(__dirname, '..', p));
 const orderEntities = load('dist/test-utils/order/entities').entities;
 const { Order } = load('dist/test-utils/order/models/order');
+const kujoEntities = load('dist/test-utils/kujo/entities').entities;
+const { Order: KujoOrder } = load('dist/test-utils/kujo/orders');
 
 const fakeDb = {
   $config: { pgp: true },
@@ -50,11 +52,55 @@ const models = Array.from({ length: 32 }, (_, i) => {
   });
 });
 
+/* kujo's order entity is 46 columns wide - past the bit-mask limit - so these
+ * run the wide-table shape-key path the 24-column models above never touch.
+ */
+const wideModels = Array.from({ length: 32 }, (_, i) => {
+  const ts = 1700000000000 + i * 86400000;
+  return new KujoOrder({
+    id: i + 1,
+    customerId: 5000 + (i % 9),
+    financialStatusId: (i % 4) + 1,
+    shippingAddressId: 9000 + i,
+    billingAddressId: i % 2 === 0 ? 9000 + i : 9500 + i,
+    shippingFirstName: `First${i % 5}`,
+    shippingLastName: `Last${i % 5}`,
+    shopifyId: `${4000000000 + i}`,
+    email: `wide${i}@example.com`,
+    createdDate: new Date(ts),
+    updatedDate: new Date(ts + 2000),
+    subtotalPrice: `${80 + i}`,
+    totalPrice: `${85 + i}`,
+    totalTax: `${i % 7}`,
+    orderStatusUrl: `https://checkout.example.com/orders/${i}/status`,
+    utmSourceId: (i % 4) + 1,
+    cancelled: i % 11 === 0
+  });
+});
+
 const CASES = [
   ['getSqlInsertParts', (o, i) => o.getSqlInsertParts(models[i & 31])],
   ['getSqlUpdateParts', (o, i) => o.getSqlUpdateParts(models[i & 31], 'id')],
   ['getMatchingParts', (o, i) => o.getMatchingParts(models[i & 31])],
-  ['getMatchingPartsObject', (o, i) => o.getMatchingPartsObject(models[i & 31])]
+  [
+    'getMatchingPartsObject',
+    (o, i) => o.getMatchingPartsObject(models[i & 31])
+  ],
+  [
+    'getSqlInsertParts-wide46',
+    (o, i) => o.getSqlInsertParts(wideModels[i & 31]),
+    'kujo'
+  ],
+  [
+    'getSqlUpdateParts-wide46',
+    (o, i) => o.getSqlUpdateParts(wideModels[i & 31], 'id'),
+    'kujo'
+  ],
+  [
+    'getMatchingParts-wide46',
+    (o, i) => o.getMatchingParts(wideModels[i & 31]),
+    'kujo'
+  ]
 ];
 
 const ITERS = 400000;
@@ -79,12 +125,19 @@ const orms = dirs.map((d) =>
     db: fakeDb
   })
 );
+const kujoOrms = dirs.map((d) =>
+  require(path.join(d, 'orm.js')).create({
+    entities: kujoEntities,
+    db: fakeDb
+  })
+);
 
 console.log(`A = ${dirs[0]}\nB = ${dirs[1]}\n`);
 let logSum = 0;
-for (const [label, fn] of CASES) {
-  const a = measure(orms[0], fn);
-  const b = measure(orms[1], fn);
+for (const [label, fn, which] of CASES) {
+  const pair = which === 'kujo' ? kujoOrms : orms;
+  const a = measure(pair[0], fn);
+  const b = measure(pair[1], fn);
   logSum += Math.log(a / b);
   console.log(
     `${label.padEnd(24)} A=${a.toFixed(1).padStart(7)} ns/op  B=${b
