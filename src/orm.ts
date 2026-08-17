@@ -90,9 +90,9 @@ export const create = ({
     updateClausePrefixes: Array<string>;
     wherePositionalPrefixes: Array<string>;
     whereNamedPrefixes: Array<string>;
-    collectDefined: (model: IModel, values: any) => number;
-    collectPresent: (model: IModel, values: any) => number;
-    collectPresentInto: (model: IModel, values: any) => number;
+    collectDefined: (model: IModel, values: any) => number | string;
+    collectPresent: (model: IModel, values: any) => number | string;
+    collectPresentInto: (model: IModel, values: any) => number | string;
     insertCache: Map<
       number | string,
       { columns: string; valuesVar: Array<string> }
@@ -189,6 +189,86 @@ export const create = ({
     };
   };
 
+  /* Wide tables (past the bit-mask limit) pack the shape into a short string
+   * key, WIDE_CHUNK_BITS columns per character. The compiled form is the same
+   * straight-line named-read scan the masked collectors get - only the
+   * accumulator differs, so a 46-column table pays the same per-column cost
+   * as a 20-column one instead of a megamorphic dynamic-keyed loop.
+   */
+  const makeWideCollector = (
+    propertyNames: Array<string>,
+    test: string,
+    store: string
+  ): ((model: IModel, values: any) => string) | void => {
+    if (!CAN_COMPILE) {
+      return void 0;
+    }
+    try {
+      let source = "'use strict';var k='',c=0,n=1,v;";
+      for (let i = 0; i < propertyNames.length; i++) {
+        source +=
+          'v=m' +
+          propertyAccessSource(propertyNames[i]) +
+          ';if(v' +
+          test +
+          '){c|=' +
+          (1 << i % WIDE_CHUNK_BITS) +
+          ';' +
+          store +
+          '}';
+        if (
+          i % WIDE_CHUNK_BITS === WIDE_CHUNK_BITS - 1 ||
+          i === propertyNames.length - 1
+        ) {
+          source += 'k+=String.fromCharCode(c);c=0;';
+        }
+      }
+      // eslint-disable-next-line no-new-func
+      return new Function('m', 'values', source + 'return k;') as (
+        model: IModel,
+        values: any
+      ) => string;
+    } catch (e) {
+      return void 0;
+    }
+  };
+
+  const makeInterpretedWideCollector = (
+    propertyNames: Array<string>,
+    skipNull: boolean,
+    intoObject: boolean
+  ): ((model: IModel, values: any) => string) => {
+    const count = propertyNames.length;
+    return (model: IModel, values: any): string => {
+      let shapeKey = '';
+      let chunk = 0;
+      let bit = 0;
+      let n = 1;
+      for (let i = 0; i < count; i++) {
+        const value = model[propertyNames[i] as keyof typeof model];
+        if (skipNull ? value != null : value !== void 0) {
+          chunk |= 1 << bit;
+          if (intoObject) {
+            values[n] = value;
+            n++;
+          } else {
+            values.push(value);
+          }
+        }
+        bit++;
+        if (bit === WIDE_CHUNK_BITS) {
+          shapeKey += String.fromCharCode(chunk);
+          chunk = 0;
+          bit = 0;
+        }
+      }
+      if (bit > 0) {
+        shapeKey += String.fromCharCode(chunk);
+      }
+      return shapeKey;
+    };
+  };
+
   const helperPlanByConstructor = new Map<any, IOrmHelperPlan>();
   const getHelperPlan = (model: IModel): IOrmHelperPlan => {
     const constructor = model.constructor;
@@ -208,7 +288,7 @@ export const create = ({
         whereNamedPrefixes[i] = `"${entity.tableName}"."${column}" = $(`;
       }
       // Wider tables use a packed string shape key, which the bit-mask
-      // collectors cannot express; those keep the generic scan.
+      // collectors cannot express; those get string-keyed collectors instead.
       const canMask = columnCount <= MASK_COLUMN_LIMIT;
       const propertyNames = entity.propertyNames;
       plan = {
@@ -222,15 +302,21 @@ export const create = ({
         collectDefined: canMask
           ? makeCollector(propertyNames, '!==undefined', 'values.push(v);') ||
             makeInterpretedCollector(propertyNames, false, false)
-          : (null as any),
+          : makeWideCollector(
+              propertyNames,
+              '!==undefined',
+              'values.push(v);'
+            ) || makeInterpretedWideCollector(propertyNames, false, false),
         collectPresent: canMask
           ? makeCollector(propertyNames, '!=null', 'values.push(v);') ||
             makeInterpretedCollector(propertyNames, true, false)
-          : (null as any),
+          : makeWideCollector(propertyNames, '!=null', 'values.push(v);') ||
+            makeInterpretedWideCollector(propertyNames, true, false),
         collectPresentInto: canMask
           ? makeCollector(propertyNames, '!=null', 'values[n++]=v;') ||
             makeInterpretedCollector(propertyNames, true, true)
-          : (null as any),
+          : makeWideCollector(propertyNames, '!=null', 'values[n++]=v;') ||
+            makeInterpretedWideCollector(propertyNames, true, true),
         insertCache: new Map(),
         updateCache: new Map(),
         matchingCache: new Map(),
@@ -253,36 +339,6 @@ export const create = ({
     return value;
   };
 
-  /* Wide-table fallback: pack the shape bits into a short string key. */
-  const collectWide = (
-    model: IModel,
-    propertyNames: Array<string>,
-    columnCount: number,
-    values: Array<any>,
-    skipNull: boolean
-  ): string => {
-    let shapeKey = '';
-    let chunk = 0;
-    let bit = 0;
-    for (let i = 0; i < columnCount; i++) {
-      const val = model[propertyNames[i] as keyof typeof model];
-      if (skipNull ? val != null : val !== void 0) {
-        chunk |= 1 << bit;
-        values.push(val);
-      }
-      bit++;
-      if (bit === WIDE_CHUNK_BITS) {
-        shapeKey += String.fromCharCode(chunk);
-        chunk = 0;
-        bit = 0;
-      }
-    }
-    if (bit > 0) {
-      shapeKey += String.fromCharCode(chunk);
-    }
-    return shapeKey;
-  };
-
   /* On a cache miss the clause builders decide which columns are in the shape
    * from the shape key itself rather than reading the model a second time: a
    * property getter is read exactly once per call, and the clause can never
@@ -299,11 +355,9 @@ export const create = ({
     model: IModel
   ): { columns: string; values: Array<string>; valuesVar: Array<string> } => {
     const helperPlan = getHelperPlan(model);
-    const { propertyNames, columnCount } = helperPlan;
+    const { columnCount } = helperPlan;
     const values: Array<any> = [];
-    const shapeKey: number | string = helperPlan.collectDefined
-      ? helperPlan.collectDefined(model, values)
-      : collectWide(model, propertyNames, columnCount, values, false);
+    const shapeKey: number | string = helperPlan.collectDefined(model, values);
 
     let cached = helperPlan.insertCache.get(shapeKey);
     if (cached === void 0) {
@@ -337,11 +391,9 @@ export const create = ({
     on = 'id'
   ): { clause: string; idVar: string; values: Array<string> } => {
     const helperPlan = getHelperPlan(model);
-    const { propertyNames, columnCount } = helperPlan;
+    const { columnCount } = helperPlan;
     const values: Array<any> = [];
-    const shapeKey: number | string = helperPlan.collectDefined
-      ? helperPlan.collectDefined(model, values)
-      : collectWide(model, propertyNames, columnCount, values, false);
+    const shapeKey: number | string = helperPlan.collectDefined(model, values);
 
     let cached = helperPlan.updateCache.get(shapeKey);
     if (cached === void 0) {
@@ -369,11 +421,9 @@ export const create = ({
     model: IModel
   ): { whereClause: string; values: Array<string> } => {
     const helperPlan = getHelperPlan(model);
-    const { propertyNames, columnCount } = helperPlan;
+    const { columnCount } = helperPlan;
     const values: Array<any> = [];
-    const shapeKey: number | string = helperPlan.collectPresent
-      ? helperPlan.collectPresent(model, values)
-      : collectWide(model, propertyNames, columnCount, values, true);
+    const shapeKey: number | string = helperPlan.collectPresent(model, values);
 
     let whereClause = helperPlan.matchingCache.get(shapeKey);
     if (whereClause === void 0) {
@@ -399,24 +449,12 @@ export const create = ({
     model: IModel
   ): { whereClause: string; values: Array<string> } => {
     const helperPlan = getHelperPlan(model);
-    const { propertyNames, columnCount } = helperPlan;
+    const { columnCount } = helperPlan;
     const values: any = {};
-    let shapeKey: number | string;
-    if (helperPlan.collectPresentInto) {
-      shapeKey = helperPlan.collectPresentInto(model, values);
-    } else {
-      const wideValues: Array<any> = [];
-      shapeKey = collectWide(
-        model,
-        propertyNames,
-        columnCount,
-        wideValues,
-        true
-      );
-      for (let i = 0; i < wideValues.length; i++) {
-        values[i + 1] = wideValues[i];
-      }
-    }
+    const shapeKey: number | string = helperPlan.collectPresentInto(
+      model,
+      values
+    );
 
     let whereClause = helperPlan.matchingObjectCache.get(shapeKey);
     if (whereClause === void 0) {

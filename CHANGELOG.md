@@ -45,6 +45,15 @@ v4.1.5 - property order, descriptor attributes, prototypes, cycle topology,
 JSON serialization, and error behavior - across a differential suite of
 fixtures and stress shapes, on both the compiled and interpreted paths.
 
+Wide tables (past the 30-column bit-mask limit) now compile their SQL-helper
+shape scan too: per model class, the collector becomes the same
+straight-line named-read sequence the masked collectors get, accumulating
+the packed string shape key inline instead of running a shared interpreted
+loop whose per-column keyed reads are megamorphic across model classes.
+`getSqlInsertParts`, `getSqlUpdateParts`, and `getMatchingParts` on a
+46-column entity measure 4.5-5.2x faster; helper outputs are byte-identical
+(`diff-orm`, 4397 comparisons) including property-read order and counts.
+
 ### Behavior notes
 
 - Collection constructors now receive their first member at construction: a
