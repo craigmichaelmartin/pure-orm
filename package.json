@@ -25,7 +25,8 @@
     "perf:ref": "node scripts/build-perf-ref.js",
     "perf:ab": "npm run build && node scripts/bench-ab-run.js",
     "perf:orm": "npm run build && node --expose-gc scripts/bench-orm-ab.js .perf-ref/dist-head ./dist/src",
-    "test:diff": "npm run build && node scripts/diff-core.js .perf-ref/core-head.js ./dist/src/core && node scripts/diff-core.js ./dist/src/core interpreted:./dist/src/core && node scripts/diff-orm.js .perf-ref/dist-head ./dist/src"
+    "test:diff": "npm run build && node scripts/diff-core.js .perf-ref/core-head.js ./dist/src/core && node scripts/diff-core.js ./dist/src/core interpreted:./dist/src/core && node scripts/diff-core.js --arrays ./dist/src/core ./dist/src/core && node scripts/diff-core.js --arrays ./dist/src/core interpreted:./dist/src/core && node scripts/diff-orm.js .perf-ref/dist-head ./dist/src",
+    "bench:pipeline": "npm run build && node scripts/bench-pipeline.js"
   },
   "dependencies": {
     "@babel/core": "^7.17.9",

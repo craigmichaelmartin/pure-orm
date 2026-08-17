@@ -6,6 +6,10 @@ export {
   IModel,
   IModelClass,
   ICollection,
-  IColumns
+  IColumns,
+  IParseKind,
+  IArrayFieldParser,
+  IArrayField,
+  INamedField
 } from './core';
 export { create, ICreateOptions, IPureORM } from './orm';

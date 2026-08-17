@@ -57,6 +57,31 @@ export interface IEntityInternal<T extends IModel> {
 }
 export type IEntitiesInternal<T extends IModel> = Array<IEntityInternal<T>>;
 
+/* Positional result sets. `createFromDatabaseArrays` consumes rows as arrays
+ * of cell values in field order - the shape a driver's array mode hands back
+ * (node-postgres `rowMode: 'array'`) - so no per-row object is ever built.
+ * `fields` names each cell position, as plain strings or driver field
+ * descriptors carrying a `name`.
+ *
+ * `parseKinds` optionally moves the driver's per-cell type parsing into the
+ * row processor itself, where it only runs for cells of a model actually
+ * being created. A joined result set repeats parent cells on every child
+ * row; parsing a cell whose model already exists is pure waste, and on wide
+ * duplication-heavy joins that waste is most of the query's JS cost. Each
+ * entry describes one field position: 0 leaves the cell untouched, 1 parses
+ * a number, 2 a timestamp (`new Date`), 3 a postgres text-protocol boolean
+ * (`'t'`), 4 JSON, and a function is called with the cell's text. SQL NULL
+ * (and a missing cell) passes through unparsed. With `parseKinds` the rows
+ * are expected to carry `string | null` cells, exactly as a postgres
+ * text-protocol DataRow arrives.
+ */
+export type IParseKind = 0 | 1 | 2 | 3 | 4;
+export type IArrayFieldParser = IParseKind | ((text: string) => any);
+export interface INamedField {
+  name: string;
+}
+export type IArrayField = string | INamedField;
+
 export interface ICreateCoreOptions {
   entities: IEntities<IModel>;
 }
@@ -75,6 +100,11 @@ export interface ICore {
    */
 
   createFromDatabase: <T extends ICollection<IModel>>(rows: any) => T;
+  createFromDatabaseArrays: <T extends ICollection<IModel>>(
+    rows: Array<Array<any>>,
+    fields: Array<IArrayField>,
+    parseKinds?: Array<IArrayFieldParser> | null
+  ) => T;
   createAnyFromDatabase: <T extends ICollection<IModel>>(
     rows: any,
     rootKey: string | IModelClass
@@ -214,6 +244,88 @@ let compileBudget = 2048;
 const canCompileNow = (): boolean => CAN_COMPILE && compileBudget > 0;
 
 const literal = (value: string): string => JSON.stringify(value);
+
+/* Array-mode compilation context. While a positional plan is being built,
+ * `rowReadSource` swaps every generated row read from `row["table#column"]`
+ * to `row[<index>]`, optionally wrapped in that field's inline parse
+ * expression - which is what confines a driver's per-cell type parsing to
+ * the cells that actually get kept. The context lives for exactly one
+ * (synchronous) plan build; `t` is a scratch local every generated reader
+ * scope declares. Custom parser functions land in `parserTable`, which the
+ * generated processor receives as `PT`.
+ */
+interface IArrayModeContext {
+  fieldIndex: Map<string, number>;
+  kinds: Array<IArrayFieldParser> | null;
+  parserTable: Array<(text: string) => any>;
+}
+let arrayMode: IArrayModeContext | null = null;
+const EMPTY_PARSER_TABLE: Array<(text: string) => any> = [];
+
+const rowReadSource = (rowKey: string): string => {
+  if (arrayMode === null) {
+    return 'row[' + literal(rowKey) + ']';
+  }
+  const index = arrayMode.fieldIndex.get(rowKey);
+  if (index === void 0) {
+    /* Column plans always come from the fields list, but primary-key row
+     * keys are derived from the entity - a result set that omits an
+     * entity's pk column reads `undefined` for it, exactly as object mode
+     * reads a missing property.
+     */
+    return 'undefined';
+  }
+  const raw = 'row[' + index + ']';
+  const kind = arrayMode.kinds === null ? 0 : arrayMode.kinds[index as number];
+  if (kind === void 0 || kind === null || kind === 0) {
+    return raw;
+  }
+  if (typeof kind === 'function') {
+    let at = arrayMode.parserTable.indexOf(kind);
+    if (at === -1) {
+      at = arrayMode.parserTable.length;
+      arrayMode.parserTable.push(kind);
+    }
+    return '((t=' + raw + ')==null?t:PT[' + at + '](t))';
+  }
+  if (kind === 1) {
+    return '((t=' + raw + ')==null?t:+t)';
+  }
+  if (kind === 2) {
+    return '((t=' + raw + ')==null?t:new Date(t))';
+  }
+  if (kind === 3) {
+    return '((t=' + raw + ')==null?t:t==="t")';
+  }
+  if (kind === 4) {
+    return '((t=' + raw + ')==null?t:JSON.parse(t))';
+  }
+  throw Error(`Unknown parse kind "${kind}"`);
+};
+
+const kindParserOf = (
+  kind: IArrayFieldParser | void | null
+): ((text: string) => any) | null => {
+  if (kind === void 0 || kind === null || kind === 0) {
+    return null;
+  }
+  if (typeof kind === 'function') {
+    return kind;
+  }
+  if (kind === 1) {
+    return Number;
+  }
+  if (kind === 2) {
+    return (text: string): any => new Date(text);
+  }
+  if (kind === 3) {
+    return (text: string): any => text === 't';
+  }
+  if (kind === 4) {
+    return (text: string): any => JSON.parse(text);
+  }
+  throw Error(`Unknown parse kind "${kind}"`);
+};
 
 /* Generated functions are strict so that model property stores behave exactly
  * as they do in the (strict) compiled module - a frozen model still throws.
@@ -393,6 +505,86 @@ const makeRootScopeKeyGetter = (
   };
 };
 
+/* The interpreted analogs for positional rows: plain closures per cell, so
+ * the array entry point still works where function construction is
+ * unavailable, exactly like the interpreted object-row path.
+ */
+const makeArrayCellReader = (
+  context: IArrayModeContext,
+  rowKey: string
+): ((row: Array<any>) => any) => {
+  const index = context.fieldIndex.get(rowKey) as number;
+  if (index === void 0) {
+    // A pk column the result set omits: read undefined, like object mode.
+    return (): any => void 0;
+  }
+  const parser = kindParserOf(
+    context.kinds === null ? 0 : context.kinds[index]
+  );
+  if (parser === null) {
+    return (row: Array<any>): any => row[index];
+  }
+  return (row: Array<any>): any => {
+    const cell = row[index];
+    return cell === void 0 || cell === null ? cell : parser(cell);
+  };
+};
+
+const makeArrayPkIdGetter = (
+  context: IArrayModeContext,
+  rowKeys: Array<string>
+): ((row: any) => string) => {
+  const readers = rowKeys.map((rowKey) => makeArrayCellReader(context, rowKey));
+  const count = readers.length;
+  return (row: any): string => {
+    let id = '';
+    for (let i = 0; i < count; i++) {
+      const part = readers[i](row);
+      if (part !== void 0 && part !== null) {
+        id += String(part);
+      }
+    }
+    return id;
+  };
+};
+
+const makeArrayRootScopeKeyGetter = (
+  context: IArrayModeContext,
+  rowKeys: Array<string>
+): ((row: any) => string) => {
+  const readers = rowKeys.map((rowKey) => makeArrayCellReader(context, rowKey));
+  const count = readers.length;
+  return (row: any): string => {
+    let rootScopeKey = '';
+    for (let i = 0; i < count; i++) {
+      if (i > 0) {
+        rootScopeKey += '@';
+      }
+      const value = readers[i](row);
+      rootScopeKey += value === void 0 || value === null ? '' : String(value);
+    }
+    return rootScopeKey;
+  };
+};
+
+const makeArrayModelBuilder = (
+  context: IArrayModeContext,
+  Model: new (props: any) => IModel,
+  columnPlans: Array<IRowColumnPlan>
+): ((row: any) => IModel) => {
+  const count = columnPlans.length;
+  const readers = columnPlans.map((columnPlan) =>
+    makeArrayCellReader(context, columnPlan.rowKey)
+  );
+  return (row: any): IModel => {
+    const props: any = {};
+    for (let i = 0; i < count; i++) {
+      props[columnPlans[i].propertyName] = readers[i](row);
+    }
+    return new Model(props);
+  };
+};
+
 // `__proto__` in an object literal mutates the prototype instead of creating
 // an own property, so those (vanishingly rare) shapes stay interpreted.
 const isCompilableShape = (columnPlans: Array<IRowColumnPlan>): boolean => {
@@ -412,9 +604,8 @@ const propsLiteral = (columnPlans: Array<IRowColumnPlan>): string => {
     }
     source +=
       literal(columnPlans[i].propertyName) +
-      ':row[' +
-      literal(columnPlans[i].rowKey) +
-      ']';
+      ':' +
+      rowReadSource(columnPlans[i].rowKey);
   }
   return source + '}';
 };
@@ -893,7 +1084,7 @@ const makeCompiledRowsProcessor = (
     prologue +=
       'function K' +
       p +
-      '(row,S,v){var o,m=new M' +
+      '(row,S,v){var o,t,m=new M' +
       p +
       '(' +
       propsLiteral(plan.columnPlans) +
@@ -904,7 +1095,7 @@ const makeCompiledRowsProcessor = (
       // R0: a root row with no primary key still yields a model, it just
       // cannot be de-duplicated or linked to, so it is never indexed.
       prologue +=
-        'function R0(row){return new M0(' +
+        'function R0(row){var t;return new M0(' +
         propsLiteral(plan.columnPlans) +
         ');}';
     }
@@ -928,7 +1119,7 @@ const makeCompiledRowsProcessor = (
    * clear it afterwards to avoid pinning the last collection built.
    */
   let declarations =
-    'var S,byKey,nb,row,sk,st,e,o,v,r,root,isNew,nw;' +
+    'var S,byKey,nb,row,sk,st,e,o,v,r,t,root,isNew,nw;' +
     'var D={value:undefined,writable:true,configurable:true,enumerable:false};' +
     'var curRaw=E,curKey="",rk=0,sm=0;';
   for (let p = 0; p < planCount; p++) {
@@ -1021,7 +1212,7 @@ const makeCompiledRowsProcessor = (
     for (let i = 0; i < partCount; i++) {
       declarations += 'var q' + i + ',n' + i + ',pr' + i + '=E,ck' + i + '=0;';
       compositeRootScope +=
-        'q' + i + '=row[' + literal(rootScopeRowKeys[i]) + '];';
+        'q' + i + '=' + rowReadSource(rootScopeRowKeys[i]) + ';';
     }
     let changed = 'q0!==pr0';
     for (let i = 1; i < partCount; i++) {
@@ -1173,9 +1364,9 @@ const makeCompiledRowsProcessor = (
     'sk=typeof v==="string"?v:String(v);}';
 
   const scopeBlock = rootIsSingleKey
-    ? 'v=row[' +
-      literal(rootScopeRowKeys[0]) +
-      '];if(v!==curRaw){isNew=false;curRaw=v;' +
+    ? 'v=' +
+      rowReadSource(rootScopeRowKeys[0]) +
+      ';if(v!==curRaw){isNew=false;curRaw=v;' +
       compositeMemoResets +
       'if(sm===0&&typeof v===rk&&v===v){sk=v;}else{' +
       slowScopeKey +
@@ -1213,9 +1404,9 @@ const makeCompiledRowsProcessor = (
        * string key always has.
        */
       body +=
-        'if((v=row[' +
-        literal(plan.primaryKeyRowKeys[0]) +
-        '])!=null&&S[' +
+        'if((v=' +
+        rowReadSource(plan.primaryKeyRowKeys[0]) +
+        ')!=null&&S[' +
         base +
         ']!==v&&v!==""){' +
         probeSource(base, rawIsExactSource(base, 'v', 'r'), create) +
@@ -1233,7 +1424,7 @@ const makeCompiledRowsProcessor = (
       for (let i = 0; i < plan.primaryKeyRowKeys.length; i++) {
         const cur = 'w' + p + '_' + i;
         const prev = 'pw' + p + '_' + i;
-        partLoads += cur + '=row[' + literal(plan.primaryKeyRowKeys[i]) + '];';
+        partLoads += cur + '=' + rowReadSource(plan.primaryKeyRowKeys[i]) + ';';
         partsChanged += (i === 0 ? '' : '||') + cur + '!==' + prev;
         partCommit += prev + '=' + cur + ';';
         buildKey +=
@@ -1308,6 +1499,7 @@ const makeCompiledRowsProcessor = (
       'OD',
       'NS',
       'E',
+      'PT',
       USE_STRICT +
         prologue +
         'return function processRows(rows,len,models){' +
@@ -1327,7 +1519,8 @@ const makeCompiledRowsProcessor = (
       migrateCompositeScopes,
       Object.defineProperty,
       newSlots,
-      EMPTY_SLOT
+      EMPTY_SLOT,
+      arrayMode === null ? EMPTY_PARSER_TABLE : arrayMode.parserTable
     ) as IRowsProcessor | void;
   } catch (e) {
     return void 0;
@@ -1812,18 +2005,38 @@ export const createCore = ({
       rootPrimaryKeyRowKeys
     );
     if (processRows === void 0) {
+      const context = arrayMode;
       for (let i = 0; i < planCount; i++) {
         const plan = plans[i];
-        plan.getPkId = makePkIdGetter(plan.primaryKeyRowKeys);
-        plan.buildModel = makeModelBuilder(plan.Model, plan.columnPlans);
+        if (context === null) {
+          plan.getPkId = makePkIdGetter(plan.primaryKeyRowKeys);
+          plan.buildModel = makeModelBuilder(plan.Model, plan.columnPlans);
+        } else {
+          plan.getPkId = makeArrayPkIdGetter(context, plan.primaryKeyRowKeys);
+          plan.buildModel = makeArrayModelBuilder(
+            context,
+            plan.Model,
+            plan.columnPlans
+          );
+        }
+      }
+      let getRootScopeKey;
+      if (rootScopeKeyIsRootPkId) {
+        getRootScopeKey =
+          context === null
+            ? makePkIdGetter(rootPrimaryKeyRowKeys)
+            : makeArrayPkIdGetter(context, rootPrimaryKeyRowKeys);
+      } else {
+        getRootScopeKey =
+          context === null
+            ? makeRootScopeKeyGetter(rootPrimaryKeyRowKeys)
+            : makeArrayRootScopeKeyGetter(context, rootPrimaryKeyRowKeys);
       }
       processRows = makeInterpretedRowsProcessor(
         plans,
         planCount,
         rootScopeKeyIsRootPkId,
-        rootScopeKeyIsRootPkId
-          ? makePkIdGetter(rootPrimaryKeyRowKeys)
-          : makeRootScopeKeyGetter(rootPrimaryKeyRowKeys)
+        getRootScopeKey
       );
     }
 
@@ -1939,6 +2152,135 @@ export const createCore = ({
     return <T>new queryPlan.RootCollection({ models });
   };
 
+  /* Positional plans are cached twice over: by the identity of the `fields`
+   * array (a caller that keeps one fields list per query site pays a WeakMap
+   * probe and nothing else), and by content underneath, so a driver that
+   * builds a fresh field-descriptor array per result still compiles each
+   * (shape, parsing) pair exactly once. Distinct parse kinds over the same
+   * fields are distinct plans - the parsing is compiled into the processor.
+   */
+  interface IArrayPlanEntry {
+    keys: Array<string>;
+    kinds: Array<IArrayFieldParser> | null;
+    plan: IQueryPlan;
+  }
+  const arrayPlansByFields = new WeakMap<object, Array<IArrayPlanEntry>>();
+  const arrayPlans: Array<IArrayPlanEntry> = [];
+
+  const kindsMatch = (
+    a: Array<IArrayFieldParser> | null,
+    b: Array<IArrayFieldParser> | null
+  ): boolean => {
+    if (a === b) {
+      return true;
+    }
+    if (a === null || b === null || a.length !== b.length) {
+      return false;
+    }
+    for (let i = 0; i < a.length; i++) {
+      const ka = a[i] === void 0 || a[i] === null ? 0 : a[i];
+      const kb = b[i] === void 0 || b[i] === null ? 0 : b[i];
+      if (ka !== kb) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const getArrayQueryPlan = (
+    fields: Array<IArrayField>,
+    kinds: Array<IArrayFieldParser> | null
+  ): IQueryPlan => {
+    let byIdentity = arrayPlansByFields.get(fields);
+    if (byIdentity !== void 0) {
+      for (let i = 0; i < byIdentity.length; i++) {
+        if (kindsMatch(byIdentity[i].kinds, kinds)) {
+          return byIdentity[i].plan;
+        }
+      }
+    }
+    const keys = new Array<string>(fields.length);
+    for (let i = 0; i < fields.length; i++) {
+      const field = fields[i];
+      keys[i] = typeof field === 'string' ? field : field.name;
+    }
+    let entry: IArrayPlanEntry | void = void 0;
+    for (let i = 0; i < arrayPlans.length; i++) {
+      const candidate = arrayPlans[i];
+      const candidateKeys = candidate.keys;
+      if (
+        candidateKeys.length !== keys.length ||
+        candidateKeys[0] !== keys[0] ||
+        !kindsMatch(candidate.kinds, kinds)
+      ) {
+        continue;
+      }
+      let matched = true;
+      for (let k = 1; k < keys.length; k++) {
+        if (candidateKeys[k] !== keys[k]) {
+          matched = false;
+          break;
+        }
+      }
+      if (matched) {
+        entry = candidate;
+        break;
+      }
+    }
+    if (entry === void 0) {
+      const fieldIndex = new Map<string, number>();
+      for (let i = 0; i < keys.length; i++) {
+        fieldIndex.set(keys[i], i);
+      }
+      arrayMode = {
+        fieldIndex,
+        // The caller may mutate its arrays later; the plan is compiled from
+        // this moment's contents, so the cache must remember exactly these.
+        kinds: kinds === null ? null : kinds.slice(),
+        parserTable: []
+      };
+      let plan;
+      try {
+        plan = buildQueryPlan(keys);
+      } finally {
+        arrayMode = null;
+      }
+      entry = { keys, kinds: kinds === null ? null : kinds.slice(), plan };
+      arrayPlans.unshift(entry);
+      if (arrayPlans.length > MAX_QUERY_PLAN_CACHE) {
+        arrayPlans.pop();
+      }
+    }
+    if (byIdentity === void 0) {
+      byIdentity = [];
+      arrayPlansByFields.set(fields, byIdentity);
+    }
+    byIdentity.push(entry);
+    return entry.plan;
+  };
+
+  const createFromDatabaseArrays = <T extends ICollection<IModel>>(
+    rows: Array<Array<any>>,
+    fields: Array<IArrayField>,
+    parseKinds?: Array<IArrayFieldParser> | null
+  ): T => {
+    if (!Array.isArray(fields) || fields.length === 0) {
+      throw Error('createFromDatabaseArrays requires a non-empty fields list');
+    }
+    if (!Array.isArray(rows)) {
+      throw Error(
+        'createFromDatabaseArrays requires rows as an array of arrays'
+      );
+    }
+    const queryPlan = getArrayQueryPlan(
+      fields,
+      parseKinds === void 0 || parseKinds === null ? null : parseKinds
+    );
+    const models: Array<IModel> = [];
+    queryPlan.processRows(rows, rows.length, models);
+    return <T>new queryPlan.RootCollection({ models });
+  };
+
   const createAnyFromDatabase = <T extends ICollection<IModel>>(
     rows: any,
     rootKey: string | IModelClass
@@ -1988,6 +2330,7 @@ export const createCore = ({
     getEntityByModel,
     getEntityByTableName,
     createFromDatabase,
+    createFromDatabaseArrays,
     createAnyFromDatabase,
     createOneFromDatabase,
     createOneOrNoneFromDatabase,

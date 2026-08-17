@@ -25,7 +25,17 @@
 const path = require('path');
 
 const LOGICAL = process.argv.includes('--logical');
-const coreArgs = process.argv.slice(2).filter((a) => a !== '--logical');
+/* `--arrays` drives core B through `createFromDatabaseArrays`, feeding it
+ * each case's rows re-shaped to positional cells (fields from the first
+ * row's keys, in order), and compares the resulting graph against core A's
+ * object-mode graph at full descriptor depth. Cases where object mode itself
+ * errors are skipped - the array entry point's error surface is intentionally
+ * its own (an explicit fields list makes empty results valid, for example).
+ */
+const ARRAYS = process.argv.includes('--arrays');
+const coreArgs = process.argv
+  .slice(2)
+  .filter((a) => a !== '--logical' && a !== '--arrays');
 
 const COLLECTION_SYMBOL_PREFIX = 'pure-orm:collection:';
 const collectionNameOfSymbol = (sym) => {
@@ -855,6 +865,18 @@ const methods = [
   'createManyFromDatabase'
 ];
 
+const invokeArrays = (core, entities, rows) => {
+  try {
+    const c = core.createCore({ entities });
+    const list = Array.isArray(rows) ? rows : [rows];
+    const fields = Object.keys(list[0]);
+    const cells = list.map((r) => fields.map((f) => r[f]));
+    return { ok: true, value: c.createFromDatabaseArrays(cells, fields) };
+  } catch (e) {
+    return { ok: false, error: `${e.constructor.name}: ${e.message}` };
+  }
+};
+
 const invoke = (core, method, entities, rows) => {
   try {
     const c = core.createCore({ entities });
@@ -877,11 +899,20 @@ const invoke = (core, method, entities, rows) => {
 
 let failures = 0;
 let checks = 0;
+let skipped = 0;
+const methodsToRun = ARRAYS ? ['createFromDatabase'] : methods;
 for (const [label, entities, rows] of derived) {
-  for (const method of methods) {
+  for (const method of methodsToRun) {
     checks++;
     const ra = invoke(A, method, entities, rows);
-    const rb = invoke(B, method, entities, rows);
+    const rb = ARRAYS
+      ? invokeArrays(B, entities, rows)
+      : invoke(B, method, entities, rows);
+    if (ARRAYS && !ra.ok) {
+      checks--;
+      skipped++;
+      continue;
+    }
     if (ra.ok !== rb.ok) {
       failures++;
       console.log(
@@ -925,6 +956,7 @@ for (const [label, entities, rows] of derived) {
 
 console.log(
   `\n${checks - failures}/${checks} graph comparisons identical` +
-    (failures ? ` - ${failures} FAILURES` : '')
+    (failures ? ` - ${failures} FAILURES` : '') +
+    (skipped ? ` (${skipped} object-mode-error cases skipped)` : '')
 );
 process.exit(failures ? 1 : 0);
